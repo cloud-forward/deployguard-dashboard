@@ -1,12 +1,21 @@
-import axios from 'axios'
+import axios from "axios"
+import type { AxiosRequestConfig } from "axios"
 
 const AXIOS_INSTANCE = axios.create({
-    baseURL: 'https://analysis.deployguard.org',
+    baseURL: "https://analysis.deployguard.org",
     headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
     },
 })
 
-export const apiClient = <T>(config: any): Promise<T> => {
-    return AXIOS_INSTANCE(config).then(({ data }) => data)
+export const apiClient = async <T>(
+    config: AxiosRequestConfig,
+    options?: AxiosRequestConfig
+): Promise<T> => {
+    const response = await AXIOS_INSTANCE({
+        ...config,
+        ...options,
+    })
+
+    return response.data
 }
