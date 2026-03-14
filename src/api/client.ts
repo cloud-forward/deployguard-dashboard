@@ -10,11 +10,11 @@ const AXIOS_INSTANCE = axios.create({
 
 export const apiClient = async <T>(
     url: string,
-    options?: AxiosRequestConfig
+    options?: unknown
 ): Promise<T> => {
     const response = await AXIOS_INSTANCE({
         url,
-        ...options,
+        ...(options as AxiosRequestConfig),
     })
 
     return response.data
