@@ -71,6 +71,6 @@ jobs:
           docker rm -f deployguard-dashboard || true
 
           docker run -d \
-            -p 80:80 \
+            -p 3000:80 \
             --name deployguard-dashboard \
             $IMAGE
