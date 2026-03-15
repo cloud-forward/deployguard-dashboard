@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Fonts - Barlow (display numbers) */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html { font-size: 14px; }
+
+  body {
+    background-color: #0d0d0d;
+    color: #f0f0f0;
+    font-family: 'Barlow', 'JetBrains Mono', monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── 스크롤바 ── */
+  ::-webkit-scrollbar          { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track    { background: #111111; }
+  ::-webkit-scrollbar-thumb    { background: #2a2a2a; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+  /* ── 셀렉트 박스 ── */
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+}
+
+@layer components {
+  /* ── 공통 카드 ── */
+  .dg-card {
+    @apply bg-bg-card border border-border rounded-card;
+  }
+
+  /* ── 섹션 라벨 (대문자, 넓은 자간) ── */
+  .dg-label {
+    @apply text-2xs font-mono uppercase tracking-widest2 text-txt-muted;
+  }
+
+  /* ── 대형 숫자 ── */
+  .dg-value {
+    @apply text-3xl font-display font-bold text-txt-primary leading-none;
+  }
+
+  /* ── 테이블 행 ── */
+  .dg-row {
+    @apply border-b border-border-subtle last:border-0
+           transition-colors hover:bg-bg-input cursor-default;
+  }
+
+  /* ── 상태 뱃지 ── */
+  .dg-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-2xs font-mono uppercase tracking-wider;
+  }
+  .dg-badge-critical   { @apply dg-badge bg-status-critical/10   text-status-critical   border border-status-critical/20; }
+  .dg-badge-elevated   { @apply dg-badge bg-status-elevated/10   text-status-elevated   border border-status-elevated/20; }
+  .dg-badge-low        { @apply dg-badge bg-txt-muted/10         text-txt-secondary     border border-border; }
+  .dg-badge-active     { @apply dg-badge bg-status-active/10     text-status-active     border border-status-active/20; }
+
+  /* ── 버튼 ── */
+  .dg-btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-card
+           text-xs font-mono uppercase tracking-wider
+           border border-border text-txt-secondary
+           hover:border-border-strong hover:text-txt-primary
+           transition-all duration-150;
+  }
+  .dg-btn-primary {
+    @apply dg-btn border-txt-primary/30 text-txt-primary
+           hover:bg-bg-input;
+  }
+
+  /* ── 진행 바 ── */
+  .dg-progress-track {
+    @apply h-1 bg-bg-muted rounded-full overflow-hidden;
+  }
+  .dg-progress-fill {
+    @apply h-full rounded-full transition-all duration-700;
+  }
+}
+
+@layer utilities {
+  .cy-container:focus { outline: none; }
+
+  /* 폰트 패밀리 유틸 */
+  .font-display { font-family: 'Barlow Condensed', 'Barlow', monospace; }
+  .font-mono    { font-family: 'JetBrains Mono', monospace; }
+}
