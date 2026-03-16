@@ -13,6 +13,7 @@ interface ClusterModalProps {
   onSave: (cluster: ClusterForm) => void;
   cluster?: ClusterForm | null;
   isSubmitting?: boolean;
+  errorMessage?: string;
 }
 
 const ClusterModal: React.FC<ClusterModalProps> = ({
@@ -21,6 +22,7 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
   onSave,
   cluster,
   isSubmitting = false,
+  errorMessage,
 }) => {
   const [formData, setFormData] = useState<ClusterForm>({
     name: '',
@@ -75,6 +77,11 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {errorMessage && (
+                <div className="alert alert-danger" role="alert">
+                  {errorMessage}
+                </div>
+              )}
               <div className="mb-3">
                 <label className="form-label">Name</label>
                 <input
@@ -109,7 +116,7 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
                   required
                 >
                   <option value="eks">EKS</option>
-                  <option value="self-managed">Self-managed</option>
+                  <option value="self-managed">self-managed</option>
                 </select>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+    getListClustersApiV1ClustersGetQueryKey,
     useCreateClusterApiV1ClustersPost,
     useDeleteClusterApiV1ClustersIdDelete,
     useListClustersApiV1ClustersGet,
@@ -27,13 +28,27 @@ type ClusterForm = {
 const ClustersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const { data, isLoading, isError, error } = useListClustersApiV1ClustersGet();
-    const clusters = data ?? [];
-    const { mutate: createCluster, isPending: isCreating } = useCreateClusterApiV1ClustersPost();
-    const { mutate: updateCluster, isPending: isUpdating } = useUpdateClusterApiV1ClustersIdPatch();
+    const clusters = Array.isArray(data) ? data : (data?.data ?? []);
+    const {
+        mutate: createCluster,
+        isPending: isCreating,
+        error: createError,
+    } = useCreateClusterApiV1ClustersPost();
+    const {
+        mutate: updateCluster,
+        isPending: isUpdating,
+        error: updateError,
+    } = useUpdateClusterApiV1ClustersIdPatch();
     const { mutate: deleteCluster, isPending: isDeleting } =
         useDeleteClusterApiV1ClustersIdDelete();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCluster, setSelectedCluster] = useState<ClusterForm | null>(null);
+    const [createdClusterName, setCreatedClusterName] = useState<string | null>(null);
+    const [createdClusterId, setCreatedClusterId] = useState<string | null>(null);
+    const [createdApiToken, setCreatedApiToken] = useState<string | null>(null);
+    const [isInstallPanelVisible, setIsInstallPanelVisible] = useState(false);
+    const [tokenCopied, setTokenCopied] = useState(false);
+    const [commandCopied, setCommandCopied] = useState(false);
 
     const handleCreate = () => {
         setSelectedCluster(null);
@@ -51,22 +66,28 @@ const ClustersPage: React.FC = () => {
     };
 
     const handleSave = (formData: ClusterForm) => {
+        const payload = {
+            name: formData.name,
+            description: formData.description?.trim() ? formData.description : null,
+            cluster_type: formData.cluster_type,
+        };
+
         if (selectedCluster) {
+            if (!selectedCluster.id) {
+                return;
+            }
+
             updateCluster(
                 {
-                    id: selectedCluster.id ?? '',
-                    data: {
-                        name: formData.name,
-                        description: formData.description?.trim()
-                            ? formData.description
-                            : null,
-                        cluster_type: formData.cluster_type,
-                    },
+                    id: selectedCluster.id,
+                    data: payload,
                 },
                 {
                     onSuccess: () => {
                         setIsModalOpen(false);
-                        queryClient.invalidateQueries();
+                        queryClient.invalidateQueries({
+                            queryKey: getListClustersApiV1ClustersGetQueryKey(),
+                        });
                     },
                 },
             );
@@ -75,16 +96,41 @@ const ClustersPage: React.FC = () => {
 
         createCluster(
             {
-                data: {
-                    name: formData.name,
-                    description: formData.description?.trim() ? formData.description : null,
-                    cluster_type: formData.cluster_type,
-                },
+                data: payload,
             },
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    const responseData =
+                        response && typeof response === 'object' && 'data' in response
+                            ? response.data
+                            : response;
+
+                    const apiToken =
+                        responseData &&
+                        typeof responseData === 'object' &&
+                        'api_token' in responseData &&
+                        typeof responseData.api_token === 'string'
+                            ? responseData.api_token
+                            : null;
+                    const clusterId =
+                        responseData &&
+                        typeof responseData === 'object' &&
+                        'id' in responseData &&
+                        typeof responseData.id === 'string'
+                            ? responseData.id
+                            : null;
+
+                    setCreatedApiToken(apiToken);
+                    setCreatedClusterName(formData.name);
+                    setCreatedClusterId(clusterId);
+                    setIsInstallPanelVisible(Boolean(apiToken));
+                    setTokenCopied(false);
+                    setCommandCopied(false);
+                    setSelectedCluster(null);
                     setIsModalOpen(false);
-                    queryClient.invalidateQueries();
+                    queryClient.invalidateQueries({
+                        queryKey: getListClustersApiV1ClustersGetQueryKey(),
+                    });
                 },
             },
         );
@@ -102,23 +148,127 @@ const ClustersPage: React.FC = () => {
             { id: cluster.id },
             {
                 onSuccess: () => {
-                    queryClient.invalidateQueries();
+                    queryClient.invalidateQueries({
+                        queryKey: getListClustersApiV1ClustersGetQueryKey(),
+                    });
                 },
             },
         );
     };
 
+    const getErrorMessage = (err: unknown, fallback: string) => {
+        if (err && typeof err === 'object' && 'message' in err) {
+            const message = err.message;
+            if (typeof message === 'string') {
+                return message;
+            }
+        }
+
+        return err ? fallback : undefined;
+    };
+
+    const helmInstallCommand =
+        createdClusterId && createdApiToken
+            ? `helm upgrade --install deployguard-scanner deployguard/scanner --set config.clusterId="${createdClusterId}" --set config.apiToken="${createdApiToken}" --set config.serverUrl="https://analysis.deployguard.org"`
+            : '';
+    const showInstallPanel =
+        isInstallPanelVisible && Boolean(createdApiToken) && Boolean(createdClusterId);
+    const showClustersTable = !isLoading && !isError;
+
+    const copyToClipboard = async (
+        value: string,
+        onSuccess: React.Dispatch<React.SetStateAction<boolean>>,
+    ) => {
+        if (!value) {
+            return;
+        }
+        if (!navigator?.clipboard?.writeText) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(value);
+            onSuccess(true);
+            window.setTimeout(() => onSuccess(false), 1500);
+        } catch {
+            onSuccess(false);
+        }
+    };
+
     return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h2">Clusters</h1>
-          <p className="text-muted">Management of protected infrastructure clusters.</p>
-        </div>
-        <button className="btn btn-primary" onClick={handleCreate}>
-            New Cluster
-        </button>
-      </div>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 className="h2">Clusters</h1>
+                    <p className="text-muted">
+                        Management of protected infrastructure clusters.
+                    </p>
+                </div>
+                <button className="btn btn-primary" onClick={handleCreate}>
+                    Create Cluster
+                </button>
+            </div>
+            {showInstallPanel && (
+                <div className="card border-warning mb-4">
+                    <div className="card-header bg-warning-subtle d-flex justify-content-between align-items-center">
+                        <div className="fw-semibold">Scanner Installation</div>
+                        <button
+                            type="button"
+                            className="btn-close"
+                            aria-label="Close"
+                            onClick={() => setIsInstallPanelVisible(false)}
+                        />
+                    </div>
+                    <div className="card-body">
+                        <p className="mb-2">
+                            <strong>Cluster:</strong> {createdClusterName ?? '-'}
+                        </p>
+                        <p className="mb-2">
+                            <strong>Cluster ID:</strong> <code>{createdClusterId}</code>
+                        </p>
+                        <div className="mb-3">
+                            <label className="form-label fw-semibold">API Token</label>
+                            <div className="d-flex gap-2 align-items-start">
+                                <code className="d-block p-2 bg-light border rounded w-100 text-break">
+                                    {createdApiToken}
+                                </code>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    onClick={() => copyToClipboard(createdApiToken, setTokenCopied)}
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                            {tokenCopied && <div className="small text-success mt-1">Copied!</div>}
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label fw-semibold">Helm Install Command</label>
+                            <div className="d-flex gap-2 align-items-start">
+                                <code className="d-block p-2 bg-light border rounded w-100 text-break">
+                                    {helmInstallCommand}
+                                </code>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    onClick={() =>
+                                        copyToClipboard(helmInstallCommand, setCommandCopied)
+                                    }
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                            {commandCopied && (
+                                <div className="small text-success mt-1">Copied!</div>
+                            )}
+                        </div>
+                        <div className="alert alert-warning mb-0" role="alert">
+                            This API token may only be shown once. Store it securely before
+                            closing this panel.
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="card shadow-sm">
                 <div className="card-body p-0">
@@ -130,11 +280,11 @@ const ClustersPage: React.FC = () => {
                             <div className="alert alert-danger mb-0" role="alert">
                                 {error instanceof Error
                                     ? error.message
-                                    : 'Failed to load clusters.'}
+                                    : getErrorMessage(error, 'Failed to load clusters.')}
                             </div>
                         </div>
                     )}
-                    {!isLoading && !isError && (
+                    {showClustersTable && (
                         <div className="table-responsive">
                             <table className="table table-hover mb-0 align-middle">
                                 <thead className="table-light">
@@ -166,40 +316,45 @@ const ClustersPage: React.FC = () => {
                                                 ? new Date(cluster.created_at).toLocaleString()
                                                 : '-'}
                                         </td>
-                      <td className="text-end">
-                        <div className="d-inline-flex gap-2">
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() => handleEdit(cluster)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(cluster)}
-                            disabled={isDeleting}
-                          >
-                            {isDeleting ? 'Deleting...' : 'Delete'}
-                          </button>
-                        </div>
-                      </td>
+                                        <td className="text-end">
+                                            <div className="d-inline-flex gap-2">
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => handleEdit(cluster)}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => handleDelete(cluster)}
+                                                    disabled={isDeleting}
+                                                >
+                                                    {isDeleting ? 'Deleting...' : 'Delete'}
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+                </div>
             </div>
-          )}
+            <ClusterModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSave}
+                cluster={selectedCluster}
+                isSubmitting={selectedCluster ? isUpdating : isCreating}
+                errorMessage={
+                    selectedCluster
+                        ? getErrorMessage(updateError, 'Failed to update cluster.')
+                        : getErrorMessage(createError, 'Failed to create cluster.')
+                }
+            />
         </div>
-      </div>
-      <ClusterModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSave}
-        cluster={selectedCluster}
-        isSubmitting={isCreating || isUpdating}
-      />
-    </div>
-  );
+    );
 };
 
 export default ClustersPage;

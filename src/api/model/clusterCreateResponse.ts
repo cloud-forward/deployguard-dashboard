@@ -16,11 +16,19 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
  * OpenAPI spec version: 4.0.0
  */
 
-export interface AnalysisJobResponse {
-  /** 생성된 분석 작업 ID */
-  job_id: string;
-  /** 작업 상태 */
-  status: string;
-  /** 상태 메시지 */
-  message: string;
+export interface ClusterCreateResponse {
+  /** 클러스터 고유 ID */
+  id: string;
+  /** 클러스터 이름 */
+  name: string;
+  /** 클러스터 설명 */
+  description?: string | null;
+  /** 클러스터 유형 */
+  cluster_type: string;
+  /** 스캐너 인증용 API 토큰 */
+  api_token: string;
+  /** 생성 일시 */
+  created_at: string;
+  /** 최종 수정 일시 */
+  updated_at: string;
 }
