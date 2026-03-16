@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+    useCreateClusterApiV1ClustersPost,
     useDeleteClusterApiV1ClustersIdDelete,
     useListClustersApiV1ClustersGet,
+    useUpdateClusterApiV1ClustersIdPatch,
 } from '../api/generated/clusters/clusters';
+import ClusterModal from '../components/clusters/ClusterModal';
 
 type Cluster = {
     id: string;
@@ -14,12 +17,78 @@ type Cluster = {
     updated_at: string;
 };
 
+type ClusterForm = {
+    id?: string;
+    name: string;
+    description?: string | null;
+    cluster_type: 'eks' | 'self-managed';
+};
+
 const ClustersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const { data, isLoading, isError, error } = useListClustersApiV1ClustersGet();
     const clusters = data ?? [];
+    const { mutate: createCluster, isPending: isCreating } = useCreateClusterApiV1ClustersPost();
+    const { mutate: updateCluster, isPending: isUpdating } = useUpdateClusterApiV1ClustersIdPatch();
     const { mutate: deleteCluster, isPending: isDeleting } =
         useDeleteClusterApiV1ClustersIdDelete();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCluster, setSelectedCluster] = useState<ClusterForm | null>(null);
+
+    const handleCreate = () => {
+        setSelectedCluster(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (cluster: Cluster) => {
+        setSelectedCluster({
+            id: cluster.id,
+            name: cluster.name,
+            description: cluster.description ?? '',
+            cluster_type: cluster.cluster_type as ClusterForm['cluster_type'],
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (formData: ClusterForm) => {
+        if (selectedCluster) {
+            updateCluster(
+                {
+                    id: selectedCluster.id ?? '',
+                    data: {
+                        name: formData.name,
+                        description: formData.description?.trim()
+                            ? formData.description
+                            : null,
+                        cluster_type: formData.cluster_type,
+                    },
+                },
+                {
+                    onSuccess: () => {
+                        setIsModalOpen(false);
+                        queryClient.invalidateQueries();
+                    },
+                },
+            );
+            return;
+        }
+
+        createCluster(
+            {
+                data: {
+                    name: formData.name,
+                    description: formData.description?.trim() ? formData.description : null,
+                    cluster_type: formData.cluster_type,
+                },
+            },
+            {
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    queryClient.invalidateQueries();
+                },
+            },
+        );
+    };
 
     const handleDelete = (cluster: Cluster) => {
         const confirmed = window.confirm(
@@ -40,13 +109,16 @@ const ClustersPage: React.FC = () => {
     };
 
     return (
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 className="h2">Clusters</h1>
-                    <p className="text-muted">Management of protected infrastructure clusters.</p>
-                </div>
-            </div>
+          <h1 className="h2">Clusters</h1>
+          <p className="text-muted">Management of protected infrastructure clusters.</p>
+        </div>
+        <button className="btn btn-primary" onClick={handleCreate}>
+            New Cluster
+        </button>
+      </div>
 
             <div className="card shadow-sm">
                 <div className="card-body p-0">
@@ -94,25 +166,40 @@ const ClustersPage: React.FC = () => {
                                                 ? new Date(cluster.created_at).toLocaleString()
                                                 : '-'}
                                         </td>
-                                        <td className="text-end">
-                                            <button
-                                                className="btn btn-sm btn-outline-danger"
-                                                onClick={() => handleDelete(cluster)}
-                                                disabled={isDeleting}
-                                            >
-                                                {isDeleting ? 'Deleting...' : 'Delete'}
-                                            </button>
-                                        </td>
+                      <td className="text-end">
+                        <div className="d-inline-flex gap-2">
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={() => handleEdit(cluster)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleDelete(cluster)}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      </td>
                                     </tr>
                                 ))}
                                 </tbody>
                             </table>
-                        </div>
-                    )}
-                </div>
             </div>
+          )}
         </div>
-    );
+      </div>
+      <ClusterModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        cluster={selectedCluster}
+        isSubmitting={isCreating || isUpdating}
+      />
+    </div>
+  );
 };
 
 export default ClustersPage;
