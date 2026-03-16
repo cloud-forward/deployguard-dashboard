@@ -112,6 +112,13 @@ const ClustersPage: React.FC = () => {
                         typeof responseData.api_token === 'string'
                             ? responseData.api_token
                             : null;
+                    const clusterName =
+                        responseData &&
+                        typeof responseData === 'object' &&
+                        'name' in responseData &&
+                        typeof responseData.name === 'string'
+                            ? responseData.name
+                            : formData.name;
                     const clusterId =
                         responseData &&
                         typeof responseData === 'object' &&
@@ -121,9 +128,9 @@ const ClustersPage: React.FC = () => {
                             : null;
 
                     setCreatedApiToken(apiToken);
-                    setCreatedClusterName(formData.name);
+                    setCreatedClusterName(clusterName);
                     setCreatedClusterId(clusterId);
-                    setIsInstallPanelVisible(Boolean(apiToken));
+                    setIsInstallPanelVisible(true);
                     setTokenCopied(false);
                     setCommandCopied(false);
                     setSelectedCluster(null);
@@ -208,67 +215,6 @@ const ClustersPage: React.FC = () => {
                     Create Cluster
                 </button>
             </div>
-            {showInstallPanel && (
-                <div className="card border-warning mb-4">
-                    <div className="card-header bg-warning-subtle d-flex justify-content-between align-items-center">
-                        <div className="fw-semibold">Scanner Installation</div>
-                        <button
-                            type="button"
-                            className="btn-close"
-                            aria-label="Close"
-                            onClick={() => setIsInstallPanelVisible(false)}
-                        />
-                    </div>
-                    <div className="card-body">
-                        <p className="mb-2">
-                            <strong>Cluster:</strong> {createdClusterName ?? '-'}
-                        </p>
-                        <p className="mb-2">
-                            <strong>Cluster ID:</strong> <code>{createdClusterId}</code>
-                        </p>
-                        <div className="mb-3">
-                            <label className="form-label fw-semibold">API Token</label>
-                            <div className="d-flex gap-2 align-items-start">
-                                <code className="d-block p-2 bg-light border rounded w-100 text-break">
-                                    {createdApiToken}
-                                </code>
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    onClick={() => copyToClipboard(createdApiToken, setTokenCopied)}
-                                >
-                                    Copy
-                                </button>
-                            </div>
-                            {tokenCopied && <div className="small text-success mt-1">Copied!</div>}
-                        </div>
-                        <div className="mb-3">
-                            <label className="form-label fw-semibold">Helm Install Command</label>
-                            <div className="d-flex gap-2 align-items-start">
-                                <code className="d-block p-2 bg-light border rounded w-100 text-break">
-                                    {helmInstallCommand}
-                                </code>
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    onClick={() =>
-                                        copyToClipboard(helmInstallCommand, setCommandCopied)
-                                    }
-                                >
-                                    Copy
-                                </button>
-                            </div>
-                            {commandCopied && (
-                                <div className="small text-success mt-1">Copied!</div>
-                            )}
-                        </div>
-                        <div className="alert alert-warning mb-0" role="alert">
-                            This API token may only be shown once. Store it securely before
-                            closing this panel.
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="card shadow-sm">
                 <div className="card-body p-0">
@@ -353,6 +299,87 @@ const ClustersPage: React.FC = () => {
                         : getErrorMessage(createError, 'Failed to create cluster.')
                 }
             />
+            {showInstallPanel && (
+                <>
+                    <div
+                        className="modal show d-block"
+                        tabIndex={-1}
+                        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                    >
+                        <div className="modal-dialog modal-lg">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Scanner Installation</h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close"
+                                        aria-label="Close"
+                                        onClick={() => setIsInstallPanelVisible(false)}
+                                    />
+                                </div>
+                                <div className="modal-body">
+                                    <p className="mb-2">
+                                        <strong>Cluster:</strong> {createdClusterName ?? '-'}
+                                    </p>
+                                    <p className="mb-2">
+                                        <strong>Cluster ID:</strong> <code>{createdClusterId}</code>
+                                    </p>
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold">API Token</label>
+                                        <div className="d-flex gap-2 align-items-start">
+                                            <code className="d-block p-2 bg-light border rounded w-100 text-break">
+                                                {createdApiToken}
+                                            </code>
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-secondary btn-sm"
+                                                onClick={() =>
+                                                    copyToClipboard(createdApiToken, setTokenCopied)
+                                                }
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        {tokenCopied && (
+                                            <div className="small text-success mt-1">Copied!</div>
+                                        )}
+                                    </div>
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold">
+                                            Helm Install Command
+                                        </label>
+                                        <div className="d-flex gap-2 align-items-start">
+                                            <code className="d-block p-2 bg-light border rounded w-100 text-break">
+                                                {helmInstallCommand}
+                                            </code>
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-secondary btn-sm"
+                                                onClick={() =>
+                                                    copyToClipboard(
+                                                        helmInstallCommand,
+                                                        setCommandCopied,
+                                                    )
+                                                }
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        {commandCopied && (
+                                            <div className="small text-success mt-1">Copied!</div>
+                                        )}
+                                    </div>
+                                    <div className="alert alert-warning mb-0" role="alert">
+                                        This API token may only be shown once. Store it securely
+                                        before closing this dialog.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop show" />
+                </>
+            )}
         </div>
     );
 };
