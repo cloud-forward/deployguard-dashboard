@@ -130,21 +130,17 @@ const ClustersPage: React.FC = () => {
         }
 
         const top = response as Record<string, unknown>;
+        const topData =
+            top.data && typeof top.data === 'object'
+                ? (top.data as Record<string, unknown>)
+                : null;
         const candidate1 =
             top.api_token && typeof top.api_token === 'string'
                 ? top
-                : top.data &&
-                    typeof top.data === 'object' &&
-                    top.data !== null &&
-                    'api_token' in (top.data as Record<string, unknown>) &&
-                    typeof (top.data as Record<string, unknown>).api_token === 'string'
-                  ? top.data
-                  : top.data &&
-                    typeof top.data === 'object' &&
-                    top.data !== null &&
-                    'data' in (top.data as Record<string, unknown>) &&
-                    typeof (top.data as Record<string, unknown>).data === 'object'
-                    ? (top.data as Record<string, unknown>).data
+                : topData?.api_token && typeof topData.api_token === 'string'
+                  ? topData
+                  : topData?.data && typeof topData.data === 'object'
+                    ? (topData.data as Record<string, unknown>)
                     : null;
 
         if (!candidate1 || typeof candidate1 !== 'object') {
@@ -230,17 +226,14 @@ const ClustersPage: React.FC = () => {
 
                     const clusterId = responseData?.id ?? null;
                     const clusterName = responseData?.name ?? formData.name;
-                    const clusterType = responseData?.cluster_type ?? null;
+                    const clusterType = responseData?.cluster_type ?? formData.cluster_type;
                     const apiToken = responseData?.api_token ?? null;
-                    const hasOnboardingData = Boolean(
-                        clusterId && clusterName && clusterType && apiToken,
-                    );
 
                     setCreatedApiToken(apiToken);
                     setCreatedClusterName(clusterName);
                     setCreatedClusterId(clusterId);
                     setCreatedClusterType(clusterType);
-                    setIsInstallPanelVisible(hasOnboardingData);
+                    setIsInstallPanelVisible(true);
                     setSelectedCluster(null);
                     setIsModalOpen(false);
                     queryClient.invalidateQueries({
@@ -284,7 +277,7 @@ const ClustersPage: React.FC = () => {
                 },
             },
             {
-                onSuccess: (response) => {
+                onSuccess: () => {
                     setScanFeedback({
                         clusterName: cluster.name,
                         message: 'Scan request created',
