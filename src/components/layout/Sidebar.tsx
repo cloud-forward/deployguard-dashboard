@@ -18,8 +18,8 @@ const Sidebar: React.FC = () => {
     >
       <style>{`
         .dg-sidebar {
-          background: linear-gradient(180deg, #f8fafd 0%, #eef2f7 100%);
-          border-right: 1px solid #e5e7eb;
+          background: linear-gradient(180deg, #0d162b 0%, #111b31 100%);
+          border-right: 1px solid #2b3650;
         }
         .dg-sidebar-shell {
           padding-top: 1.25rem;
@@ -29,7 +29,7 @@ const Sidebar: React.FC = () => {
           font-size: 0.72rem;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: #6c757d;
+          color: #94a3b8;
           margin: 0 1rem 0.75rem;
           font-weight: 700;
         }
@@ -40,7 +40,7 @@ const Sidebar: React.FC = () => {
           border-radius: 0.85rem;
           margin: 0 0.45rem;
           padding: 0.58rem 0.78rem;
-          color: #334155 !important;
+          color: #dbeafe !important;
           display: flex;
           align-items: center;
           gap: 0.65rem;
@@ -52,10 +52,10 @@ const Sidebar: React.FC = () => {
           border: 1px solid transparent;
         }
         .dg-sidebar-link:hover {
-          background: rgba(99, 102, 241, 0.07);
-          color: #1e293b !important;
+          background: rgba(99, 102, 241, 0.2);
+          color: #f8fafc !important;
           transform: translateY(-1px);
-          border-color: rgba(99, 102, 241, 0.12);
+          border-color: rgba(129, 140, 248, 0.25);
         }
         .dg-sidebar-link.is-active {
           background: linear-gradient(135deg, #4f46e5, #4338ca);
@@ -79,12 +79,12 @@ const Sidebar: React.FC = () => {
           align-items: center;
           justify-content: center;
           border-radius: 0.5rem;
-          background: #e2e8f0;
-          color: #334155;
+          background: #1f2a44;
+          color: #cbd5f5;
           font-size: 0.76rem;
           font-weight: 700;
           letter-spacing: 0.02em;
-          border: 1px solid #cbd5f5;
+          border: 1px solid #3a4a6a;
           font-family: inherit;
           transition: all 0.2s ease;
         }

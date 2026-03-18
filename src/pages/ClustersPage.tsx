@@ -207,7 +207,7 @@ const ClustersPage: React.FC = () => {
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 className="h2">Clusters</h1>
-                    <p className="text-muted">
+                    <p className="dg-subtitle-text">
                         Management of protected infrastructure clusters.
                     </p>
                 </div>

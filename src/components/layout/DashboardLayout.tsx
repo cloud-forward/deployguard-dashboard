@@ -9,8 +9,8 @@ const DashboardLayout: React.FC = () => {
       <style>{`
         .dg-dashboard-shell {
           min-height: 100vh;
-          background: radial-gradient(circle at 0 0, #f8fbff 0%, #f2f5f9 36%, #f6f7fb 100%);
-          color: #111827;
+          background: radial-gradient(circle at 0 0, #0a1021 0%, #0c1428 45%, #070e1b 100%);
+          color: #e5e7eb;
         }
         .dg-dashboard-shell .dg-dashboard-frame {
           display: flex;
@@ -27,17 +27,17 @@ const DashboardLayout: React.FC = () => {
         }
         .dg-dashboard-shell .dg-dashboard-main {
           padding: 1.25rem 1rem 1.5rem;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(248, 250, 252, 0.9));
-          border-left: 1px solid #e5e7eb;
+          background: linear-gradient(180deg, rgba(10, 18, 36, 0.94), rgba(14, 21, 38, 0.96));
+          border-left: 1px solid #27314a;
           min-height: calc(100vh - 58px);
         }
         .dg-dashboard-shell .dg-dashboard-panel {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
+          background: #111a2c;
+          border: 1px solid #2b3650;
           border-radius: 14px;
           padding: 1.1rem 1.1rem 1.4rem;
           min-height: calc(100vh - 58px - 2.5rem);
-          box-shadow: 0 18px 35px -32px rgba(15, 23, 42, 0.45);
+          box-shadow: 0 18px 35px -32px rgba(0, 0, 0, 0.8);
         }
         @media (max-width: 767.98px) {
           .dg-dashboard-shell .dg-dashboard-main {

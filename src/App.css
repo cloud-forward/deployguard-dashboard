@@ -17,6 +17,129 @@
   }
 }
 
+.dg-dashboard-shell {
+  --dg-shell-bg: linear-gradient(180deg, #0a1224 0%, #0f1730 100%);
+  background: var(--dg-shell-bg);
+  color: var(--text);
+  --bs-body-bg: #0f1730;
+  --bs-body-color: #e5e7eb;
+  --bs-body-color-rgb: 229, 231, 235;
+  --bs-secondary-color: #cbd5e1;
+  --bs-secondary-color-rgb: 203, 213, 225;
+  --bs-secondary-bg: #1a2439;
+  --bs-secondary-bg-subtle: #1f2a42;
+  --bs-tertiary-color: #94a3b8;
+  --bs-light: #1f2a42;
+  --bs-light-rgb: 31, 42, 66;
+  --bs-dark: #0a1328;
+  --bs-dark-rgb: 10, 19, 40;
+  --bs-border-color: #2f3a52;
+  --bs-border-color-translucent: rgba(47, 58, 82, 0.65);
+}
+
+.dg-dashboard-shell .dg-dashboard-main {
+  background: linear-gradient(180deg, rgba(10, 18, 34, 0.95), rgba(14, 21, 36, 0.94));
+  border-left: 1px solid #26314a;
+}
+
+.dg-dashboard-shell .dg-dashboard-panel {
+  background: #111a2c;
+  border: 1px solid #2b3650;
+  border-radius: 14px;
+  color: #e2e8f0;
+  box-shadow: 0 18px 30px -28px rgba(0, 0, 0, 0.85);
+}
+
+.dg-dashboard-shell .card,
+.dg-dashboard-shell .list-group-item,
+.dg-dashboard-shell .modal-content {
+  border-color: #2f3a52;
+  background-color: #111a2c;
+  color: #e5e7eb;
+}
+
+.dg-dashboard-shell .card-header,
+.dg-dashboard-shell .card-footer,
+.dg-dashboard-shell .modal-header,
+.dg-dashboard-shell .modal-footer,
+.dg-dashboard-shell .table {
+  border-color: #2f3a52;
+}
+
+.dg-dashboard-shell .card-header,
+.dg-dashboard-shell .card-footer,
+.dg-dashboard-shell .modal-header,
+.dg-dashboard-shell .modal-footer {
+  background: #172033;
+}
+
+.dg-dashboard-shell .table,
+.dg-dashboard-shell .table thead,
+.dg-dashboard-shell .table th,
+.dg-dashboard-shell .table td,
+.dg-dashboard-shell .table-light,
+.dg-dashboard-shell .table-light > th,
+.dg-dashboard-shell .table-light > td {
+  --bs-table-bg: #1a2439;
+  --bs-table-color: #e2e8f0;
+  color: #e2e8f0;
+  background-color: #1f2a42;
+  border-color: #2f3a52;
+}
+
+.dg-dashboard-shell .table thead th {
+  background-color: #1a2439;
+}
+
+.dg-dashboard-shell .table {
+  --bs-table-bg: #1f2a42;
+  --bs-table-color: #e2e8f0;
+  --bs-table-border-color: #2f3a52;
+  --bs-table-striped-color: #e2e8f0;
+  --bs-table-striped-bg: rgba(100, 116, 139, 0.15);
+  --bs-table-hover-color: #f8fafc;
+  --bs-table-hover-bg: rgba(100, 116, 139, 0.22);
+  --bs-table-active-color: #f8fafc;
+  --bs-table-active-bg: rgba(100, 116, 139, 0.24);
+}
+
+.dg-dashboard-shell .table-hover > tbody > tr:hover > * {
+  background-color: rgba(100, 116, 139, 0.22);
+  color: #f8fafc;
+}
+
+.dg-dashboard-shell .text-muted,
+.dg-dashboard-shell .text-secondary,
+.dg-dashboard-shell .text-body-secondary,
+.dg-dashboard-shell .table .text-muted,
+.dg-dashboard-shell .list-group-item .text-muted {
+  color: #dbeafe !important;
+}
+
+.dg-dashboard-shell .text-muted small,
+.dg-dashboard-shell .text-secondary small,
+.dg-dashboard-shell .text-body-secondary small,
+.dg-dashboard-shell .table .text-muted small,
+.dg-dashboard-shell .list-group-item .text-muted small {
+  color: inherit !important;
+}
+
+.dg-dashboard-shell .dg-subtitle-text {
+  color: #dbeafe !important;
+}
+
+.dg-dashboard-shell .text-dark,
+.dg-dashboard-shell .text-black,
+.dg-dashboard-shell .text-body {
+  color: #e5e7eb !important;
+}
+
+.dg-dashboard-shell .bg-light,
+.dg-dashboard-shell .bg-white {
+  background-color: #1f2a42 !important;
+  border-color: #2f3a52 !important;
+}
+
 .hero {
   position: relative;
 

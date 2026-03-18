@@ -25,7 +25,9 @@ const AttackGraphPage: React.FC = () => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h1 className="h2 mb-0">Attack Graph</h1>
-          <p className="text-muted mb-0 small">Visualization of potential attack vectors.</p>
+          <p className="dg-subtitle-text mb-0 small">
+            Visualization of potential attack vectors.
+          </p>
         </div>
       </div>
 
