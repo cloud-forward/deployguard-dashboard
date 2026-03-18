@@ -7,7 +7,9 @@ import {
     useListClustersApiV1ClustersGet,
     useUpdateClusterApiV1ClustersIdPatch,
 } from '../api/generated/clusters/clusters';
+import { useStartScanApiV1ScansStartPost } from '../api/generated/scans/scans';
 import ClusterModal from '../components/clusters/ClusterModal';
+import ClusterOnboardingModal from '../components/clusters/ClusterOnboardingModal';
 
 type Cluster = {
     id: string;
@@ -22,7 +24,7 @@ type ClusterForm = {
     id?: string;
     name: string;
     description?: string | null;
-    cluster_type: 'eks' | 'self-managed';
+    cluster_type: 'eks' | 'self-managed' | 'aws';
 };
 
 const ClustersPage: React.FC = () => {
@@ -41,18 +43,142 @@ const ClustersPage: React.FC = () => {
     } = useUpdateClusterApiV1ClustersIdPatch();
     const { mutate: deleteCluster, isPending: isDeleting } =
         useDeleteClusterApiV1ClustersIdDelete();
+    const {
+        mutate: startScan,
+        isPending: isStartingScan,
+    } = useStartScanApiV1ScansStartPost();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCluster, setSelectedCluster] = useState<ClusterForm | null>(null);
+    const [createModalResetKey, setCreateModalResetKey] = useState(0);
     const [createdClusterName, setCreatedClusterName] = useState<string | null>(null);
     const [createdClusterId, setCreatedClusterId] = useState<string | null>(null);
+    const [createdClusterType, setCreatedClusterType] = useState<string | null>(null);
     const [createdApiToken, setCreatedApiToken] = useState<string | null>(null);
     const [isInstallPanelVisible, setIsInstallPanelVisible] = useState(false);
-    const [tokenCopied, setTokenCopied] = useState(false);
-    const [commandCopied, setCommandCopied] = useState(false);
+    const [startingClusterId, setStartingClusterId] = useState<string | null>(null);
+    const [scanFeedback, setScanFeedback] = useState<{
+        clusterName: string;
+        message: string;
+        isError: boolean;
+    } | null>(null);
+
+    const resetOnboardingState = () => {
+        setCreatedClusterName(null);
+        setCreatedClusterId(null);
+        setCreatedClusterType(null);
+        setCreatedApiToken(null);
+        setIsInstallPanelVisible(false);
+    };
 
     const handleCreate = () => {
+        resetOnboardingState();
+        setCreateModalResetKey((value) => value + 1);
         setSelectedCluster(null);
         setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedCluster(null);
+    };
+
+    const getScannerTypeForCluster = (clusterType: string): 'k8s' | 'aws' => {
+        if (clusterType === 'aws') {
+            return 'aws';
+        }
+
+        return 'k8s';
+    };
+
+    const getClusterTypeLabel = (clusterType: string) => {
+        switch (clusterType) {
+            case 'eks':
+                return 'EKS';
+            case 'self-managed':
+                return 'Self-managed';
+            case 'aws':
+                return 'AWS';
+            default:
+                return clusterType;
+        }
+    };
+
+    const getClusterTypeBadgeClass = (clusterType: string) => {
+        switch (clusterType) {
+            case 'aws':
+                return 'bg-success text-white';
+            case 'self-managed':
+                return 'bg-warning text-dark';
+            case 'eks':
+            default:
+                return 'bg-primary text-white';
+        }
+    };
+
+    const getCreateResponseData = (
+        response: unknown,
+    ):
+        | {
+              id?: string;
+              name?: string;
+              cluster_type?: string;
+              api_token?: string;
+          }
+        | null => {
+        if (!response || typeof response !== 'object') {
+            return null;
+        }
+
+        const top = response as Record<string, unknown>;
+        const candidate1 =
+            top.api_token && typeof top.api_token === 'string'
+                ? top
+                : top.data &&
+                    typeof top.data === 'object' &&
+                    top.data !== null &&
+                    'api_token' in (top.data as Record<string, unknown>) &&
+                    typeof (top.data as Record<string, unknown>).api_token === 'string'
+                  ? top.data
+                  : top.data &&
+                    typeof top.data === 'object' &&
+                    top.data !== null &&
+                    'data' in (top.data as Record<string, unknown>) &&
+                    typeof (top.data as Record<string, unknown>).data === 'object'
+                    ? (top.data as Record<string, unknown>).data
+                    : null;
+
+        if (!candidate1 || typeof candidate1 !== 'object') {
+            return null;
+        }
+
+        const payload = candidate1 as Record<string, unknown>;
+
+        return {
+            id:
+                typeof payload.id === 'string'
+                    ? payload.id
+                    : typeof payload['id'] === 'string'
+                      ? (payload['id'] as string)
+                      : undefined,
+            name:
+                typeof payload.name === 'string'
+                    ? payload.name
+                    : typeof payload['name'] === 'string'
+                      ? (payload['name'] as string)
+                      : undefined,
+            cluster_type:
+                typeof payload.cluster_type === 'string'
+                    ? payload.cluster_type
+                    : typeof payload['cluster_type'] === 'string'
+                      ? (payload['cluster_type'] as string)
+                      : undefined,
+            api_token:
+                typeof payload.api_token === 'string'
+                    ? payload.api_token
+                    : typeof payload['api_token'] === 'string'
+                      ? (payload['api_token'] as string)
+                      : undefined,
+        };
     };
 
     const handleEdit = (cluster: Cluster) => {
@@ -100,43 +226,26 @@ const ClustersPage: React.FC = () => {
             },
             {
                 onSuccess: (response) => {
-                    const responseData =
-                        response && typeof response === 'object' && 'data' in response
-                            ? response.data
-                            : response;
+                    const responseData = getCreateResponseData(response);
 
-                    const apiToken =
-                        responseData &&
-                        typeof responseData === 'object' &&
-                        'api_token' in responseData &&
-                        typeof responseData.api_token === 'string'
-                            ? responseData.api_token
-                            : null;
-                    const clusterName =
-                        responseData &&
-                        typeof responseData === 'object' &&
-                        'name' in responseData &&
-                        typeof responseData.name === 'string'
-                            ? responseData.name
-                            : formData.name;
-                    const clusterId =
-                        responseData &&
-                        typeof responseData === 'object' &&
-                        'id' in responseData &&
-                        typeof responseData.id === 'string'
-                            ? responseData.id
-                            : null;
+                    const clusterId = responseData?.id ?? null;
+                    const clusterName = responseData?.name ?? formData.name;
+                    const clusterType = responseData?.cluster_type ?? null;
+                    const apiToken = responseData?.api_token ?? null;
+                    const hasOnboardingData = Boolean(
+                        clusterId && clusterName && clusterType && apiToken,
+                    );
 
                     setCreatedApiToken(apiToken);
                     setCreatedClusterName(clusterName);
                     setCreatedClusterId(clusterId);
-                    setIsInstallPanelVisible(true);
-                    setTokenCopied(false);
-                    setCommandCopied(false);
+                    setCreatedClusterType(clusterType);
+                    setIsInstallPanelVisible(hasOnboardingData);
                     setSelectedCluster(null);
                     setIsModalOpen(false);
                     queryClient.invalidateQueries({
                         queryKey: getListClustersApiV1ClustersGetQueryKey(),
+                        refetchType: 'all',
                     });
                 },
             },
@@ -163,6 +272,39 @@ const ClustersPage: React.FC = () => {
         );
     };
 
+    const handleScanNow = (cluster: Cluster) => {
+        setStartingClusterId(cluster.id);
+        setScanFeedback(null);
+        startScan(
+            {
+                data: {
+                    cluster_id: cluster.id,
+                    scanner_type: getScannerTypeForCluster(cluster.cluster_type),
+                    request_source: 'manual',
+                },
+            },
+            {
+                onSuccess: (response) => {
+                    setScanFeedback({
+                        clusterName: cluster.name,
+                        message: 'Scan request created',
+                        isError: false,
+                    });
+                },
+                onError: () => {
+                    setScanFeedback({
+                        clusterName: cluster.name,
+                        message: 'Failed to create scan request',
+                        isError: true,
+                    });
+                },
+                onSettled: () => {
+                    setStartingClusterId((current) => (current === cluster.id ? null : current));
+                },
+            },
+        );
+    };
+
     const getErrorMessage = (err: unknown, fallback: string) => {
         if (err && typeof err === 'object' && 'message' in err) {
             const message = err.message;
@@ -174,33 +316,7 @@ const ClustersPage: React.FC = () => {
         return err ? fallback : undefined;
     };
 
-    const helmInstallCommand =
-        createdClusterId && createdApiToken
-            ? `helm upgrade --install deployguard-scanner deployguard/scanner --set config.clusterId="${createdClusterId}" --set config.apiToken="${createdApiToken}" --set config.serverUrl="https://analysis.deployguard.org"`
-            : '';
-    const showInstallPanel =
-        isInstallPanelVisible && Boolean(createdApiToken) && Boolean(createdClusterId);
     const showClustersTable = !isLoading && !isError;
-
-    const copyToClipboard = async (
-        value: string,
-        onSuccess: React.Dispatch<React.SetStateAction<boolean>>,
-    ) => {
-        if (!value) {
-            return;
-        }
-        if (!navigator?.clipboard?.writeText) {
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(value);
-            onSuccess(true);
-            window.setTimeout(() => onSuccess(false), 1500);
-        } catch {
-            onSuccess(false);
-        }
-    };
 
     return (
         <div>
@@ -211,10 +327,23 @@ const ClustersPage: React.FC = () => {
                         Management of protected infrastructure clusters.
                     </p>
                 </div>
-                <button className="btn btn-primary" onClick={handleCreate}>
-                    Create Cluster
+                <button
+                    className="btn btn-primary"
+                    onClick={handleCreate}
+                    disabled={isCreating}
+                >
+                    {isCreating ? 'Creating...' : 'Create Cluster'}
                 </button>
             </div>
+            {scanFeedback && (
+                <div
+                    className={`alert ${scanFeedback.isError ? 'alert-danger' : 'alert-success'}`}
+                    role="alert"
+                >
+                    <strong>{scanFeedback.message}</strong>
+                    {!scanFeedback.isError ? ` for ${scanFeedback.clusterName}.` : null}
+                </div>
+            )}
 
             <div className="card shadow-sm">
                 <div className="card-body p-0">
@@ -226,7 +355,7 @@ const ClustersPage: React.FC = () => {
                             <div className="alert alert-danger mb-0" role="alert">
                                 {error instanceof Error
                                     ? error.message
-                                    : getErrorMessage(error, 'Failed to load clusters.')}
+                                    : getErrorMessage(error, 'Failed to load clusters.')} 
                             </div>
                         </div>
                     )}
@@ -234,53 +363,73 @@ const ClustersPage: React.FC = () => {
                         <div className="table-responsive">
                             <table className="table table-hover mb-0 align-middle">
                                 <thead className="table-light">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Cluster ID</th>
-                                    <th>Description</th>
-                                    <th>Type</th>
-                                    <th>Created At</th>
-                                    <th className="text-end">Actions</th>
-                                </tr>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Cluster ID</th>
+                                        <th>Description</th>
+                                        <th>Type</th>
+                                        <th>Created At</th>
+                                        <th className="text-end">Actions</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                {clusters.length === 0 && (
-                                    <tr>
-                                        <td colSpan={6} className="text-center text-muted py-4">
-                                            No clusters found.
-                                        </td>
-                                    </tr>
-                                )}
-                                {clusters.map((cluster) => (
-                                    <tr key={cluster.id}>
-                                        <td>{cluster.name}</td>
-                                        <td className="text-muted">{cluster.id}</td>
-                                        <td>{cluster.description ?? '-'}</td>
-                                        <td>{cluster.cluster_type}</td>
-                                        <td>
-                                            {cluster.created_at
-                                                ? new Date(cluster.created_at).toLocaleString()
-                                                : '-'}
-                                        </td>
-                                        <td className="text-end">
-                                            <div className="d-inline-flex gap-2">
-                                                <button
-                                                    className="btn btn-sm btn-outline-secondary"
-                                                    onClick={() => handleEdit(cluster)}
+                                    {clusters.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="text-center text-muted py-4">
+                                                No clusters found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {clusters.map((cluster) => (
+                                        <tr key={cluster.id}>
+                                            <td>{cluster.name}</td>
+                                            <td className="text-muted">{cluster.id}</td>
+                                            <td>{cluster.description ?? '-'}</td>
+                                            <td>
+                                                <span
+                                                    className={`badge ${getClusterTypeBadgeClass(
+                                                        cluster.cluster_type,
+                                                    )}`}
                                                 >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    className="btn btn-sm btn-outline-danger"
-                                                    onClick={() => handleDelete(cluster)}
-                                                    disabled={isDeleting}
-                                                >
-                                                    {isDeleting ? 'Deleting...' : 'Delete'}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                    {getClusterTypeLabel(cluster.cluster_type)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {cluster.created_at
+                                                    ? new Date(cluster.created_at).toLocaleString()
+                                                    : '-'}
+                                            </td>
+                                            <td className="text-end">
+                                                <div className="d-inline-flex gap-2">
+                                                    <button
+                                                        className="btn btn-sm btn-outline-success"
+                                                        onClick={() => handleScanNow(cluster)}
+                                                        disabled={
+                                                            isStartingScan &&
+                                                            startingClusterId === cluster.id
+                                                        }
+                                                    >
+                                                        {isStartingScan && startingClusterId === cluster.id
+                                                            ? 'Starting...'
+                                                            : 'Scan Request'}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={() => handleEdit(cluster)}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={() => handleDelete(cluster)}
+                                                        disabled={isDeleting}
+                                                    >
+                                                        {isDeleting ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -288,8 +437,13 @@ const ClustersPage: React.FC = () => {
                 </div>
             </div>
             <ClusterModal
+                key={
+                    selectedCluster?.id
+                        ? `edit-${selectedCluster.id}`
+                        : `create-${createModalResetKey}`
+                }
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={handleCloseModal}
                 onSave={handleSave}
                 cluster={selectedCluster}
                 isSubmitting={selectedCluster ? isUpdating : isCreating}
@@ -299,100 +453,14 @@ const ClustersPage: React.FC = () => {
                         : getErrorMessage(createError, 'Failed to create cluster.')
                 }
             />
-            {showInstallPanel && (
-                <>
-                    <div
-                        className="modal show d-block"
-                        tabIndex={-1}
-                        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-                    >
-                        <div className="modal-dialog modal-lg">
-                            <div className="modal-content">
-                                <div className="modal-header">
-                                    <h5 className="modal-title">Scanner Installation</h5>
-                                    <button
-                                        type="button"
-                                        className="btn-close"
-                                        aria-label="Close"
-                                        onClick={() => setIsInstallPanelVisible(false)}
-                                    />
-                                </div>
-                                <div className="modal-body">
-                                    <p className="mb-2">
-                                        <strong>Cluster:</strong> {createdClusterName ?? '-'}
-                                    </p>
-                                    <p className="mb-2">
-                                        <strong>Cluster ID:</strong> <code>{createdClusterId}</code>
-                                    </p>
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">API Token</label>
-                                        {createdApiToken ? (
-                                            <>
-                                                <div className="d-flex gap-2 align-items-start">
-                                                    <code className="d-block p-2 bg-light border rounded w-100 text-break">
-                                                        {createdApiToken}
-                                                    </code>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-outline-secondary btn-sm"
-                                                        onClick={() =>
-                                                            copyToClipboard(
-                                                                createdApiToken,
-                                                                setTokenCopied,
-                                                            )
-                                                        }
-                                                    >
-                                                        Copy
-                                                    </button>
-                                                </div>
-                                                {tokenCopied && (
-                                                    <div className="small text-success mt-1">
-                                                        Copied!
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <div className="text-muted small">
-                                                API token is unavailable.
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Helm Install Command
-                                        </label>
-                                        <div className="d-flex gap-2 align-items-start">
-                                            <code className="d-block p-2 bg-light border rounded w-100 text-break">
-                                                {helmInstallCommand}
-                                            </code>
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline-secondary btn-sm"
-                                                onClick={() =>
-                                                    copyToClipboard(
-                                                        helmInstallCommand,
-                                                        setCommandCopied,
-                                                    )
-                                                }
-                                            >
-                                                Copy
-                                            </button>
-                                        </div>
-                                        {commandCopied && (
-                                            <div className="small text-success mt-1">Copied!</div>
-                                        )}
-                                    </div>
-                                    <div className="alert alert-warning mb-0" role="alert">
-                                        This API token may only be shown once. Store it securely
-                                        before closing this dialog.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="modal-backdrop show" />
-                </>
-            )}
+            <ClusterOnboardingModal
+                isOpen={isInstallPanelVisible}
+                onClose={() => resetOnboardingState()}
+                clusterId={createdClusterId ?? ''}
+                clusterName={createdClusterName ?? ''}
+                clusterType={createdClusterType ?? ''}
+                apiToken={createdApiToken ?? ''}
+            />
         </div>
     );
 };

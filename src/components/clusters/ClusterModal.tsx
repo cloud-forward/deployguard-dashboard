@@ -4,7 +4,7 @@ type ClusterForm = {
   id?: string;
   name: string;
   description?: string | null;
-  cluster_type: 'eks' | 'self-managed';
+  cluster_type: 'eks' | 'self-managed' | 'aws';
 };
 
 interface ClusterModalProps {
@@ -32,6 +32,10 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
   const [touched, setTouched] = useState({ name: false });
 
   useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     if (cluster) {
       setFormData(cluster);
     } else {
@@ -42,7 +46,7 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
       });
     }
     setTouched({ name: false });
-  }, [cluster]);
+  }, [cluster, isOpen]);
 
   if (!isOpen) return null;
 
@@ -116,7 +120,8 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
                   required
                 >
                   <option value="eks">EKS</option>
-                  <option value="self-managed">self-managed</option>
+                  <option value="self-managed">Self-managed</option>
+                  <option value="aws">AWS</option>
                 </select>
               </div>
             </div>

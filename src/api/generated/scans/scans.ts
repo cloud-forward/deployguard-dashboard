@@ -9,9 +9,10 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 
 1. **클러스터 등록**: `POST /api/v1/clusters` → API 토큰 발급
 2. **Scanner 설치**: 발급된 토큰으로 Helm 차트 배포
-3. **Polling**: `GET /api/v1/scans/pending` (Bearer 인증)
-4. **업로드**: `POST /api/v1/scans/{scan_id}/upload-url`
-5. **완료**: `POST /api/v1/scans/{scan_id}/complete` → Analysis 파이프라인 트리거
+3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `queued` 작업 생성
+4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → queued 작업 claim
+5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
+6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
 
  * OpenAPI spec version: 4.0.0
  */
@@ -55,9 +56,14 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * 대시보드/수동 요청 또는 스케줄러 요청을 `queued` 상태의 스캔 작업으로 등록합니다.
-이 엔드포인트는 실행을 시작하지 않고, 워커가 `/pending` 폴링으로 claim할 작업을 생성합니다.
-응답의 `scan_id`는 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
+ * 대시보드 또는 스케줄러가 호출하여 `queued` 상태의 스캔 작업을 생성하는 작업 등록 API입니다.
+이 엔드포인트는 스캔을 직접 실행하지 않으며, 워커가 이후 `/pending`을 폴링해 claim할 작업만 큐에 등록합니다.
+응답의 `scan_id`는 생성된 큐 작업의 식별자이며 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
+
+**실제 동작 흐름:**
+1. 대시보드 또는 스케줄러가 `/start`를 호출해 큐 작업을 생성합니다.
+2. 스캐너 워커가 `/pending`을 폴링해 자신이 처리할 queued 작업을 claim합니다.
+3. claim에 성공한 워커가 실제 스캔을 수행한 뒤 결과를 업로드하고 `/complete`를 호출합니다.
 
 **스캐너 유형:**
 - `k8s` — Kubernetes 클러스터 리소스 (Pods, RBAC, Secrets, Services 등)
@@ -67,7 +73,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 클러스터와 scanner_type 조합당 하나의 활성 스캔만 허용합니다.
 활성 상태(`queued`, `running`, `uploading`, `processing`)가 이미 있으면 409를 반환합니다.
- * @summary 스캔 요청 큐 등록
+ * @summary 스캔 작업 큐 생성
  */
 export type startScanApiV1ScansStartPostResponse201 = {
   data: ScanStartResponse
@@ -148,7 +154,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type StartScanApiV1ScansStartPostMutationError = void
 
     /**
- * @summary 스캔 요청 큐 등록
+ * @summary 스캔 작업 큐 생성
  */
 export const useStartScanApiV1ScansStartPost = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startScanApiV1ScansStartPost>>, TError,{data: ScanStartRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
@@ -161,12 +167,13 @@ export const useStartScanApiV1ScansStartPost = <TError = void,
       return useMutation(getStartScanApiV1ScansStartPostMutationOptions(options), queryClient);
     }
     /**
- * 스캐너 워커가 폴링하여 자신이 처리할 작업 1건을 claim합니다.
+ * 스캐너 워커가 폴링하여 자신이 실제로 실행할 queued 작업 1건을 claim하는 워커 클레임 API입니다.
 `Authorization: Bearer <api_token>` 인증이 필요합니다.
 클러스터는 요청 파라미터가 아니라 인증 토큰으로 식별됩니다.
+`/start`가 생성한 작업만 이 엔드포인트에서 claim 대상이 됩니다.
 토큰 클러스터 + `scanner_type`에 대해 `queued` 작업만 대상으로 하며, 클레임은 원자적으로 수행됩니다.
 성공 시 상태는 `running`으로 전이되고 `claimed_at`, `claimed_by`, `started_at`, `lease_expires_at`이 설정됩니다.
- * @summary 폴링 기반 대기 작업 클레임
+ * @summary 워커용 queued 작업 클레임
  */
 export type claimPendingScanApiV1ScansPendingGetResponse200 = {
   data: PendingScanClaimResponse
@@ -286,7 +293,7 @@ export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnTy
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 폴링 기반 대기 작업 클레임
+ * @summary 워커용 queued 작업 클레임
  */
 
 export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnType<typeof claimPendingScanApiV1ScansPendingGet>>, TError = void | HTTPValidationError>(
