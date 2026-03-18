@@ -16,16 +16,17 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 
  * OpenAPI spec version: 4.0.0
  */
+import type { ClusterOnboardingResponseRequiredValues } from './clusterOnboardingResponseRequiredValues';
 
-export interface ClusterCreateRequest {
-  /**
-   * 클러스터 고유 이름
-   * @minLength 1
-   * @maxLength 255
-   */
-  name: string;
-  /** 클러스터 설명 */
-  description?: string | null;
-  /** 클러스터 유형: 'eks' | 'self-managed' | 'aws' */
-  cluster_type: string;
+export interface ClusterOnboardingResponse {
+  /** 설치 방식 */
+  installation_method: string;
+  /** 설치 명령 */
+  install_command: string;
+  /** 설치에 필요한 값 */
+  required_values?: ClusterOnboardingResponseRequiredValues;
+  /** 필수 환경 변수 이름 목록 */
+  required_environment_variables?: string[];
+  /** 추가 설치 가이드 */
+  guidance?: string[];
 }
