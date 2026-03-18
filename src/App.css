@@ -73,6 +73,90 @@
   background: #172033;
 }
 
+.dg-dashboard-shell .cluster-onboarding-modal .cluster-onboarding-modal__content,
+.dg-dashboard-shell .cluster-onboarding-modal .modal-content {
+  background: #223357 !important;
+  color: #f8fafc !important;
+  border-color: #5570a2 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  box-shadow: 0 22px 44px -28px rgba(0, 0, 0, 0.75);
+}
+
+.dg-dashboard-shell .cluster-onboarding-modal .cluster-onboarding-modal__header,
+.dg-dashboard-shell .cluster-onboarding-modal .modal-header,
+.dg-dashboard-shell .cluster-onboarding-modal .modal-footer {
+  background: #29406e !important;
+  border-color: #5570a2 !important;
+  color: #f8fafc !important;
+}
+
+.dg-dashboard-shell .cluster-onboarding-modal .cluster-onboarding-modal__body,
+.dg-dashboard-shell .cluster-onboarding-modal .modal-body {
+  color: #e5e7eb !important;
+  border-top: 1px solid #5570a2 !important;
+}
+
+.cluster-onboarding-modal.show .modal-content {
+  background: #21365f !important;
+  color: #f8fafc !important;
+  border-color: #5c79ae !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  box-shadow: 0 22px 46px -26px rgba(0, 0, 0, 0.8) !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.cluster-onboarding-modal.show .modal-header {
+  background: #2d4877 !important;
+  border-bottom: 1px solid #5c79ae !important;
+  color: #f8fafc !important;
+}
+
+.cluster-onboarding-modal.show .modal-body {
+  background: #243a63 !important;
+  color: #e5e7eb !important;
+  border-top: 1px solid #5c79ae !important;
+}
+
+.cluster-onboarding-modal.show .modal-footer {
+  background: #2d4877 !important;
+  border-top: 1px solid #5c79ae !important;
+  color: #f8fafc !important;
+}
+
+.cluster-onboarding-modal.show .modal-body pre,
+.cluster-onboarding-modal.show .modal-body code,
+.cluster-onboarding-modal.show pre,
+.cluster-onboarding-modal.show code {
+  background: #112a4f !important;
+  border: 1px solid #5c79ae !important;
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+.dg-dashboard-shell .cluster-onboarding-modal .modal-body pre,
+.dg-dashboard-shell .cluster-onboarding-modal .modal-body code,
+.dg-dashboard-shell .cluster-onboarding-modal pre,
+.dg-dashboard-shell .cluster-onboarding-modal code {
+  background: #112041 !important;
+  border-color: #5570a2 !important;
+  color: #f8fafc !important;
+}
+
+.dg-dashboard-shell .cluster-onboarding-modal .btn-outline-secondary {
+  color: #dbeafe;
+  border-color: #7b8bb1;
+}
+
+.dg-dashboard-shell .cluster-onboarding-modal .btn-outline-secondary:hover,
+.dg-dashboard-shell .cluster-onboarding-modal .btn-outline-secondary:focus {
+  color: #f8fafc;
+  background: rgba(123, 139, 177, 0.18);
+  border-color: #9fb3d8;
+}
+
 .dg-dashboard-shell .table,
 .dg-dashboard-shell .table thead,
 .dg-dashboard-shell .table th,
