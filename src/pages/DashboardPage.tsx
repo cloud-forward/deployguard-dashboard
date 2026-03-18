@@ -22,7 +22,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-5">
-        <p className="text-muted">Overview of DeployGuard security status.</p>
+        <p className="dg-subtitle-text">Overview of DeployGuard security status.</p>
       </div>
     </div>
   );

@@ -207,7 +207,7 @@ const ClustersPage: React.FC = () => {
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 className="h2">Clusters</h1>
-                    <p className="text-muted">
+                    <p className="dg-subtitle-text">
                         Management of protected infrastructure clusters.
                     </p>
                 </div>
@@ -326,22 +326,35 @@ const ClustersPage: React.FC = () => {
                                     </p>
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">API Token</label>
-                                        <div className="d-flex gap-2 align-items-start">
-                                            <code className="d-block p-2 bg-light border rounded w-100 text-break">
-                                                {createdApiToken}
-                                            </code>
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline-secondary btn-sm"
-                                                onClick={() =>
-                                                    copyToClipboard(createdApiToken, setTokenCopied)
-                                                }
-                                            >
-                                                Copy
-                                            </button>
-                                        </div>
-                                        {tokenCopied && (
-                                            <div className="small text-success mt-1">Copied!</div>
+                                        {createdApiToken ? (
+                                            <>
+                                                <div className="d-flex gap-2 align-items-start">
+                                                    <code className="d-block p-2 bg-light border rounded w-100 text-break">
+                                                        {createdApiToken}
+                                                    </code>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline-secondary btn-sm"
+                                                        onClick={() =>
+                                                            copyToClipboard(
+                                                                createdApiToken,
+                                                                setTokenCopied,
+                                                            )
+                                                        }
+                                                    >
+                                                        Copy
+                                                    </button>
+                                                </div>
+                                                {tokenCopied && (
+                                                    <div className="small text-success mt-1">
+                                                        Copied!
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="text-muted small">
+                                                API token is unavailable.
+                                            </div>
                                         )}
                                     </div>
                                     <div className="mb-3">

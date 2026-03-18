@@ -7,7 +7,9 @@ const RiskPage: React.FC = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h1 className="h2 mb-1">Risk Optimization</h1>
-          <p className="text-muted mb-0">Analysis of security risks and recommended mitigations.</p>
+          <p className="dg-subtitle-text mb-0">
+            Analysis of security risks and recommended mitigations.
+          </p>
         </div>
       </div>
 
