@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://analysis.deployguard.org';
+const BASE_URL = import.meta.env.DEV
+  ? ''
+  : 'https://analysis.deployguard.org';
 
 export const apiClient = async <T>(
   url: string,

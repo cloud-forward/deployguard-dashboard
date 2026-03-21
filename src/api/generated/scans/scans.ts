@@ -9,8 +9,8 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 
 1. **클러스터 등록**: `POST /api/v1/clusters` → API 토큰 발급
 2. **Scanner 설치**: 발급된 토큰으로 Helm 차트 배포
-3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `queued` 작업 생성
-4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → queued 작업 claim
+3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `created` 작업 생성
+4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → created 작업 claim
 5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
 6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
 
@@ -37,10 +37,13 @@ import type {
 
 import type {
   ClaimPendingScanApiV1ScansPendingGetParams,
+  ClusterScanListResponse,
   HTTPValidationError,
   PendingScanClaimResponse,
+  RawScanResultUrlResponse,
   ScanCompleteRequest,
   ScanCompleteResponse,
+  ScanDetailResponse,
   ScanStartRequest,
   ScanStartResponse,
   ScanStatusResponse,
@@ -56,23 +59,21 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * 대시보드 또는 스케줄러가 호출하여 `queued` 상태의 스캔 작업을 생성하는 작업 등록 API입니다.
-이 엔드포인트는 스캔을 직접 실행하지 않으며, 워커가 이후 `/pending`을 폴링해 claim할 작업만 큐에 등록합니다.
-응답의 `scan_id`는 생성된 큐 작업의 식별자이며 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
+ * 대시보드 또는 스케줄러가 호출하여 `created` 상태의 스캔 작업을 생성하는 작업 등록 API입니다.
+이 엔드포인트는 스캔을 직접 실행하지 않으며, 워커가 이후 `/pending`을 폴링해 claim할 작업만 등록합니다.
+응답의 `scan_id`는 생성된 스캔 작업의 식별자이며 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
 
 **실제 동작 흐름:**
 1. 대시보드 또는 스케줄러가 `/start`를 호출해 큐 작업을 생성합니다.
-2. 스캐너 워커가 `/pending`을 폴링해 자신이 처리할 queued 작업을 claim합니다.
+2. 스캐너 워커가 `/pending`을 폴링해 자신이 처리할 created 작업을 claim합니다.
 3. claim에 성공한 워커가 실제 스캔을 수행한 뒤 결과를 업로드하고 `/complete`를 호출합니다.
 
 **스캐너 유형:**
 - `k8s` — Kubernetes 클러스터 리소스 (Pods, RBAC, Secrets, Services 등)
 - `aws` — AWS 클라우드 리소스 (IAM, S3, RDS, EC2, SecurityGroups)
 - `image` — 컨테이너 이미지 취약점 (CVE, EPSS, 서명)
-- `runtime` — 런타임 보안 이벤트 (eBPF, CloudTrail)
-
 클러스터와 scanner_type 조합당 하나의 활성 스캔만 허용합니다.
-활성 상태(`queued`, `running`, `uploading`, `processing`)가 이미 있으면 409를 반환합니다.
+활성 상태(`created`, `processing`, `uploading`)가 이미 있으면 409를 반환합니다.
  * @summary 스캔 작업 큐 생성
  */
 export type startScanApiV1ScansStartPostResponse201 = {
@@ -167,13 +168,13 @@ export const useStartScanApiV1ScansStartPost = <TError = void,
       return useMutation(getStartScanApiV1ScansStartPostMutationOptions(options), queryClient);
     }
     /**
- * 스캐너 워커가 폴링하여 자신이 실제로 실행할 queued 작업 1건을 claim하는 워커 클레임 API입니다.
+ * 스캐너 워커가 폴링하여 자신이 실제로 실행할 created 작업 1건을 claim하는 워커 클레임 API입니다.
 `Authorization: Bearer <api_token>` 인증이 필요합니다.
 클러스터는 요청 파라미터가 아니라 인증 토큰으로 식별됩니다.
 `/start`가 생성한 작업만 이 엔드포인트에서 claim 대상이 됩니다.
-토큰 클러스터 + `scanner_type`에 대해 `queued` 작업만 대상으로 하며, 클레임은 원자적으로 수행됩니다.
-성공 시 상태는 `running`으로 전이되고 `claimed_at`, `claimed_by`, `started_at`, `lease_expires_at`이 설정됩니다.
- * @summary 워커용 queued 작업 클레임
+토큰 클러스터 + `scanner_type`에 대해 `created` 작업만 대상으로 하며, 클레임은 원자적으로 수행됩니다.
+성공 시 상태는 `processing`으로 전이되고 `claimed_at`, `claimed_by`, `started_at`, `lease_expires_at`이 설정됩니다.
+ * @summary 워커용 created 작업 클레임
  */
 export type claimPendingScanApiV1ScansPendingGetResponse200 = {
   data: PendingScanClaimResponse
@@ -293,7 +294,7 @@ export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnTy
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 워커용 queued 작업 클레임
+ * @summary 워커용 created 작업 클레임
  */
 
 export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnType<typeof claimPendingScanApiV1ScansPendingGet>>, TError = void | HTTPValidationError>(
@@ -316,7 +317,7 @@ export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnTy
 `Authorization: Bearer <api_token>` 인증이 필요합니다.
 
 클라이언트는 다음 순서로 진행해야 합니다:
-1. `/pending`으로 queued 작업을 claim하여 running 상태로 전이합니다
+1. `/pending`으로 created 작업을 claim하여 processing 상태로 전이합니다
 2. 이 엔드포인트를 호출하여 presigned URL을 발급받습니다
 3. 반환된 URL을 사용하여 파일을 S3에 직접 PUT합니다
 4. 여러 파일을 업로드해야 하는 경우 각 파일마다 반복합니다
@@ -448,7 +449,7 @@ export const useGetUploadUrlApiV1ScansScanIdUploadUrlPost = <TError = void | HTT
 요청한 스캔이 인증된 클러스터 소유인지 검증하며, 불일치 시 거부합니다.
 동작은 다음과 같습니다:
 1. 업로드된 S3 파일 존재 여부 검증
-2. 상태를 `running` 또는 `uploading`에서 `processing`으로 전이
+2. 상태를 `processing` 또는 `uploading`에서 `completed`로 전이
 3. 현재 구현된 분석 오케스트레이션 체크(`maybe_trigger_analysis`)만 호출
 
 즉, complete는 다음 오케스트레이션 단계로 넘기는 역할이며 분석 파이프라인 실행 자체를 수행하지 않습니다.
@@ -567,15 +568,270 @@ export const useCompleteScanApiV1ScansScanIdCompletePost = <TError = void | HTTP
       return useMutation(getCompleteScanApiV1ScansScanIdCompletePostMutationOptions(options), queryClient);
     }
     /**
+ * 스캔 세션의 메타데이터를 조회합니다.
+
+반환값에는 스캔 식별자, 클러스터, scanner_type, 상태, 생성/완료 시각과
+저장된 S3 키 목록이 포함됩니다.
+ * @summary 스캔 세션 상세 조회
+ */
+export type getScanDetailApiV1ScansScanIdGetResponse200 = {
+  data: ScanDetailResponse
+  status: 200
+}
+
+export type getScanDetailApiV1ScansScanIdGetResponse404 = {
+  data: void
+  status: 404
+}
+
+export type getScanDetailApiV1ScansScanIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getScanDetailApiV1ScansScanIdGetResponseSuccess = (getScanDetailApiV1ScansScanIdGetResponse200) & {
+  headers: Headers;
+};
+export type getScanDetailApiV1ScansScanIdGetResponseError = (getScanDetailApiV1ScansScanIdGetResponse404 | getScanDetailApiV1ScansScanIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type getScanDetailApiV1ScansScanIdGetResponse = (getScanDetailApiV1ScansScanIdGetResponseSuccess | getScanDetailApiV1ScansScanIdGetResponseError)
+
+export const getGetScanDetailApiV1ScansScanIdGetUrl = (scanId: string,) => {
+
+
+  
+
+  return `/api/v1/scans/${scanId}`
+}
+
+export const getScanDetailApiV1ScansScanIdGet = async (scanId: string, options?: RequestInit): Promise<getScanDetailApiV1ScansScanIdGetResponse> => {
+  
+  return apiClient<getScanDetailApiV1ScansScanIdGetResponse>(getGetScanDetailApiV1ScansScanIdGetUrl(scanId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetScanDetailApiV1ScansScanIdGetQueryKey = (scanId: string,) => {
+    return [
+    `/api/v1/scans/${scanId}`
+    ] as const;
+    }
+
+    
+export const getGetScanDetailApiV1ScansScanIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError = void | HTTPValidationError>(scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetScanDetailApiV1ScansScanIdGetQueryKey(scanId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>> = ({ signal }) => getScanDetailApiV1ScansScanIdGet(scanId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(scanId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetScanDetailApiV1ScansScanIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>>
+export type GetScanDetailApiV1ScansScanIdGetQueryError = void | HTTPValidationError
+
+
+export function useGetScanDetailApiV1ScansScanIdGet<TData = Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetScanDetailApiV1ScansScanIdGet<TData = Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetScanDetailApiV1ScansScanIdGet<TData = Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 스캔 세션 상세 조회
+ */
+
+export function useGetScanDetailApiV1ScansScanIdGet<TData = Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getScanDetailApiV1ScansScanIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetScanDetailApiV1ScansScanIdGetQueryOptions(scanId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 스캔에 저장된 원본 결과 파일 1건에 대한 presigned download URL을 반환합니다.
+
+현재는 저장된 S3 키가 정확히 1개인 경우에만 URL을 생성합니다.
+ * @summary 원본 스캔 결과 다운로드 URL 조회
+ */
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200 = {
+  data: RawScanResultUrlResponse
+  status: 200
+}
+
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 = {
+  data: void
+  status: 404
+}
+
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 = {
+  data: void
+  status: 409
+}
+
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200) & {
+  headers: Headers;
+};
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422) & {
+  headers: Headers;
+};
+
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError)
+
+export const getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetUrl = (scanId: string,) => {
+
+
+  
+
+  return `/api/v1/scans/${scanId}/raw-result-url`
+}
+
+export const getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet = async (scanId: string, options?: RequestInit): Promise<getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse> => {
+  
+  return apiClient<getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse>(getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetUrl(scanId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryKey = (scanId: string,) => {
+    return [
+    `/api/v1/scans/${scanId}/raw-result-url`
+    ] as const;
+    }
+
+    
+export const getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryOptions = <TData = Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError = void | HTTPValidationError>(scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryKey(scanId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>> = ({ signal }) => getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet(scanId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(scanId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>>
+export type GetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryError = void | HTTPValidationError
+
+
+export function useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet<TData = Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet<TData = Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet<TData = Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 원본 스캔 결과 다운로드 URL 조회
+ */
+
+export function useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet<TData = Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError = void | HTTPValidationError>(
+ scanId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetQueryOptions(scanId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
  * 스캔 세션의 현재 상태를 확인합니다.
 
 **상태 값:**
-- `queued` — 스캔 요청이 큐에 등록됨
-- `running` — 워커가 스캔을 실행 중
+- `created` — 스캔 요청이 생성됨
+- `processing` — 워커가 스캔을 실행 중
 - `uploading` — 하나 이상의 업로드 URL이 요청됨
-- `processing` — 업로드 완료, 분석 진행 중
-- `completed` — 분석 완료, 결과 이용 가능
-- `failed` — 분석 실패 (로그 확인 필요)
+- `completed` — 스캔 업로드 검증까지 완료됨
+- `failed` — 스캔 실행 또는 업로드 검증 실패
  * @summary 스캔 세션 상태 조회
  */
 export type getScanStatusApiV1ScansScanIdStatusGetResponse200 = {
@@ -688,6 +944,126 @@ export function useGetScanStatusApiV1ScansScanIdStatusGet<TData = Awaited<Return
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetScanStatusApiV1ScansScanIdStatusGetQueryOptions(scanId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 클러스터에 속한 스캔 세션 목록을 최신순으로 조회합니다.
+
+각 항목에는 스캐너 유형, 상태, 생성/완료 시각과 원본 결과 파일 존재 여부가 포함됩니다.
+ * @summary 클러스터 스캔 이력 조회
+ */
+export type listClusterScansApiV1ClustersClusterIdScansGetResponse200 = {
+  data: ClusterScanListResponse
+  status: 200
+}
+
+export type listClusterScansApiV1ClustersClusterIdScansGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess = (listClusterScansApiV1ClustersClusterIdScansGetResponse200) & {
+  headers: Headers;
+};
+export type listClusterScansApiV1ClustersClusterIdScansGetResponseError = (listClusterScansApiV1ClustersClusterIdScansGetResponse422) & {
+  headers: Headers;
+};
+
+export type listClusterScansApiV1ClustersClusterIdScansGetResponse = (listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess | listClusterScansApiV1ClustersClusterIdScansGetResponseError)
+
+export const getListClusterScansApiV1ClustersClusterIdScansGetUrl = (clusterId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/scans`
+}
+
+export const listClusterScansApiV1ClustersClusterIdScansGet = async (clusterId: string, options?: RequestInit): Promise<listClusterScansApiV1ClustersClusterIdScansGetResponse> => {
+  
+  return apiClient<listClusterScansApiV1ClustersClusterIdScansGetResponse>(getListClusterScansApiV1ClustersClusterIdScansGetUrl(clusterId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getListClusterScansApiV1ClustersClusterIdScansGetQueryKey = (clusterId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/scans`
+    ] as const;
+    }
+
+    
+export const getListClusterScansApiV1ClustersClusterIdScansGetQueryOptions = <TData = Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError = HTTPValidationError>(clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(clusterId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>> = ({ signal }) => listClusterScansApiV1ClustersClusterIdScansGet(clusterId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListClusterScansApiV1ClustersClusterIdScansGetQueryResult = NonNullable<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>>
+export type ListClusterScansApiV1ClustersClusterIdScansGetQueryError = HTTPValidationError
+
+
+export function useListClusterScansApiV1ClustersClusterIdScansGet<TData = Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError = HTTPValidationError>(
+ clusterId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>,
+          TError,
+          Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClusterScansApiV1ClustersClusterIdScansGet<TData = Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError = HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>,
+          TError,
+          Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListClusterScansApiV1ClustersClusterIdScansGet<TData = Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError = HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 클러스터 스캔 이력 조회
+ */
+
+export function useListClusterScansApiV1ClustersClusterIdScansGet<TData = Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError = HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listClusterScansApiV1ClustersClusterIdScansGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListClusterScansApiV1ClustersClusterIdScansGetQueryOptions(clusterId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
