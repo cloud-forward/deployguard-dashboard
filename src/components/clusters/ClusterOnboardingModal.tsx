@@ -25,6 +25,14 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
 
   const apiEndpoint = 'https://analysis.deployguard.org';
   const isAws = clusterType === 'aws';
+  const clusterTypeLabel =
+    clusterType === 'eks'
+      ? 'EKS'
+      : clusterType === 'self-managed'
+        ? 'Self-managed'
+        : clusterType === 'aws'
+          ? 'AWS'
+          : clusterType;
 
   return (
     <>
@@ -70,30 +78,65 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
               }}
             >
               <p className="mb-3">
-                클러스터가 등록되었습니다. 아래 스캐너 설치를 완료하면 보안 분석을 시작할 수 있습니다.
+                클러스터가 등록되었습니다. 아래 안내에 따라 스캐너를 연결하면 이 클러스터의
+                스캔과 분석을 시작할 수 있습니다.
               </p>
-              <p className="mb-2">
-                <strong>클러스터 이름:</strong> {clusterName}
-              </p>
-              <p className="mb-2">
-                <strong>클러스터 유형:</strong> {clusterType}
-              </p>
+              <div className="card border mb-3">
+                <div className="card-body">
+                  <h6 className="fw-semibold mb-3">등록 정보</h6>
+                  <div className="row g-3 small">
+                    <div className="col-12 col-md-6">
+                      <div className="text-muted mb-1">클러스터 이름</div>
+                      <div className="fw-semibold text-break">{clusterName || '-'}</div>
+                    </div>
+                    <div className="col-12 col-md-6">
+                      <div className="text-muted mb-1">클러스터 유형</div>
+                      <div className="fw-semibold">{clusterTypeLabel || '-'}</div>
+                    </div>
+                    <div className="col-12">
+                      <div className="text-muted mb-1">클러스터 ID</div>
+                      <code className="d-block bg-body-tertiary border rounded px-2 py-2 text-break">
+                        {clusterId || '-'}
+                      </code>
+                    </div>
+                    <div className="col-12">
+                      <div className="text-muted mb-1">API Token</div>
+                      <code className="d-block bg-body-tertiary border rounded px-2 py-2 text-break">
+                        {apiToken || '-'}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <p className="mb-3 small">
                 {isAws ? (
                   <>
-                    <strong>AWS</strong>는 <strong>Docker run</strong> 모드로 외부 스캐너
-                    워커를 실행합니다.
+                    <strong>AWS</strong> 클러스터는 Kubernetes 내부 에이전트가 아니라
+                    외부 <strong>scanner worker</strong>를 실행해 계정 리소스를 수집합니다.
                   </>
                 ) : (
                   <>
-                    <strong>Kubernetes</strong>는 <strong>Helm install</strong>로 클러스터 내부 에이전트
-                    형태로 실행합니다.
+                    <strong>{clusterTypeLabel}</strong> 클러스터는 <strong>Helm install</strong>
+                    로 클러스터 내부에 스캐너를 배포하는 흐름입니다.
                   </>
                 )}
               </p>
               <div className="alert alert-warning mb-3" role="alert">
-                이 API token은 한 번만 표시되며 스캐너 설치에 필수입니다. 창을 닫기 전에 지금 바로
-                복사해 안전하게 보관해 주세요.
+                이 API token은 생성 직후 한 번만 표시될 수 있습니다. 설치 전에 복사하고,
+                비밀값 저장소나 안전한 팀 문서에 보관해 주세요.
+              </div>
+              <div className="alert alert-info mb-3" role="alert">
+                {isAws ? (
+                  <>
+                    다음 단계: AWS 접근 권한이 준비된 환경에서 worker를 실행하고, 이 토큰으로
+                    DeployGuard API에 연결하세요.
+                  </>
+                ) : (
+                  <>
+                    다음 단계: 대상 클러스터에서 Helm 명령을 실행해 scanner를 설치하고,
+                    이 토큰으로 DeployGuard와 연결하세요.
+                  </>
+                )}
               </div>
               {isAws ? (
                 <AwsInstallGuide

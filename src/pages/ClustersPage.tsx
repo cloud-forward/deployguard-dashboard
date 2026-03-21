@@ -15,9 +15,12 @@ type Cluster = {
     id: string;
     name: string;
     description?: string | null;
-    cluster_type: string;
-    created_at: string;
-    updated_at: string;
+    cluster_type?: string | null;
+    aws_account_id?: string | null;
+    aws_role_arn?: string | null;
+    aws_region?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
 };
 
 type ClusterForm = {
@@ -272,7 +275,7 @@ const ClustersPage: React.FC = () => {
             {
                 data: {
                     cluster_id: cluster.id,
-                    scanner_type: getScannerTypeForCluster(cluster.cluster_type),
+                    scanner_type: getScannerTypeForCluster(cluster.cluster_type ?? 'eks'),
                     request_source: 'manual',
                 },
             },
@@ -377,14 +380,34 @@ const ClustersPage: React.FC = () => {
                                         <tr key={cluster.id}>
                                             <td>{cluster.name}</td>
                                             <td className="text-muted">{cluster.id}</td>
-                                            <td>{cluster.description ?? '-'}</td>
+                                            <td>
+                                                <div>{cluster.description ?? '-'}</div>
+                                                {(cluster.aws_account_id ||
+                                                    cluster.aws_region ||
+                                                    cluster.aws_role_arn) && (
+                                                    <div className="mt-2 small text-muted">
+                                                        <div>
+                                                            <strong>AWS Account:</strong>{' '}
+                                                            {cluster.aws_account_id ?? '-'}
+                                                        </div>
+                                                        <div>
+                                                            <strong>AWS Region:</strong>{' '}
+                                                            {cluster.aws_region ?? '-'}
+                                                        </div>
+                                                        <div className="text-break">
+                                                            <strong>AssumeRole ARN:</strong>{' '}
+                                                            {cluster.aws_role_arn ?? '-'}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <span
                                                     className={`badge ${getClusterTypeBadgeClass(
-                                                        cluster.cluster_type,
+                                                        cluster.cluster_type ?? 'eks',
                                                     )}`}
                                                 >
-                                                    {getClusterTypeLabel(cluster.cluster_type)}
+                                                    {getClusterTypeLabel(cluster.cluster_type ?? '-')}
                                                 </span>
                                             </td>
                                             <td>
