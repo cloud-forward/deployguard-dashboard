@@ -9,8 +9,8 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 
 1. **클러스터 등록**: `POST /api/v1/clusters` → API 토큰 발급
 2. **Scanner 설치**: 발급된 토큰으로 Helm 차트 배포
-3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `queued` 작업 생성
-4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → queued 작업 claim
+3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `created` 작업 생성
+4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → created 작업 claim
 5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
 6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
 
@@ -21,7 +21,7 @@ export interface ScanStatusResponse {
   scan_id: string;
   cluster_id: string;
   scanner_type: string;
-  /** queued | running | uploading | processing | completed | failed */
+  /** created | processing | uploading | completed | failed */
   status: string;
   created_at: string;
   completed_at?: string | null;
