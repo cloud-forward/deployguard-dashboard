@@ -76,27 +76,14 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 활성 상태(`created`, `processing`, `uploading`)가 이미 있으면 409를 반환합니다.
  * @summary 스캔 작업 큐 생성
  */
-export type startScanApiV1ScansStartPostResponse201 = {
-  data: ScanStartResponse
-  status: 201
-}
+export type startScanApiV1ScansStartPostResponse201 = ScanStartResponse
 
-export type startScanApiV1ScansStartPostResponse409 = {
-  data: void
-  status: 409
-}
+export type startScanApiV1ScansStartPostResponse409 = void
 
-export type startScanApiV1ScansStartPostResponse422 = {
-  data: void
-  status: 422
-}
+export type startScanApiV1ScansStartPostResponse422 = void
 
-export type startScanApiV1ScansStartPostResponseSuccess = (startScanApiV1ScansStartPostResponse201) & {
-  headers: Headers;
-};
-export type startScanApiV1ScansStartPostResponseError = (startScanApiV1ScansStartPostResponse409 | startScanApiV1ScansStartPostResponse422) & {
-  headers: Headers;
-};
+export type startScanApiV1ScansStartPostResponseSuccess = (startScanApiV1ScansStartPostResponse201);
+export type startScanApiV1ScansStartPostResponseError = (startScanApiV1ScansStartPostResponse409 | startScanApiV1ScansStartPostResponse422);
 
 export type startScanApiV1ScansStartPostResponse = (startScanApiV1ScansStartPostResponseSuccess | startScanApiV1ScansStartPostResponseError)
 
@@ -176,37 +163,18 @@ export const useStartScanApiV1ScansStartPost = <TError = void,
 성공 시 상태는 `processing`으로 전이되고 `claimed_at`, `claimed_by`, `started_at`, `lease_expires_at`이 설정됩니다.
  * @summary 워커용 created 작업 클레임
  */
-export type claimPendingScanApiV1ScansPendingGetResponse200 = {
-  data: PendingScanClaimResponse
-  status: 200
-}
+export type claimPendingScanApiV1ScansPendingGetResponse200 = PendingScanClaimResponse
 
-export type claimPendingScanApiV1ScansPendingGetResponse204 = {
-  data: void
-  status: 204
-}
+export type claimPendingScanApiV1ScansPendingGetResponse204 = void
 
-export type claimPendingScanApiV1ScansPendingGetResponse401 = {
-  data: void
-  status: 401
-}
+export type claimPendingScanApiV1ScansPendingGetResponse401 = void
 
-export type claimPendingScanApiV1ScansPendingGetResponse403 = {
-  data: void
-  status: 403
-}
+export type claimPendingScanApiV1ScansPendingGetResponse403 = void
 
-export type claimPendingScanApiV1ScansPendingGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type claimPendingScanApiV1ScansPendingGetResponse422 = HTTPValidationError
 
-export type claimPendingScanApiV1ScansPendingGetResponseSuccess = (claimPendingScanApiV1ScansPendingGetResponse200 | claimPendingScanApiV1ScansPendingGetResponse204) & {
-  headers: Headers;
-};
-export type claimPendingScanApiV1ScansPendingGetResponseError = (claimPendingScanApiV1ScansPendingGetResponse401 | claimPendingScanApiV1ScansPendingGetResponse403 | claimPendingScanApiV1ScansPendingGetResponse422) & {
-  headers: Headers;
-};
+export type claimPendingScanApiV1ScansPendingGetResponseSuccess = (claimPendingScanApiV1ScansPendingGetResponse200 | claimPendingScanApiV1ScansPendingGetResponse204);
+export type claimPendingScanApiV1ScansPendingGetResponseError = (claimPendingScanApiV1ScansPendingGetResponse401 | claimPendingScanApiV1ScansPendingGetResponse403 | claimPendingScanApiV1ScansPendingGetResponse422);
 
 export type claimPendingScanApiV1ScansPendingGetResponse = (claimPendingScanApiV1ScansPendingGetResponseSuccess | claimPendingScanApiV1ScansPendingGetResponseError)
 
@@ -336,42 +304,20 @@ Presigned URL은 600초(10분) 후 만료됩니다.
 - `scans/prod-cluster/scan123/image/cve.json`
  * @summary 파일 업로드용 presigned URL 발급
  */
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200 = {
-  data: UploadUrlResponse
-  status: 200
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200 = UploadUrlResponse
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 = {
-  data: void
-  status: 401
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 = void
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 = {
-  data: void
-  status: 403
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 = void
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 = {
-  data: void
-  status: 404
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 = void
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 = {
-  data: void
-  status: 409
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 = void
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422 = HTTPValidationError
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200) & {
-  headers: Headers;
-};
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422) & {
-  headers: Headers;
-};
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200);
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422);
 
 export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess | getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError)
 
@@ -455,47 +401,22 @@ export const useGetUploadUrlApiV1ScansScanIdUploadUrlPost = <TError = void | HTT
 즉, complete는 다음 오케스트레이션 단계로 넘기는 역할이며 분석 파이프라인 실행 자체를 수행하지 않습니다.
  * @summary 스캐너 완료(업로드 완료) 알림
  */
-export type completeScanApiV1ScansScanIdCompletePostResponse202 = {
-  data: ScanCompleteResponse
-  status: 202
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse202 = ScanCompleteResponse
 
-export type completeScanApiV1ScansScanIdCompletePostResponse400 = {
-  data: void
-  status: 400
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse400 = void
 
-export type completeScanApiV1ScansScanIdCompletePostResponse401 = {
-  data: void
-  status: 401
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse401 = void
 
-export type completeScanApiV1ScansScanIdCompletePostResponse403 = {
-  data: void
-  status: 403
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse403 = void
 
-export type completeScanApiV1ScansScanIdCompletePostResponse404 = {
-  data: void
-  status: 404
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse404 = void
 
-export type completeScanApiV1ScansScanIdCompletePostResponse409 = {
-  data: void
-  status: 409
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse409 = void
 
-export type completeScanApiV1ScansScanIdCompletePostResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type completeScanApiV1ScansScanIdCompletePostResponse422 = HTTPValidationError
 
-export type completeScanApiV1ScansScanIdCompletePostResponseSuccess = (completeScanApiV1ScansScanIdCompletePostResponse202) & {
-  headers: Headers;
-};
-export type completeScanApiV1ScansScanIdCompletePostResponseError = (completeScanApiV1ScansScanIdCompletePostResponse400 | completeScanApiV1ScansScanIdCompletePostResponse401 | completeScanApiV1ScansScanIdCompletePostResponse403 | completeScanApiV1ScansScanIdCompletePostResponse404 | completeScanApiV1ScansScanIdCompletePostResponse409 | completeScanApiV1ScansScanIdCompletePostResponse422) & {
-  headers: Headers;
-};
+export type completeScanApiV1ScansScanIdCompletePostResponseSuccess = (completeScanApiV1ScansScanIdCompletePostResponse202);
+export type completeScanApiV1ScansScanIdCompletePostResponseError = (completeScanApiV1ScansScanIdCompletePostResponse400 | completeScanApiV1ScansScanIdCompletePostResponse401 | completeScanApiV1ScansScanIdCompletePostResponse403 | completeScanApiV1ScansScanIdCompletePostResponse404 | completeScanApiV1ScansScanIdCompletePostResponse409 | completeScanApiV1ScansScanIdCompletePostResponse422);
 
 export type completeScanApiV1ScansScanIdCompletePostResponse = (completeScanApiV1ScansScanIdCompletePostResponseSuccess | completeScanApiV1ScansScanIdCompletePostResponseError)
 
@@ -574,27 +495,14 @@ export const useCompleteScanApiV1ScansScanIdCompletePost = <TError = void | HTTP
 저장된 S3 키 목록이 포함됩니다.
  * @summary 스캔 세션 상세 조회
  */
-export type getScanDetailApiV1ScansScanIdGetResponse200 = {
-  data: ScanDetailResponse
-  status: 200
-}
+export type getScanDetailApiV1ScansScanIdGetResponse200 = ScanDetailResponse
 
-export type getScanDetailApiV1ScansScanIdGetResponse404 = {
-  data: void
-  status: 404
-}
+export type getScanDetailApiV1ScansScanIdGetResponse404 = void
 
-export type getScanDetailApiV1ScansScanIdGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getScanDetailApiV1ScansScanIdGetResponse422 = HTTPValidationError
 
-export type getScanDetailApiV1ScansScanIdGetResponseSuccess = (getScanDetailApiV1ScansScanIdGetResponse200) & {
-  headers: Headers;
-};
-export type getScanDetailApiV1ScansScanIdGetResponseError = (getScanDetailApiV1ScansScanIdGetResponse404 | getScanDetailApiV1ScansScanIdGetResponse422) & {
-  headers: Headers;
-};
+export type getScanDetailApiV1ScansScanIdGetResponseSuccess = (getScanDetailApiV1ScansScanIdGetResponse200);
+export type getScanDetailApiV1ScansScanIdGetResponseError = (getScanDetailApiV1ScansScanIdGetResponse404 | getScanDetailApiV1ScansScanIdGetResponse422);
 
 export type getScanDetailApiV1ScansScanIdGetResponse = (getScanDetailApiV1ScansScanIdGetResponseSuccess | getScanDetailApiV1ScansScanIdGetResponseError)
 
@@ -699,32 +607,16 @@ export function useGetScanDetailApiV1ScansScanIdGet<TData = Awaited<ReturnType<t
 현재는 저장된 S3 키가 정확히 1개인 경우에만 URL을 생성합니다.
  * @summary 원본 스캔 결과 다운로드 URL 조회
  */
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200 = {
-  data: RawScanResultUrlResponse
-  status: 200
-}
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200 = RawScanResultUrlResponse
 
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 = {
-  data: void
-  status: 404
-}
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 = void
 
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 = {
-  data: void
-  status: 409
-}
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 = void
 
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422 = HTTPValidationError
 
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200) & {
-  headers: Headers;
-};
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422) & {
-  headers: Headers;
-};
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200);
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422);
 
 export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError)
 
@@ -834,27 +726,14 @@ export function useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet<TData 
 - `failed` — 스캔 실행 또는 업로드 검증 실패
  * @summary 스캔 세션 상태 조회
  */
-export type getScanStatusApiV1ScansScanIdStatusGetResponse200 = {
-  data: ScanStatusResponse
-  status: 200
-}
+export type getScanStatusApiV1ScansScanIdStatusGetResponse200 = ScanStatusResponse
 
-export type getScanStatusApiV1ScansScanIdStatusGetResponse404 = {
-  data: void
-  status: 404
-}
+export type getScanStatusApiV1ScansScanIdStatusGetResponse404 = void
 
-export type getScanStatusApiV1ScansScanIdStatusGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getScanStatusApiV1ScansScanIdStatusGetResponse422 = HTTPValidationError
 
-export type getScanStatusApiV1ScansScanIdStatusGetResponseSuccess = (getScanStatusApiV1ScansScanIdStatusGetResponse200) & {
-  headers: Headers;
-};
-export type getScanStatusApiV1ScansScanIdStatusGetResponseError = (getScanStatusApiV1ScansScanIdStatusGetResponse404 | getScanStatusApiV1ScansScanIdStatusGetResponse422) & {
-  headers: Headers;
-};
+export type getScanStatusApiV1ScansScanIdStatusGetResponseSuccess = (getScanStatusApiV1ScansScanIdStatusGetResponse200);
+export type getScanStatusApiV1ScansScanIdStatusGetResponseError = (getScanStatusApiV1ScansScanIdStatusGetResponse404 | getScanStatusApiV1ScansScanIdStatusGetResponse422);
 
 export type getScanStatusApiV1ScansScanIdStatusGetResponse = (getScanStatusApiV1ScansScanIdStatusGetResponseSuccess | getScanStatusApiV1ScansScanIdStatusGetResponseError)
 
@@ -959,22 +838,12 @@ export function useGetScanStatusApiV1ScansScanIdStatusGet<TData = Awaited<Return
 각 항목에는 스캐너 유형, 상태, 생성/완료 시각과 원본 결과 파일 존재 여부가 포함됩니다.
  * @summary 클러스터 스캔 이력 조회
  */
-export type listClusterScansApiV1ClustersClusterIdScansGetResponse200 = {
-  data: ClusterScanListResponse
-  status: 200
-}
+export type listClusterScansApiV1ClustersClusterIdScansGetResponse200 = ClusterScanListResponse
 
-export type listClusterScansApiV1ClustersClusterIdScansGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type listClusterScansApiV1ClustersClusterIdScansGetResponse422 = HTTPValidationError
 
-export type listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess = (listClusterScansApiV1ClustersClusterIdScansGetResponse200) & {
-  headers: Headers;
-};
-export type listClusterScansApiV1ClustersClusterIdScansGetResponseError = (listClusterScansApiV1ClustersClusterIdScansGetResponse422) & {
-  headers: Headers;
-};
+export type listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess = (listClusterScansApiV1ClustersClusterIdScansGetResponse200);
+export type listClusterScansApiV1ClustersClusterIdScansGetResponseError = (listClusterScansApiV1ClustersClusterIdScansGetResponse422);
 
 export type listClusterScansApiV1ClustersClusterIdScansGetResponse = (listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess | listClusterScansApiV1ClustersClusterIdScansGetResponseError)
 

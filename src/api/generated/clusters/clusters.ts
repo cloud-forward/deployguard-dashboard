@@ -54,15 +54,10 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * 등록된 모든 클러스터 목록을 반환합니다.
  * @summary 클러스터 목록 조회
  */
-export type listClustersApiV1ClustersGetResponse200 = {
-  data: ClusterResponse[]
-  status: 200
-}
+export type listClustersApiV1ClustersGetResponse200 = ClusterResponse[]
 
-export type listClustersApiV1ClustersGetResponseSuccess = (listClustersApiV1ClustersGetResponse200) & {
-  headers: Headers;
-};
-;
+export type listClustersApiV1ClustersGetResponseSuccess = (listClustersApiV1ClustersGetResponse200);
+
 
 export type listClustersApiV1ClustersGetResponse = (listClustersApiV1ClustersGetResponseSuccess)
 
@@ -172,22 +167,12 @@ export function useListClustersApiV1ClustersGet<TData = Awaited<ReturnType<typeo
 - `aws` — AWS 클러스터
  * @summary 클러스터 생성
  */
-export type createClusterApiV1ClustersPostResponse201 = {
-  data: ClusterCreateResponse
-  status: 201
-}
+export type createClusterApiV1ClustersPostResponse201 = ClusterCreateResponse
 
-export type createClusterApiV1ClustersPostResponse422 = {
-  data: void
-  status: 422
-}
+export type createClusterApiV1ClustersPostResponse422 = void
 
-export type createClusterApiV1ClustersPostResponseSuccess = (createClusterApiV1ClustersPostResponse201) & {
-  headers: Headers;
-};
-export type createClusterApiV1ClustersPostResponseError = (createClusterApiV1ClustersPostResponse422) & {
-  headers: Headers;
-};
+export type createClusterApiV1ClustersPostResponseSuccess = (createClusterApiV1ClustersPostResponse201);
+export type createClusterApiV1ClustersPostResponseError = (createClusterApiV1ClustersPostResponse422);
 
 export type createClusterApiV1ClustersPostResponse = (createClusterApiV1ClustersPostResponseSuccess | createClusterApiV1ClustersPostResponseError)
 
@@ -262,27 +247,14 @@ export const useCreateClusterApiV1ClustersPost = <TError = void,
  * ID로 특정 클러스터의 상세 정보를 조회합니다.
  * @summary 클러스터 단건 조회
  */
-export type getClusterApiV1ClustersIdGetResponse200 = {
-  data: ClusterResponse
-  status: 200
-}
+export type getClusterApiV1ClustersIdGetResponse200 = ClusterResponse
 
-export type getClusterApiV1ClustersIdGetResponse404 = {
-  data: void
-  status: 404
-}
+export type getClusterApiV1ClustersIdGetResponse404 = void
 
-export type getClusterApiV1ClustersIdGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getClusterApiV1ClustersIdGetResponse422 = HTTPValidationError
 
-export type getClusterApiV1ClustersIdGetResponseSuccess = (getClusterApiV1ClustersIdGetResponse200) & {
-  headers: Headers;
-};
-export type getClusterApiV1ClustersIdGetResponseError = (getClusterApiV1ClustersIdGetResponse404 | getClusterApiV1ClustersIdGetResponse422) & {
-  headers: Headers;
-};
+export type getClusterApiV1ClustersIdGetResponseSuccess = (getClusterApiV1ClustersIdGetResponse200);
+export type getClusterApiV1ClustersIdGetResponseError = (getClusterApiV1ClustersIdGetResponse404 | getClusterApiV1ClustersIdGetResponse422);
 
 export type getClusterApiV1ClustersIdGetResponse = (getClusterApiV1ClustersIdGetResponseSuccess | getClusterApiV1ClustersIdGetResponseError)
 
@@ -385,27 +357,14 @@ export function useGetClusterApiV1ClustersIdGet<TData = Awaited<ReturnType<typeo
  * 클러스터의 이름, 설명, 유형을 부분 업데이트합니다. 변경할 필드만 포함하면 됩니다.
  * @summary 클러스터 정보 수정
  */
-export type updateClusterApiV1ClustersIdPatchResponse200 = {
-  data: ClusterResponse
-  status: 200
-}
+export type updateClusterApiV1ClustersIdPatchResponse200 = ClusterResponse
 
-export type updateClusterApiV1ClustersIdPatchResponse404 = {
-  data: void
-  status: 404
-}
+export type updateClusterApiV1ClustersIdPatchResponse404 = void
 
-export type updateClusterApiV1ClustersIdPatchResponse422 = {
-  data: void
-  status: 422
-}
+export type updateClusterApiV1ClustersIdPatchResponse422 = void
 
-export type updateClusterApiV1ClustersIdPatchResponseSuccess = (updateClusterApiV1ClustersIdPatchResponse200) & {
-  headers: Headers;
-};
-export type updateClusterApiV1ClustersIdPatchResponseError = (updateClusterApiV1ClustersIdPatchResponse404 | updateClusterApiV1ClustersIdPatchResponse422) & {
-  headers: Headers;
-};
+export type updateClusterApiV1ClustersIdPatchResponseSuccess = (updateClusterApiV1ClustersIdPatchResponse200);
+export type updateClusterApiV1ClustersIdPatchResponseError = (updateClusterApiV1ClustersIdPatchResponse404 | updateClusterApiV1ClustersIdPatchResponse422);
 
 export type updateClusterApiV1ClustersIdPatchResponse = (updateClusterApiV1ClustersIdPatchResponseSuccess | updateClusterApiV1ClustersIdPatchResponseError)
 
@@ -481,27 +440,14 @@ export const useUpdateClusterApiV1ClustersIdPatch = <TError = void,
  * 클러스터와 연결된 모든 스캔 데이터를 포함하여 클러스터를 삭제합니다.
  * @summary 클러스터 삭제
  */
-export type deleteClusterApiV1ClustersIdDeleteResponse204 = {
-  data: void
-  status: 204
-}
+export type deleteClusterApiV1ClustersIdDeleteResponse204 = void
 
-export type deleteClusterApiV1ClustersIdDeleteResponse404 = {
-  data: void
-  status: 404
-}
+export type deleteClusterApiV1ClustersIdDeleteResponse404 = void
 
-export type deleteClusterApiV1ClustersIdDeleteResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type deleteClusterApiV1ClustersIdDeleteResponse422 = HTTPValidationError
 
-export type deleteClusterApiV1ClustersIdDeleteResponseSuccess = (deleteClusterApiV1ClustersIdDeleteResponse204) & {
-  headers: Headers;
-};
-export type deleteClusterApiV1ClustersIdDeleteResponseError = (deleteClusterApiV1ClustersIdDeleteResponse404 | deleteClusterApiV1ClustersIdDeleteResponse422) & {
-  headers: Headers;
-};
+export type deleteClusterApiV1ClustersIdDeleteResponseSuccess = (deleteClusterApiV1ClustersIdDeleteResponse204);
+export type deleteClusterApiV1ClustersIdDeleteResponseError = (deleteClusterApiV1ClustersIdDeleteResponse404 | deleteClusterApiV1ClustersIdDeleteResponse422);
 
 export type deleteClusterApiV1ClustersIdDeleteResponse = (deleteClusterApiV1ClustersIdDeleteResponseSuccess | deleteClusterApiV1ClustersIdDeleteResponseError)
 
