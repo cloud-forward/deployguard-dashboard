@@ -33,7 +33,7 @@ type ClusterForm = {
 const ClustersPage: React.FC = () => {
     const queryClient = useQueryClient();
     const { data, isLoading, isError, error } = useListClustersApiV1ClustersGet();
-    const clusters = Array.isArray(data) ? data : (data?.data ?? []);
+    const clusters = Array.isArray(data) ? data : [];
     const {
         mutate: createCluster,
         isPending: isCreating,
@@ -132,25 +132,7 @@ const ClustersPage: React.FC = () => {
             return null;
         }
 
-        const top = response as Record<string, unknown>;
-        const topData =
-            top.data && typeof top.data === 'object'
-                ? (top.data as Record<string, unknown>)
-                : null;
-        const candidate1 =
-            top.api_token && typeof top.api_token === 'string'
-                ? top
-                : topData?.api_token && typeof topData.api_token === 'string'
-                  ? topData
-                  : topData?.data && typeof topData.data === 'object'
-                    ? (topData.data as Record<string, unknown>)
-                    : null;
-
-        if (!candidate1 || typeof candidate1 !== 'object') {
-            return null;
-        }
-
-        const payload = candidate1 as Record<string, unknown>;
+        const payload = response as Record<string, unknown>;
 
         return {
             id:

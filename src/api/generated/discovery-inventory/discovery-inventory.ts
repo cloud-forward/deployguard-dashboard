@@ -52,22 +52,12 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 /**
  * @summary Sync Cluster
  */
-export type syncClusterApiV1ClustersClusterIdSyncPostResponse200 = {
-  data: SyncResponse
-  status: 200
-}
+export type syncClusterApiV1ClustersClusterIdSyncPostResponse200 = SyncResponse
 
-export type syncClusterApiV1ClustersClusterIdSyncPostResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type syncClusterApiV1ClustersClusterIdSyncPostResponse422 = HTTPValidationError
 
-export type syncClusterApiV1ClustersClusterIdSyncPostResponseSuccess = (syncClusterApiV1ClustersClusterIdSyncPostResponse200) & {
-  headers: Headers;
-};
-export type syncClusterApiV1ClustersClusterIdSyncPostResponseError = (syncClusterApiV1ClustersClusterIdSyncPostResponse422) & {
-  headers: Headers;
-};
+export type syncClusterApiV1ClustersClusterIdSyncPostResponseSuccess = (syncClusterApiV1ClustersClusterIdSyncPostResponse200);
+export type syncClusterApiV1ClustersClusterIdSyncPostResponseError = (syncClusterApiV1ClustersClusterIdSyncPostResponse422);
 
 export type syncClusterApiV1ClustersClusterIdSyncPostResponse = (syncClusterApiV1ClustersClusterIdSyncPostResponseSuccess | syncClusterApiV1ClustersClusterIdSyncPostResponseError)
 
@@ -140,22 +130,12 @@ export const useSyncClusterApiV1ClustersClusterIdSyncPost = <TError = HTTPValida
     /**
  * @summary Get Assets
  */
-export type getAssetsApiV1ClustersClusterIdAssetsGetResponse200 = {
-  data: AssetInventoryListResponse
-  status: 200
-}
+export type getAssetsApiV1ClustersClusterIdAssetsGetResponse200 = AssetInventoryListResponse
 
-export type getAssetsApiV1ClustersClusterIdAssetsGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getAssetsApiV1ClustersClusterIdAssetsGetResponse422 = HTTPValidationError
 
-export type getAssetsApiV1ClustersClusterIdAssetsGetResponseSuccess = (getAssetsApiV1ClustersClusterIdAssetsGetResponse200) & {
-  headers: Headers;
-};
-export type getAssetsApiV1ClustersClusterIdAssetsGetResponseError = (getAssetsApiV1ClustersClusterIdAssetsGetResponse422) & {
-  headers: Headers;
-};
+export type getAssetsApiV1ClustersClusterIdAssetsGetResponseSuccess = (getAssetsApiV1ClustersClusterIdAssetsGetResponse200);
+export type getAssetsApiV1ClustersClusterIdAssetsGetResponseError = (getAssetsApiV1ClustersClusterIdAssetsGetResponse422);
 
 export type getAssetsApiV1ClustersClusterIdAssetsGetResponse = (getAssetsApiV1ClustersClusterIdAssetsGetResponseSuccess | getAssetsApiV1ClustersClusterIdAssetsGetResponseError)
 
@@ -257,22 +237,12 @@ export function useGetAssetsApiV1ClustersClusterIdAssetsGet<TData = Awaited<Retu
 /**
  * @summary Get Asset Detail
  */
-export type getAssetDetailApiV1AssetsAssetIdGetResponse200 = {
-  data: AssetDetailResponse
-  status: 200
-}
+export type getAssetDetailApiV1AssetsAssetIdGetResponse200 = AssetDetailResponse
 
-export type getAssetDetailApiV1AssetsAssetIdGetResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
+export type getAssetDetailApiV1AssetsAssetIdGetResponse422 = HTTPValidationError
 
-export type getAssetDetailApiV1AssetsAssetIdGetResponseSuccess = (getAssetDetailApiV1AssetsAssetIdGetResponse200) & {
-  headers: Headers;
-};
-export type getAssetDetailApiV1AssetsAssetIdGetResponseError = (getAssetDetailApiV1AssetsAssetIdGetResponse422) & {
-  headers: Headers;
-};
+export type getAssetDetailApiV1AssetsAssetIdGetResponseSuccess = (getAssetDetailApiV1AssetsAssetIdGetResponse200);
+export type getAssetDetailApiV1AssetsAssetIdGetResponseError = (getAssetDetailApiV1AssetsAssetIdGetResponse422);
 
 export type getAssetDetailApiV1AssetsAssetIdGetResponse = (getAssetDetailApiV1AssetsAssetIdGetResponseSuccess | getAssetDetailApiV1AssetsAssetIdGetResponseError)
 

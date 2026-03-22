@@ -100,9 +100,7 @@ const ScansPage: React.FC = () => {
   } = useListClustersApiV1ClustersGet();
   const clusters = useMemo<ClusterOption[]>(
     () => {
-      const clusterList = Array.isArray(clustersResponse)
-        ? clustersResponse
-        : (clustersResponse?.data ?? []);
+      const clusterList = Array.isArray(clustersResponse) ? clustersResponse : [];
 
       return clusterList.map((cluster) => ({
         id: cluster.id,
