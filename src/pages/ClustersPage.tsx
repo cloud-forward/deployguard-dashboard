@@ -283,7 +283,7 @@ const ClustersPage: React.FC = () => {
                 onSuccess: () => {
                     setScanFeedback({
                         clusterName: cluster.name,
-                        message: 'Scan request created',
+                        message: 'Scan request crㅊㅐㅇㄷㅌeated',
                         isError: false,
                     });
                 },
