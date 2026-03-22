@@ -5,9 +5,10 @@ import { nodeTypeColors, nodeTypeIcons } from './mockGraphData';
 interface NodeDetailPanelProps {
   node: NodeData | null;
   onClose: () => void;
+  style?: React.CSSProperties;
 }
 
-const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({ node, onClose }) => {
+const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({ node, onClose, style }) => {
   if (!node) return null;
 
   const color = nodeTypeColors[node.type];
@@ -23,6 +24,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({ node, onClose }) => {
         width: 300,
         zIndex: 10,
         borderTop: `4px solid ${color}`,
+        ...style,
       }}
     >
       <div className="card-header d-flex justify-content-between align-items-center">
