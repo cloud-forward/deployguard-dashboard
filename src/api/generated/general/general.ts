@@ -48,15 +48,10 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 DB 장애 시 Kubernetes 파드 재시작을 방지하기 위해 항상 HTTP 200을 반환합니다.
  * @summary Health Check
  */
-export type healthCheckHealthGetResponse200 = {
-  data: HealthResponse
-  status: 200
-}
+export type healthCheckHealthGetResponse200 = HealthResponse
 
-export type healthCheckHealthGetResponseSuccess = (healthCheckHealthGetResponse200) & {
-  headers: Headers;
-};
-;
+export type healthCheckHealthGetResponseSuccess = (healthCheckHealthGetResponse200);
+
 
 export type healthCheckHealthGetResponse = (healthCheckHealthGetResponseSuccess)
 

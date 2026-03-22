@@ -100,9 +100,7 @@ const ScansPage: React.FC = () => {
   } = useListClustersApiV1ClustersGet();
   const clusters = useMemo<ClusterOption[]>(
     () => {
-      const clusterList = Array.isArray(clustersResponse)
-        ? clustersResponse
-        : (clustersResponse?.data ?? []);
+      const clusterList = Array.isArray(clustersResponse) ? clustersResponse : [];
 
       return clusterList.map((cluster) => ({
         id: cluster.id,
@@ -129,7 +127,7 @@ const ScansPage: React.FC = () => {
       enabled: Boolean(activeClusterId),
     },
   });
-  const scanList = isClusterScanListResponse(scansResponse?.data) ? scansResponse.data : null;
+  const scanList = isClusterScanListResponse(scansResponse) ? scansResponse : null;
   const scans = scanList?.items ?? [];
   const expandedScan = scans.find((scan) => scan.scan_id === expandedScanId) ?? null;
 
@@ -152,8 +150,8 @@ const ScansPage: React.FC = () => {
     query: {
       enabled: Boolean(expandedScanId),
       refetchInterval: (query) => {
-        const nextStatus = isScanStatusResponse(query.state.data?.data)
-          ? query.state.data.data.status
+        const nextStatus = isScanStatusResponse(query.state.data)
+          ? query.state.data.status
           : null;
         return nextStatus && ['completed', 'failed'].includes(nextStatus) ? false : 10000;
       },
@@ -171,10 +169,10 @@ const ScansPage: React.FC = () => {
     },
   });
 
-  const detail = isScanDetailResponse(scanDetailResponse?.data) ? scanDetailResponse.data : null;
-  const status = isScanStatusResponse(scanStatusResponse?.data) ? scanStatusResponse.data : null;
-  const rawResult = isRawScanResultUrlResponse(rawResultResponse?.data)
-    ? rawResultResponse.data
+  const detail = isScanDetailResponse(scanDetailResponse) ? scanDetailResponse : null;
+  const status = isScanStatusResponse(scanStatusResponse) ? scanStatusResponse : null;
+  const rawResult = isRawScanResultUrlResponse(rawResultResponse)
+    ? rawResultResponse
     : null;
   const effectiveStatus = status?.status ?? detail?.status ?? expandedScan?.status ?? '';
 

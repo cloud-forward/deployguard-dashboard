@@ -42,15 +42,10 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * 기본 서비스 정보를 반환하는 루트 엔드포인트.
  * @summary Root
  */
-export type rootGetResponse200 = {
-  data: unknown
-  status: 200
-}
+export type rootGetResponse200 = unknown
 
-export type rootGetResponseSuccess = (rootGetResponse200) & {
-  headers: Headers;
-};
-;
+export type rootGetResponseSuccess = (rootGetResponse200);
+
 
 export type rootGetResponse = (rootGetResponseSuccess)
 

@@ -47,22 +47,12 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 분석 파이프라인: 그래프 구축 → 공격 경로 탐색 → 위험 점수 산정
  * @summary 분석 작업 수동 실행
  */
-export type createAnalysisJobApiV1AnalysisJobsPostResponse202 = {
-  data: AnalysisJobResponse
-  status: 202
-}
+export type createAnalysisJobApiV1AnalysisJobsPostResponse202 = AnalysisJobResponse
 
-export type createAnalysisJobApiV1AnalysisJobsPostResponse422 = {
-  data: void
-  status: 422
-}
+export type createAnalysisJobApiV1AnalysisJobsPostResponse422 = void
 
-export type createAnalysisJobApiV1AnalysisJobsPostResponseSuccess = (createAnalysisJobApiV1AnalysisJobsPostResponse202) & {
-  headers: Headers;
-};
-export type createAnalysisJobApiV1AnalysisJobsPostResponseError = (createAnalysisJobApiV1AnalysisJobsPostResponse422) & {
-  headers: Headers;
-};
+export type createAnalysisJobApiV1AnalysisJobsPostResponseSuccess = (createAnalysisJobApiV1AnalysisJobsPostResponse202);
+export type createAnalysisJobApiV1AnalysisJobsPostResponseError = (createAnalysisJobApiV1AnalysisJobsPostResponse422);
 
 export type createAnalysisJobApiV1AnalysisJobsPostResponse = (createAnalysisJobApiV1AnalysisJobsPostResponseSuccess | createAnalysisJobApiV1AnalysisJobsPostResponseError)
 
