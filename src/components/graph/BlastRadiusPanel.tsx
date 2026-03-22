@@ -3,9 +3,10 @@ import type { NodeData } from './mockGraphData';
 
 interface BlastRadiusPanelProps {
   node: NodeData | null;
+  style?: React.CSSProperties;
 }
 
-const BlastRadiusPanel: React.FC<BlastRadiusPanelProps> = ({ node }) => {
+const BlastRadiusPanel: React.FC<BlastRadiusPanelProps> = ({ node, style }) => {
   if (!node) return null;
 
   const { blastRadius } = node;
@@ -19,6 +20,7 @@ const BlastRadiusPanel: React.FC<BlastRadiusPanelProps> = ({ node }) => {
         right: 16,
         width: 300,
         zIndex: 10,
+        ...style,
       }}
     >
       <div className="card-header bg-danger text-white">
