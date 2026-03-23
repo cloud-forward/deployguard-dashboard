@@ -112,12 +112,13 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
                 {isAws ? (
                   <>
                     <strong>AWS</strong> 클러스터는 Kubernetes 내부 에이전트가 아니라
-                    외부 <strong>scanner worker</strong>를 실행해 계정 리소스를 수집합니다.
+                    외부 <strong>scanner worker</strong>를 실행해 계정 리소스를 수집합니다. 안내된
+                    순서대로 기존 컨테이너 정리, ECR 로그인, 이미지 pull, worker 실행을 진행하세요.
                   </>
                 ) : (
                   <>
-                    <strong>{clusterTypeLabel}</strong> 클러스터는 <strong>Helm install</strong>
-                    로 클러스터 내부에 스캐너를 배포하는 흐름입니다.
+                    <strong>{clusterTypeLabel}</strong> 클러스터는 클러스터 내부에 스캐너를 배포하는
+                    흐름입니다. 아래 namespace 생성과 Helm 설치 명령을 그대로 복사해 사용하세요.
                   </>
                 )}
               </p>
@@ -128,12 +129,12 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
               <div className="alert alert-info mb-3" role="alert">
                 {isAws ? (
                   <>
-                    다음 단계: AWS 접근 권한이 준비된 환경에서 worker를 실행하고, 이 토큰으로
-                    DeployGuard API에 연결하세요.
+                    다음 단계: 현재 호스트의 AWS 자격증명이 DeployGuard private ECR과 대상 계정 접근
+                    권한을 갖는지 확인한 뒤, 아래 명령으로 worker를 실행하세요.
                   </>
                 ) : (
                   <>
-                    다음 단계: 대상 클러스터에서 Helm 명령을 실행해 scanner를 설치하고,
+                    다음 단계: 대상 클러스터에서 namespace를 준비한 뒤 Helm 명령으로 scanner를 설치하고,
                     이 토큰으로 DeployGuard와 연결하세요.
                   </>
                 )}
@@ -145,12 +146,12 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
                   apiEndpoint={apiEndpoint}
                 />
               ) : (
-                <HelmInstallGuide
-                  clusterId={clusterId}
-                  apiToken={apiToken}
-                  apiEndpoint={apiEndpoint}
-                />
-              )}
+                  <HelmInstallGuide
+                    clusterId={clusterId}
+                    apiToken={apiToken}
+                    apiEndpoint={apiEndpoint}
+                  />
+                )}
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={onClose}>

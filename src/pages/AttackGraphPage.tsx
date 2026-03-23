@@ -1,28 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import type { ElementDefinition } from 'cytoscape';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import BlastRadiusPanel from '../components/graph/BlastRadiusPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import { mockElements } from '../components/graph/mockGraphData';
+import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
+import { useGetClusterAttackGraph } from '../api/attackGraph';
 import {
-  toAttackGraphViewModel,
   filterAttackGraphElements,
   toAttackGraphElements,
+  toAttackGraphViewModel,
   type AttackGraphApiEdge,
   type AttackGraphApiNode,
   type AttackGraphApiResponse,
   type AttackGraphEdgeRelation,
-  type AttackGraphPath,
   type AttackGraphFilters,
+  type AttackGraphPath,
   type AttackGraphResourceType,
   type AttackGraphRiskSeverity,
 } from '../components/graph/attackGraph';
-import type { ElementDefinition } from 'cytoscape';
 
 const LARGE_GRAPH_THRESHOLD = 180;
+const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
+  nodes: [],
+  edges: [],
+  paths: [],
+};
 
 type SelectionMode = 'none' | 'path' | 'node' | 'edge';
+type AttackGraphDataSource = 'mock' | 'live';
 
 interface EdgeData {
   id: string;
@@ -30,38 +38,12 @@ interface EdgeData {
   target: string;
   label?: string;
   relation?: string;
+  reason?: string;
 }
 
 const mapLegacyTypeToAttackGraphType = (nodeType: string): string => {
   if (nodeType === 'S3Bucket') return 'S3';
   return nodeType;
-};
-
-const mapLegacyNodeToPanelNode = (node: Record<string, unknown>): NodeData | null => {
-  if (!node || typeof node !== 'object') return null;
-
-  const detailsValue = node.details as Record<string, unknown> | undefined;
-  const blastRadiusValue = node.blastRadius as NodeData['blastRadius'] | undefined;
-  const id = typeof node.id === 'string' ? node.id : '';
-  if (!id) return null;
-
-  return {
-    id,
-    label: typeof node.label === 'string' ? node.label : String(node.id),
-    type: String(node.type ?? '') as NodeType,
-    namespace: typeof node.namespace === 'string' ? node.namespace : undefined,
-    details:
-      detailsValue && typeof detailsValue === 'object'
-        ? (Object.entries(detailsValue).reduce<Record<string, string>>((acc, [key, value]) => {
-            acc[key] = value == null ? '' : String(value);
-            return acc;
-          }, {} as Record<string, string>))
-        : {},
-    blastRadius:
-      blastRadiusValue && typeof blastRadiusValue === 'object'
-        ? blastRadiusValue
-        : { pods: 0, secrets: 0, databases: 0, adminPrivilege: false },
-  };
 };
 
 const mapLegacyType = (value: unknown): string => {
@@ -125,15 +107,94 @@ const sortAndNormalize = <T,>(values: T[]): T[] =>
     }, [] as T[])
     .sort();
 
-const AttackGraphPage: React.FC = () => {
-  const [filters, setFilters] = useState<AttackGraphFilters>({});
+const toErrorMessage = (error: unknown, fallback: string) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = error.message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+};
+
+const toDisplayLabel = (key: string) =>
+  key
+    .replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
+const isAttackGraphApiResponse = (value: unknown): value is AttackGraphApiResponse =>
+  Boolean(value && typeof value === 'object' && 'nodes' in value && 'edges' in value);
+
+const mapAttackGraphNodeToPanelNode = (node: AttackGraphApiNode): NodeData => {
+  const normalizedType = mapLegacyTypeToAttackGraphType(node.resource_type ?? 'Unknown');
+  let panelType: NodeType = 'Pod';
+
+  if (normalizedType === 'ServiceAccount') panelType = 'ServiceAccount';
+  if (normalizedType === 'IAMRole') panelType = 'IAMRole';
+  if (normalizedType === 'S3') panelType = 'S3Bucket';
+
+  return {
+    id: node.id,
+    label: node.label ?? node.id,
+    type: panelType,
+    namespace: node.namespace ?? undefined,
+    details: Object.entries({
+      ...(node.details ?? {}),
+      ...(node.metadata ?? {}),
+      ...(typeof node.evidence_count === 'number' ? { evidence_count: node.evidence_count } : {}),
+    }).reduce<Record<string, string>>((acc, [key, value]) => {
+      acc[toDisplayLabel(key)] = value == null ? '' : String(value);
+      return acc;
+    }, {}),
+    blastRadius: {
+      pods: 0,
+      secrets: 0,
+      databases: 0,
+      adminPrivilege: false,
+    },
+  };
+};
+
+const mapAttackGraphEdgeToPanelEdge = (edge: AttackGraphApiEdge): EdgeData => ({
+  id: edge.id,
+  source: edge.source,
+  target: edge.target,
+  relation: edge.relation ? String(edge.relation) : undefined,
+  label: edge.label ? String(edge.label) : undefined,
+  reason:
+    edge.metadata && typeof edge.metadata.reason === 'string' && edge.metadata.reason.trim()
+      ? edge.metadata.reason
+      : undefined,
+});
+
+interface AttackGraphContentProps {
+  payload: AttackGraphApiResponse;
+  filters: AttackGraphFilters;
+  onFiltersChange: React.Dispatch<React.SetStateAction<AttackGraphFilters>>;
+  emptyStateTitle?: string;
+  emptyStateBody?: string;
+  liveSummary?: string | null;
+  liveEvidenceCount?: number | null;
+}
+
+const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
+  payload,
+  filters,
+  onFiltersChange,
+  emptyStateTitle = 'No attack graph data.',
+  emptyStateBody = 'No nodes or edges are available for the current selection.',
+  liveSummary,
+  liveEvidenceCount,
+}) => {
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<EdgeData | null>(null);
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<SelectionMode>('none');
-  const attackGraphViewModel = useMemo(() => toAttackGraphViewModel(toAttackGraphPayload), []);
+  const attackGraphViewModel = useMemo(() => toAttackGraphViewModel(payload), [payload]);
 
   const attackGraph = useMemo(() => attackGraphViewModel.graph, [attackGraphViewModel.graph]);
 
@@ -160,7 +221,7 @@ const AttackGraphPage: React.FC = () => {
       sortAndNormalize(
         attackGraph.nodes
           .map((node) => node.severity)
-      .concat(attackGraph.paths.map((path) => path.severity ?? 'unknown'))
+          .concat(attackGraph.paths.map((path) => path.severity ?? 'unknown'))
           .filter((severity): severity is AttackGraphRiskSeverity => severity != null),
       ),
     [attackGraph.nodes, attackGraph.paths],
@@ -169,6 +230,7 @@ const AttackGraphPage: React.FC = () => {
 
   const attackPaths = useMemo<AttackGraphPath[]>(() => filteredGraph.paths, [filteredGraph.paths]);
   const filteredElements = useMemo(() => toAttackGraphElements(filteredGraph), [filteredGraph]);
+  const hasRenderableGraph = filteredGraph.nodes.length > 0 || filteredGraph.edges.length > 0;
   const visibleNodeIds = useMemo(() => new Set(filteredGraph.nodes.map((node) => node.id)), [filteredGraph.nodes]);
   const visibleEdgeIds = useMemo(() => new Set(filteredGraph.edges.map((edge) => edge.id)), [filteredGraph.edges]);
   const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
@@ -204,28 +266,61 @@ const AttackGraphPage: React.FC = () => {
   const selectedPathEdgeIds = selectedMode === 'path' && selectedPath ? selectedPath.edgeIds : [];
   const selectedNodeLookup = useMemo(() => {
     const map = new Map<string, NodeData>();
-    for (const element of mockElements) {
-      if (typeof element.data === 'object' && element.data !== null && !('source' in element.data)) {
-        const mapped = mapLegacyNodeToPanelNode(element.data as Record<string, unknown>);
-        if (mapped) {
-          map.set(mapped.id, mapped);
-        }
-      }
+    for (const node of payload.nodes ?? []) {
+      map.set(node.id, mapAttackGraphNodeToPanelNode(node));
     }
     return map;
-  }, []);
+  }, [payload.nodes]);
+  const selectedEdgeLookup = useMemo(() => {
+    const map = new Map<string, EdgeData>();
+    for (const edge of payload.edges ?? []) {
+      map.set(edge.id, mapAttackGraphEdgeToPanelEdge(edge));
+    }
+    return map;
+  }, [payload.edges]);
+
+  useEffect(() => {
+    if (selectedNodeId) {
+      setSelectedNode(selectedNodeLookup.get(selectedNodeId) ?? null);
+    }
+  }, [selectedNodeId, selectedNodeLookup]);
+
+  useEffect(() => {
+    if (selectedEdgeId) {
+      setSelectedEdge(selectedEdgeLookup.get(selectedEdgeId) ?? null);
+    }
+  }, [selectedEdgeId, selectedEdgeLookup]);
+
+  useEffect(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    setSelectedPathId(null);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSelectedMode('none');
+  }, [payload]);
 
   const shouldShowNodeDetails = selectedMode === 'node' && selectedNode;
   const shouldShowEdgeDetails = selectedMode === 'edge' && selectedEdge;
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-1">
-        <div>
-          <h1 className="h3 mb-1">Attack Graph</h1>
-          <p className="dg-subtitle-text mb-0 small">Visualization of potential attack vectors.</p>
+    <>
+      {liveSummary || typeof liveEvidenceCount === 'number' ? (
+        <div className="card border-0 shadow-sm mb-1">
+          <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 align-items-center small">
+            {liveSummary ? (
+              <span className="text-muted">
+                Summary: <strong className="text-dark">{liveSummary}</strong>
+              </span>
+            ) : null}
+            {typeof liveEvidenceCount === 'number' ? (
+              <span className="text-muted">
+                Evidence count: <strong className="text-dark">{liveEvidenceCount}</strong>
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="card border-0 shadow-sm mb-1">
         <div className="card-body py-1 px-2">
@@ -234,7 +329,7 @@ const AttackGraphPage: React.FC = () => {
             availableResourceTypes={availableResourceTypes}
             availableEdgeRelations={availableEdgeRelations}
             availableSeverities={availableSeverities}
-            onFiltersChange={setFilters}
+            onFiltersChange={onFiltersChange}
           />
         </div>
       </div>
@@ -271,31 +366,40 @@ const AttackGraphPage: React.FC = () => {
             </div>
           </div>
         </div>
-        <GraphView
-          showLabels={filteredGraph.nodes.length + filteredGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
-          elements={filteredElements}
-          selectedPathNodeIds={selectedPathNodeIds}
-          selectedPathEdgeIds={selectedPathEdgeIds}
-          selectedNodeId={selectedNodeId}
-          selectedEdgeId={selectedEdgeId}
-          onNodeClick={(node) => {
-            const clicked = selectedNodeLookup.get(String((node as { id?: unknown }).id ?? ''));
-            setSelectedNode(clicked ?? null);
-            setSelectedNodeId((node as { id?: unknown }).id ? String((node as { id?: unknown }).id) : null);
-            setSelectedEdgeId(null);
-            setSelectedEdge(null);
-            setSelectedPathId(null);
-            setSelectedMode('node');
-          }}
-          onEdgeClick={(edge) => {
-            setSelectedEdge(edge);
-            setSelectedEdgeId(edge.id);
-            setSelectedNodeId(null);
-            setSelectedNode(null);
-            setSelectedPathId(null);
-            setSelectedMode('edge');
-          }}
-        />
+        {hasRenderableGraph ? (
+          <GraphView
+            showLabels={filteredGraph.nodes.length + filteredGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
+            elements={filteredElements}
+            selectedPathNodeIds={selectedPathNodeIds}
+            selectedPathEdgeIds={selectedPathEdgeIds}
+            selectedNodeId={selectedNodeId}
+            selectedEdgeId={selectedEdgeId}
+            onNodeClick={(node) => {
+              const nextNodeId = node.id ? String(node.id) : null;
+              const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
+              setSelectedNode(clicked);
+              setSelectedNodeId(nextNodeId);
+              setSelectedEdgeId(null);
+              setSelectedEdge(null);
+              setSelectedPathId(null);
+              setSelectedMode(nextNodeId ? 'node' : 'none');
+            }}
+            onEdgeClick={(edge) => {
+              const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+              setSelectedEdge(clicked);
+              setSelectedEdgeId(clicked.id);
+              setSelectedNodeId(null);
+              setSelectedNode(null);
+              setSelectedPathId(null);
+              setSelectedMode('edge');
+            }}
+          />
+        ) : (
+          <div className="d-flex flex-column justify-content-center align-items-center h-100 text-center px-4">
+            <strong className="mb-2">{emptyStateTitle}</strong>
+            <p className="text-muted mb-0 small">{emptyStateBody}</p>
+          </div>
+        )}
         {shouldShowNodeDetails ? (
           <div
             className="d-flex flex-column"
@@ -368,6 +472,10 @@ const AttackGraphPage: React.FC = () => {
                     <td className="text-muted fw-semibold">Label</td>
                     <td>{selectedEdge?.label || selectedEdge?.id}</td>
                   </tr>
+                  <tr>
+                    <td className="text-muted fw-semibold">Reason</td>
+                    <td>{selectedEdge?.reason || 'n/a'}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -377,8 +485,7 @@ const AttackGraphPage: React.FC = () => {
 
       <div className="mt-2 d-flex gap-3 flex-wrap">
         <span className="text-muted small">
-          <strong>{filteredGraph.nodes.length}</strong> nodes ·
-          <strong>{filteredGraph.edges.length}</strong> edges
+          <strong>{filteredGraph.nodes.length}</strong> nodes ·<strong>{filteredGraph.edges.length}</strong> edges
         </span>
         <span className="text-muted small">
           Mode: <strong>{selectedMode}</strong>
@@ -387,10 +494,148 @@ const AttackGraphPage: React.FC = () => {
           {selectedMode === 'path' && selectedPath ? ` · path ${selectedPath.label || selectedPath.id}` : null}
         </span>
       </div>
+    </>
+  );
+};
+
+const AttackGraphPage: React.FC = () => {
+  const [activeSource, setActiveSource] = useState<AttackGraphDataSource>('mock');
+  const [mockFilters, setMockFilters] = useState<AttackGraphFilters>({});
+  const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
+  const [selectedClusterId, setSelectedClusterId] = useState('');
+
+  const {
+    data: clustersResponse,
+    isLoading: isClustersLoading,
+    isError: isClustersError,
+    error: clustersError,
+  } = useListClustersApiV1ClustersGet();
+  const clusters = useMemo(
+    () =>
+      (Array.isArray(clustersResponse) ? clustersResponse : []).map((cluster) => ({
+        id: cluster.id,
+        name: cluster.name,
+      })),
+    [clustersResponse],
+  );
+  const activeClusterId =
+    (selectedClusterId && clusters.some((cluster) => cluster.id === selectedClusterId)
+      ? selectedClusterId
+      : clusters[0]?.id) ?? '';
+
+  const {
+    data: liveAttackGraphResponse,
+    isLoading: isLiveGraphLoading,
+    isError: isLiveGraphError,
+    error: liveGraphError,
+  } = useGetClusterAttackGraph(activeClusterId, {
+    query: {
+      enabled: activeSource === 'live' && Boolean(activeClusterId),
+      retry: false,
+    },
+  });
+
+  const livePayload = isAttackGraphApiResponse(liveAttackGraphResponse) ? liveAttackGraphResponse : EMPTY_ATTACK_GRAPH;
+
+  return (
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-1">
+        <div>
+          <h1 className="h3 mb-1">Attack Graph</h1>
+          <p className="dg-subtitle-text mb-0 small">Visualization of potential attack vectors.</p>
+        </div>
+      </div>
+
+      <div className="card border-0 shadow-sm mb-1">
+        <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-center">
+          <div className="btn-group btn-group-sm" role="tablist" aria-label="Attack graph data source">
+            <button
+              type="button"
+              className={`btn ${activeSource === 'mock' ? 'btn-dark' : 'btn-outline-secondary'}`}
+              onClick={() => setActiveSource('mock')}
+            >
+              Mock
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeSource === 'live' ? 'btn-dark' : 'btn-outline-secondary'}`}
+              onClick={() => setActiveSource('live')}
+            >
+              Live
+            </button>
+          </div>
+          {activeSource === 'live' ? (
+            <div style={{ minWidth: 280 }}>
+              <label htmlFor="attack-graph-cluster-select" className="form-label mb-1 small text-muted">
+                Cluster
+              </label>
+              <select
+                id="attack-graph-cluster-select"
+                className="form-select form-select-sm"
+                value={activeClusterId}
+                onChange={(event) => {
+                  setSelectedClusterId(event.target.value);
+                  setLiveFilters({});
+                }}
+                disabled={isClustersLoading || clusters.length === 0}
+              >
+                {clusters.length === 0 ? (
+                  <option value="">No clusters available</option>
+                ) : (
+                  clusters.map((cluster) => (
+                    <option key={cluster.id} value={cluster.id}>
+                      {cluster.name} ({cluster.id})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {activeSource === 'mock' ? (
+        <AttackGraphContent payload={toAttackGraphPayload} filters={mockFilters} onFiltersChange={setMockFilters} />
+      ) : (
+        <>
+          {isClustersError ? (
+            <div className="alert alert-danger mb-1" role="alert">
+              {toErrorMessage(clustersError, 'Failed to load clusters for the live attack graph.')}
+            </div>
+          ) : null}
+          <AttackGraphContent
+            payload={livePayload}
+            filters={liveFilters}
+            onFiltersChange={setLiveFilters}
+            liveSummary={livePayload.summary ?? null}
+            liveEvidenceCount={livePayload.evidence_count ?? null}
+            emptyStateTitle={
+              isClustersLoading
+                ? 'Loading live attack graph...'
+                : !activeClusterId
+                  ? 'No cluster selected.'
+                  : isLiveGraphError
+                    ? 'Live attack graph is unavailable.'
+                    : 'No live attack graph data.'
+            }
+            emptyStateBody={
+              isClustersLoading
+                ? 'Fetching cluster options before loading the live attack graph.'
+                : !activeClusterId
+                  ? 'Select a cluster to request /api/v1/clusters/{cluster_id}/attack-graph.'
+                  : isLiveGraphLoading
+                    ? 'Fetching graph data from the backend endpoint.'
+                    : isLiveGraphError
+                      ? toErrorMessage(liveGraphError, 'The backend attack-graph request failed.')
+                      : 'The backend returned no nodes or edges for this cluster.'
+            }
+          />
+        </>
+      )}
 
       {/* TODO Step5: advanced filters (critical paths only, escape-only, AWS pivot-only) are not supported by the current mock model */}
-      {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData lookup and mock payload) */}
-      {/* TODO Step5: replace static attack-graph mock payload with real API source */}
+      {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData/BlastRadius panel contracts remain in place) */}
+      {/* TODO Step5: remove the mock payload once the live graph becomes the default source */}
     </div>
   );
 };
