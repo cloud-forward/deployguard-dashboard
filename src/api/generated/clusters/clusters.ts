@@ -12,7 +12,9 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `created` 작업 생성
 4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → created 작업 claim
 5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
-6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
+6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → 스캔 완료만 기록
+7. **분석 작업 생성**: 사용자가 `POST /api/v1/analysis/jobs` 호출 → 선택한 scan_id로 analysis_jobs 생성
+8. **분석 실행**: 사용자가 `POST /api/v1/analysis/jobs/{job_id}/execute` 호출
 
  * OpenAPI spec version: 4.0.0
  */
@@ -36,11 +38,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AttackGraphResponse,
+  AttackPathDetailEnvelopeResponse,
+  AttackPathListResponse,
   ClusterCreateRequest,
   ClusterCreateResponse,
   ClusterResponse,
   ClusterUpdateRequest,
-  HTTPValidationError
+  HTTPValidationError,
+  RemediationRecommendationDetailEnvelopeResponse,
+  RemediationRecommendationListResponse
 } from '../../model';
 
 import { apiClient } from '../../client';
@@ -57,7 +64,6 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export type listClustersApiV1ClustersGetResponse200 = ClusterResponse[]
 
 export type listClustersApiV1ClustersGetResponseSuccess = (listClustersApiV1ClustersGetResponse200);
-
 
 export type listClustersApiV1ClustersGetResponse = (listClustersApiV1ClustersGetResponseSuccess)
 
@@ -171,9 +177,7 @@ export type createClusterApiV1ClustersPostResponse201 = ClusterCreateResponse
 
 export type createClusterApiV1ClustersPostResponse422 = void
 
-export type createClusterApiV1ClustersPostResponseSuccess = (createClusterApiV1ClustersPostResponse201);
-export type createClusterApiV1ClustersPostResponseError = (createClusterApiV1ClustersPostResponse422);
-
+export type createClusterApiV1ClustersPostResponseSuccess = (createClusterApiV1ClustersPostResponse201);export type createClusterApiV1ClustersPostResponseError = (createClusterApiV1ClustersPostResponse422);
 export type createClusterApiV1ClustersPostResponse = (createClusterApiV1ClustersPostResponseSuccess | createClusterApiV1ClustersPostResponseError)
 
 export const getCreateClusterApiV1ClustersPostUrl = () => {
@@ -253,9 +257,7 @@ export type getClusterApiV1ClustersIdGetResponse404 = void
 
 export type getClusterApiV1ClustersIdGetResponse422 = HTTPValidationError
 
-export type getClusterApiV1ClustersIdGetResponseSuccess = (getClusterApiV1ClustersIdGetResponse200);
-export type getClusterApiV1ClustersIdGetResponseError = (getClusterApiV1ClustersIdGetResponse404 | getClusterApiV1ClustersIdGetResponse422);
-
+export type getClusterApiV1ClustersIdGetResponseSuccess = (getClusterApiV1ClustersIdGetResponse200);export type getClusterApiV1ClustersIdGetResponseError = (getClusterApiV1ClustersIdGetResponse404 | getClusterApiV1ClustersIdGetResponse422);
 export type getClusterApiV1ClustersIdGetResponse = (getClusterApiV1ClustersIdGetResponseSuccess | getClusterApiV1ClustersIdGetResponseError)
 
 export const getGetClusterApiV1ClustersIdGetUrl = (id: string,) => {
@@ -363,9 +365,7 @@ export type updateClusterApiV1ClustersIdPatchResponse404 = void
 
 export type updateClusterApiV1ClustersIdPatchResponse422 = void
 
-export type updateClusterApiV1ClustersIdPatchResponseSuccess = (updateClusterApiV1ClustersIdPatchResponse200);
-export type updateClusterApiV1ClustersIdPatchResponseError = (updateClusterApiV1ClustersIdPatchResponse404 | updateClusterApiV1ClustersIdPatchResponse422);
-
+export type updateClusterApiV1ClustersIdPatchResponseSuccess = (updateClusterApiV1ClustersIdPatchResponse200);export type updateClusterApiV1ClustersIdPatchResponseError = (updateClusterApiV1ClustersIdPatchResponse404 | updateClusterApiV1ClustersIdPatchResponse422);
 export type updateClusterApiV1ClustersIdPatchResponse = (updateClusterApiV1ClustersIdPatchResponseSuccess | updateClusterApiV1ClustersIdPatchResponseError)
 
 export const getUpdateClusterApiV1ClustersIdPatchUrl = (id: string,) => {
@@ -446,9 +446,7 @@ export type deleteClusterApiV1ClustersIdDeleteResponse404 = void
 
 export type deleteClusterApiV1ClustersIdDeleteResponse422 = HTTPValidationError
 
-export type deleteClusterApiV1ClustersIdDeleteResponseSuccess = (deleteClusterApiV1ClustersIdDeleteResponse204);
-export type deleteClusterApiV1ClustersIdDeleteResponseError = (deleteClusterApiV1ClustersIdDeleteResponse404 | deleteClusterApiV1ClustersIdDeleteResponse422);
-
+export type deleteClusterApiV1ClustersIdDeleteResponseSuccess = (deleteClusterApiV1ClustersIdDeleteResponse204);export type deleteClusterApiV1ClustersIdDeleteResponseError = (deleteClusterApiV1ClustersIdDeleteResponse404 | deleteClusterApiV1ClustersIdDeleteResponse422);
 export type deleteClusterApiV1ClustersIdDeleteResponse = (deleteClusterApiV1ClustersIdDeleteResponseSuccess | deleteClusterApiV1ClustersIdDeleteResponseError)
 
 export const getDeleteClusterApiV1ClustersIdDeleteUrl = (id: string,) => {
@@ -517,4 +515,561 @@ export const useDeleteClusterApiV1ClustersIdDelete = <TError = void | HTTPValida
       > => {
       return useMutation(getDeleteClusterApiV1ClustersIdDeleteMutationOptions(options), queryClient);
     }
+    /**
+ * Attack Graph 화면의 그래프, 경로 목록, 상세 패널을 한 번에 구동하기 위한 MVP 응답입니다.
+
+초기 단계에서는 backend가 `label`, `severity`, boolean 기본값, 빈 `metadata`를 직접 정규화해서 반환합니다.
+ * @summary [신규] Attack Graph 조회
+ */
+export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse200 = AttackGraphResponse
+
+export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse404 = void
+
+export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse422 = HTTPValidationError
+
+export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponseSuccess = (getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse200);export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponseError = (getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse404 | getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse422);
+export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse = (getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponseSuccess | getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponseError)
+
+export const getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetUrl = (clusterId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/attack-graph`
+}
+
+export const getAttackGraphApiV1ClustersClusterIdAttackGraphGet = async (clusterId: string, options?: RequestInit): Promise<getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse> => {
+  
+  return apiClient<getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse>(getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetUrl(clusterId),
+  {      
+    ...options,
+    method: 'GET'
     
+    
+  }
+);}
+  
+
+
+
+
+export const getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryKey = (clusterId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/attack-graph`
+    ] as const;
+    }
+
+    
+export const getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryOptions = <TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryKey(clusterId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>> = ({ signal }) => getAttackGraphApiV1ClustersClusterIdAttackGraphGet(clusterId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryResult = NonNullable<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>>
+export type GetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryError = void | HTTPValidationError
+
+
+export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary [신규] Attack Graph 조회
+ */
+
+export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAttackGraphApiV1ClustersClusterIdAttackGraphGetQueryOptions(clusterId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 클러스터 기준 최신 분석에 연결된 persisted attack path 목록을 반환합니다.
+ * @summary [신규] Persisted Attack Paths 조회
+ */
+export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse200 = AttackPathListResponse
+
+export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse404 = void
+
+export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse422 = HTTPValidationError
+
+export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponseSuccess = (getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse200);export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponseError = (getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse404 | getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse422);
+export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse = (getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponseSuccess | getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponseError)
+
+export const getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetUrl = (clusterId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/attack-paths`
+}
+
+export const getAttackPathsApiV1ClustersClusterIdAttackPathsGet = async (clusterId: string, options?: RequestInit): Promise<getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse> => {
+  
+  return apiClient<getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse>(getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetUrl(clusterId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryKey = (clusterId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/attack-paths`
+    ] as const;
+    }
+
+    
+export const getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryOptions = <TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryKey(clusterId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>> = ({ signal }) => getAttackPathsApiV1ClustersClusterIdAttackPathsGet(clusterId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>>
+export type GetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryError = void | HTTPValidationError
+
+
+export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary [신규] Persisted Attack Paths 조회
+ */
+
+export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAttackPathsApiV1ClustersClusterIdAttackPathsGetQueryOptions(clusterId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 클러스터 기준 최신 분석에 연결된 특정 persisted attack path 상세를 반환합니다.
+ * @summary [신규] Persisted Attack Path 상세 조회
+ */
+export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse200 = AttackPathDetailEnvelopeResponse
+
+export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse404 = void
+
+export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse422 = HTTPValidationError
+
+export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponseSuccess = (getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse200);export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponseError = (getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse404 | getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse422);
+export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse = (getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponseSuccess | getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponseError)
+
+export const getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetUrl = (clusterId: string,
+    pathId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/attack-paths/${pathId}`
+}
+
+export const getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet = async (clusterId: string,
+    pathId: string, options?: RequestInit): Promise<getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse> => {
+  
+  return apiClient<getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse>(getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetUrl(clusterId,pathId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryKey = (clusterId: string,
+    pathId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/attack-paths/${pathId}`
+    ] as const;
+    }
+
+    
+export const getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(clusterId: string,
+    pathId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryKey(clusterId,pathId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>> = ({ signal }) => getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId,pathId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId && pathId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>>
+export type GetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryError = void | HTTPValidationError
+
+
+export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet<TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    pathId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet<TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    pathId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet<TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    pathId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary [신규] Persisted Attack Path 상세 조회
+ */
+
+export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet<TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    pathId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetQueryOptions(clusterId,pathId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 클러스터 기준 최신 분석에 연결된 persisted remediation recommendation 목록을 반환합니다.
+ * @summary [신규] Persisted Remediation Recommendations 조회
+ */
+export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse200 = RemediationRecommendationListResponse
+
+export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse404 = void
+
+export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse422 = HTTPValidationError
+
+export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponseSuccess = (getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse200);export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponseError = (getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse404 | getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse422);
+export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse = (getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponseSuccess | getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponseError)
+
+export const getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetUrl = (clusterId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/remediation-recommendations`
+}
+
+export const getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet = async (clusterId: string, options?: RequestInit): Promise<getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse> => {
+  
+  return apiClient<getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse>(getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetUrl(clusterId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryKey = (clusterId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/remediation-recommendations`
+    ] as const;
+    }
+
+    
+export const getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryOptions = <TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryKey(clusterId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>> = ({ signal }) => getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet(clusterId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>>
+export type GetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryError = void | HTTPValidationError
+
+
+export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary [신규] Persisted Remediation Recommendations 조회
+ */
+
+export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(
+ clusterId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryOptions(clusterId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 클러스터 기준 최신 분석에 연결된 특정 persisted remediation recommendation 상세를 반환합니다.
+ * @summary [신규] Persisted Remediation Recommendation 상세 조회
+ */
+export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse200 = RemediationRecommendationDetailEnvelopeResponse
+
+export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse404 = void
+
+export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse422 = HTTPValidationError
+
+export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponseSuccess = (getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse200);export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponseError = (getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse404 | getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse422);
+export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse = (getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponseSuccess | getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponseError)
+
+export const getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetUrl = (clusterId: string,
+    recommendationId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/remediation-recommendations/${recommendationId}`
+}
+
+export const getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet = async (clusterId: string,
+    recommendationId: string, options?: RequestInit): Promise<getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse> => {
+  
+  return apiClient<getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse>(getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetUrl(clusterId,recommendationId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryKey = (clusterId: string,
+    recommendationId: string,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/remediation-recommendations/${recommendationId}`
+    ] as const;
+    }
+
+    
+export const getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(clusterId: string,
+    recommendationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryKey(clusterId,recommendationId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>> = ({ signal }) => getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet(clusterId,recommendationId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId && recommendationId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>>
+export type GetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryError = void | HTTPValidationError
+
+
+export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    recommendationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    recommendationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    recommendationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary [신규] Persisted Remediation Recommendation 상세 조회
+ */
+
+export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(
+ clusterId: string,
+    recommendationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryOptions(clusterId,recommendationId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
