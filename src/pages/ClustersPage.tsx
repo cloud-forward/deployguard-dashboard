@@ -85,14 +85,6 @@ const ClustersPage: React.FC = () => {
         setSelectedCluster(null);
     };
 
-    const getScannerTypeForCluster = (clusterType: string): 'k8s' | 'aws' => {
-        if (clusterType === 'aws') {
-            return 'aws';
-        }
-
-        return 'k8s';
-    };
-
     const getClusterTypeLabel = (clusterType: string) => {
         switch (clusterType) {
             case 'eks':
@@ -257,15 +249,20 @@ const ClustersPage: React.FC = () => {
             {
                 data: {
                     cluster_id: cluster.id,
-                    scanner_type: getScannerTypeForCluster(cluster.cluster_type ?? 'eks'),
                     request_source: 'manual',
                 },
             },
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    const createdScans = Array.isArray(response?.scans) ? response.scans : [];
+                    const scannerTypes = createdScans
+                        .map((scan) => scan.scanner_type)
+                        .filter((value): value is string => Boolean(value));
+                    const scanLabel =
+                        scannerTypes.length > 0 ? ` (${scannerTypes.join(', ')})` : '';
                     setScanFeedback({
                         clusterName: cluster.name,
-                        message: 'Scan request created',
+                        message: `Scan request created${scanLabel}`,
                         isError: false,
                     });
                 },
