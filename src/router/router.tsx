@@ -5,6 +5,7 @@ import AttackGraphPage from '../pages/AttackGraphPage';
 import ClustersPage from '../pages/ClustersPage';
 import ScansPage from '../pages/ScansPage';
 import RiskPage from '../pages/RiskPage';
+import InventoryPage from '../pages/InventoryPage';
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
         element: <AttackGraphPage />,
       },
       {
+        path: 'clusters/:clusterId/graph',
+        element: <AttackGraphPage />,
+      },
+      {
         path: 'clusters',
         element: <ClustersPage />,
       },
@@ -34,6 +39,14 @@ export const router = createBrowserRouter([
       {
         path: 'risk',
         element: <RiskPage />,
+      },
+      {
+        path: 'clusters/:clusterId/risk',
+        element: <RiskPage />,
+      },
+      {
+        path: 'clusters/:clusterId/inventory',
+        element: <InventoryPage />,
       },
     ],
   },

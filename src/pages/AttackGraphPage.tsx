@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ElementDefinition } from 'cytoscape';
+import { useParams } from 'react-router-dom';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import BlastRadiusPanel from '../components/graph/BlastRadiusPanel';
 import GraphFilters from '../components/graph/GraphFilters';
+import ClusterFlowNav from '../components/layout/ClusterFlowNav';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import { mockElements } from '../components/graph/mockGraphData';
 import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
@@ -499,7 +501,10 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 };
 
 const AttackGraphPage: React.FC = () => {
-  const [activeSource, setActiveSource] = useState<AttackGraphDataSource>('mock');
+  const { clusterId: routeClusterId = '' } = useParams();
+  const [activeSource, setActiveSource] = useState<AttackGraphDataSource>(
+    routeClusterId ? 'live' : 'mock',
+  );
   const [mockFilters, setMockFilters] = useState<AttackGraphFilters>({});
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState('');
@@ -518,8 +523,17 @@ const AttackGraphPage: React.FC = () => {
       })),
     [clustersResponse],
   );
+  useEffect(() => {
+    if (routeClusterId) {
+      setSelectedClusterId(routeClusterId);
+      setActiveSource('live');
+    }
+  }, [routeClusterId]);
+
   const activeClusterId =
-    (selectedClusterId && clusters.some((cluster) => cluster.id === selectedClusterId)
+    (routeClusterId && clusters.some((cluster) => cluster.id === routeClusterId)
+      ? routeClusterId
+      : selectedClusterId && clusters.some((cluster) => cluster.id === selectedClusterId)
       ? selectedClusterId
       : clusters[0]?.id) ?? '';
 
@@ -545,6 +559,8 @@ const AttackGraphPage: React.FC = () => {
           <p className="dg-subtitle-text mb-0 small">Visualization of potential attack vectors.</p>
         </div>
       </div>
+
+      {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="graph" /> : null}
 
       <div className="card border-0 shadow-sm mb-1">
         <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-center">

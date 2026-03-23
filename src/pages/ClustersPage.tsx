@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     getListClustersApiV1ClustersGetQueryKey,
@@ -31,6 +32,7 @@ type ClusterForm = {
 };
 
 const ClustersPage: React.FC = () => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { data, isLoading, isError, error } = useListClustersApiV1ClustersGet();
     const clusters = Array.isArray(data) ? data : [];
@@ -292,6 +294,9 @@ const ClustersPage: React.FC = () => {
     };
 
     const showClustersTable = !isLoading && !isError;
+    const handleOpenInventory = (cluster: Cluster) => {
+        navigate(`/clusters/${cluster.id}/inventory`);
+    };
 
     return (
         <div>
@@ -356,7 +361,12 @@ const ClustersPage: React.FC = () => {
                                         </tr>
                                     )}
                                     {clusters.map((cluster) => (
-                                        <tr key={cluster.id}>
+                                        <tr
+                                            key={cluster.id}
+                                            role="button"
+                                            className="cursor-pointer"
+                                            onClick={() => handleOpenInventory(cluster)}
+                                        >
                                             <td>{cluster.name}</td>
                                             <td className="text-muted">{cluster.id}</td>
                                             <td>
@@ -397,8 +407,20 @@ const ClustersPage: React.FC = () => {
                                             <td className="text-end">
                                                 <div className="d-inline-flex gap-2">
                                                     <button
+                                                        className="btn btn-sm btn-outline-primary"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            handleOpenInventory(cluster);
+                                                        }}
+                                                    >
+                                                        Inventory 보기
+                                                    </button>
+                                                    <button
                                                         className="btn btn-sm btn-outline-success"
-                                                        onClick={() => handleScanNow(cluster)}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            handleScanNow(cluster);
+                                                        }}
                                                         disabled={
                                                             isStartingScan &&
                                                             startingClusterId === cluster.id
@@ -410,13 +432,19 @@ const ClustersPage: React.FC = () => {
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-secondary"
-                                                        onClick={() => handleEdit(cluster)}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            handleEdit(cluster);
+                                                        }}
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
-                                                        onClick={() => handleDelete(cluster)}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            handleDelete(cluster);
+                                                        }}
                                                         disabled={isDeleting}
                                                     >
                                                         {isDeleting ? 'Deleting...' : 'Delete'}

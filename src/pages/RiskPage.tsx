@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 import type {
   AnalysisJobDetailResponse,
   AnalysisJobSummaryResponse,
@@ -22,6 +23,7 @@ import {
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
 import ChokePointList from '../components/risk/ChokePointList';
+import ClusterFlowNav from '../components/layout/ClusterFlowNav';
 
 type ClusterOption = {
   id: string;
@@ -59,6 +61,7 @@ const isAnalysisJobDetail = (value: unknown): value is AnalysisJobDetailResponse
   );
 
 const RiskPage: React.FC = () => {
+  const { clusterId: routeClusterId = '' } = useParams();
   const queryClient = useQueryClient();
   const { data: clustersData, isLoading: isLoadingClusters } = useListClustersApiV1ClustersGet();
   const clusters = (Array.isArray(clustersData) ? clustersData : []) as ClusterOption[];
@@ -76,10 +79,15 @@ const RiskPage: React.FC = () => {
   );
 
   useEffect(() => {
+    if (routeClusterId) {
+      setSelectedClusterId(routeClusterId);
+      return;
+    }
+
     if (!selectedClusterId && clusters.length > 0) {
       setSelectedClusterId(clusters[0].id);
     }
-  }, [clusters, selectedClusterId]);
+  }, [clusters, routeClusterId, selectedClusterId]);
 
   useEffect(() => {
     setActiveJobId('');
@@ -402,6 +410,8 @@ const RiskPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="risk" /> : null}
 
       <ul className="nav nav-tabs mb-4">
         <li className="nav-item">
