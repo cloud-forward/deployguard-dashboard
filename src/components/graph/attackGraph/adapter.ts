@@ -161,7 +161,11 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
     runtime: {
       hasEvidence: Boolean(node.has_runtime_evidence),
     },
-    details: toStringRecord(node.details),
+    details: toStringRecord({
+      ...(node.details ?? {}),
+      ...(node.metadata ?? {}),
+      ...(typeof node.evidence_count === 'number' ? { evidence_count: node.evidence_count } : {}),
+    }),
     raw: node as unknown as Record<string, unknown>,
   }));
 
@@ -187,6 +191,7 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
     nodes,
     edges,
     paths,
+    metadata: payload.metadata,
   };
 };
 

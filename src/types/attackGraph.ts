@@ -110,7 +110,9 @@ export interface AttackGraphApiNode {
   is_entry_point?: boolean;
   is_crown_jewel?: boolean;
   has_runtime_evidence?: boolean;
+  evidence_count?: number | null;
   details?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AttackGraphApiEdge {
@@ -119,6 +121,7 @@ export interface AttackGraphApiEdge {
   target: string;
   relation?: string;
   label?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AttackGraphApiPath {
@@ -134,6 +137,8 @@ export interface AttackGraphApiResponse {
   edges: AttackGraphApiEdge[];
   paths?: AttackGraphApiPath[];
   metadata?: AttackGraphMetadata;
+  summary?: string | null;
+  evidence_count?: number | null;
 }
 
 export interface AttackGraphFilters {
