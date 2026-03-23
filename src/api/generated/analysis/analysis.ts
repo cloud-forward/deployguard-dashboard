@@ -12,23 +12,39 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `created` 작업 생성
 4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → created 작업 claim
 5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
-6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
+6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → 스캔 완료만 기록
+7. **분석 작업 생성**: 사용자가 `POST /api/v1/analysis/jobs` 호출 → 선택한 scan_id로 analysis_jobs 생성
+8. **분석 실행**: 사용자가 `POST /api/v1/analysis/jobs/{job_id}/execute` 호출
 
  * OpenAPI spec version: 4.0.0
  */
 import {
-  useMutation
+  useMutation,
+  useQuery
 } from '@tanstack/react-query';
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
-  UseMutationResult
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
+  AnalysisJobDetailResponse,
   AnalysisJobRequest,
-  AnalysisJobResponse
+  AnalysisJobResponse,
+  ClusterAnalysisJobListResponse,
+  DebugAnalysisExecuteRequest,
+  HTTPValidationError,
+  ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams
 } from '../../model';
 
 import { apiClient } from '../../client';
@@ -39,21 +55,20 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
- * 스캔 세션 ID를 지정하여 분석 작업을 수동으로 시작합니다.
+ * 표준 persisted-job 워크플로우의 1단계입니다.
 
-일반적으로 `POST /api/v1/scans/{scan_id}/complete` 호출 시 분석 오케스트레이션 체크가 자동으로 수행됩니다.
-이 엔드포인트는 재분석 또는 수동 오케스트레이션이 필요한 경우에 사용합니다.
+프론트엔드/제품 흐름은 이 엔드포인트로 `analysis_jobs` row를 생성한 뒤,
+`POST /api/v1/analysis/jobs/{job_id}/execute`를 호출해 실제 분석을 실행합니다.
 
-분석 파이프라인: 그래프 구축 → 공격 경로 탐색 → 위험 점수 산정
- * @summary 분석 작업 수동 실행
+요청에 포함된 scan_id만 검증 후 job에 고정되며, 이후 실행은 cluster 단위 최신 스캔 추론 없이
+analysis_jobs에 저장된 명시적 scan IDs를 기준으로 진행됩니다.
+ * @summary 표준 분석 작업 생성
  */
 export type createAnalysisJobApiV1AnalysisJobsPostResponse202 = AnalysisJobResponse
 
 export type createAnalysisJobApiV1AnalysisJobsPostResponse422 = void
 
-export type createAnalysisJobApiV1AnalysisJobsPostResponseSuccess = (createAnalysisJobApiV1AnalysisJobsPostResponse202);
-export type createAnalysisJobApiV1AnalysisJobsPostResponseError = (createAnalysisJobApiV1AnalysisJobsPostResponse422);
-
+export type createAnalysisJobApiV1AnalysisJobsPostResponseSuccess = (createAnalysisJobApiV1AnalysisJobsPostResponse202);export type createAnalysisJobApiV1AnalysisJobsPostResponseError = (createAnalysisJobApiV1AnalysisJobsPostResponse422);
 export type createAnalysisJobApiV1AnalysisJobsPostResponse = (createAnalysisJobApiV1AnalysisJobsPostResponseSuccess | createAnalysisJobApiV1AnalysisJobsPostResponseError)
 
 export const getCreateAnalysisJobApiV1AnalysisJobsPostUrl = () => {
@@ -111,7 +126,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateAnalysisJobApiV1AnalysisJobsPostMutationError = void
 
     /**
- * @summary 분석 작업 수동 실행
+ * @summary 표준 분석 작업 생성
  */
 export const useCreateAnalysisJobApiV1AnalysisJobsPost = <TError = void,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAnalysisJobApiV1AnalysisJobsPost>>, TError,{data: AnalysisJobRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
@@ -122,5 +137,505 @@ export const useCreateAnalysisJobApiV1AnalysisJobsPost = <TError = void,
         TContext
       > => {
       return useMutation(getCreateAnalysisJobApiV1AnalysisJobsPostMutationOptions(options), queryClient);
+    }
+    /**
+ * 수동 분석 워크플로우용 persisted analysis job 목록을 클러스터 기준으로 조회합니다.
+
+선택한 scan_id와 현재 실행 상태를 프론트엔드에서 폴링/이력 표시할 수 있도록 반환합니다.
+ * @summary 클러스터 분석 작업 목록 조회
+ */
+export type listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse200 = ClusterAnalysisJobListResponse
+
+export type listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse422 = HTTPValidationError
+
+export type listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponseSuccess = (listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse200);export type listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponseError = (listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse422);
+export type listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse = (listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponseSuccess | listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponseError)
+
+export const getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetUrl = (clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/clusters/${clusterId}/analysis/jobs?${stringifiedParams}` : `/api/v1/clusters/${clusterId}/analysis/jobs`
+}
+
+export const listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet = async (clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options?: RequestInit): Promise<listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse> => {
+  
+  return apiClient<listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetResponse>(getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetUrl(clusterId,params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey = (clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/analysis/jobs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+    
+export const getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryOptions = <TData = Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError = HTTPValidationError>(clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey(clusterId,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>> = ({ signal }) => listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet(clusterId,params, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>>
+export type ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryError = HTTPValidationError
+
+
+export function useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet<TData = Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params: undefined |  ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet<TData = Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet<TData = Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 클러스터 분석 작업 목록 조회
+ */
+
+export function useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet<TData = Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: ListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryOptions(clusterId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * persisted analysis job 1건의 선택된 scan_id와 실행 상태를 조회합니다.
+ * @summary 분석 작업 단건 조회
+ */
+export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponse200 = AnalysisJobDetailResponse
+
+export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponse404 = void
+
+export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponse422 = HTTPValidationError
+
+export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponseSuccess = (getAnalysisJobApiV1AnalysisJobsJobIdGetResponse200);export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponseError = (getAnalysisJobApiV1AnalysisJobsJobIdGetResponse404 | getAnalysisJobApiV1AnalysisJobsJobIdGetResponse422);
+export type getAnalysisJobApiV1AnalysisJobsJobIdGetResponse = (getAnalysisJobApiV1AnalysisJobsJobIdGetResponseSuccess | getAnalysisJobApiV1AnalysisJobsJobIdGetResponseError)
+
+export const getGetAnalysisJobApiV1AnalysisJobsJobIdGetUrl = (jobId: string,) => {
+
+
+  
+
+  return `/api/v1/analysis/jobs/${jobId}`
+}
+
+export const getAnalysisJobApiV1AnalysisJobsJobIdGet = async (jobId: string, options?: RequestInit): Promise<getAnalysisJobApiV1AnalysisJobsJobIdGetResponse> => {
+  
+  return apiClient<getAnalysisJobApiV1AnalysisJobsJobIdGetResponse>(getGetAnalysisJobApiV1AnalysisJobsJobIdGetUrl(jobId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryKey = (jobId: string,) => {
+    return [
+    `/api/v1/analysis/jobs/${jobId}`
+    ] as const;
+    }
+
+    
+export const getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError = void | HTTPValidationError>(jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryKey(jobId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>> = ({ signal }) => getAnalysisJobApiV1AnalysisJobsJobIdGet(jobId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(jobId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAnalysisJobApiV1AnalysisJobsJobIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>>
+export type GetAnalysisJobApiV1AnalysisJobsJobIdGetQueryError = void | HTTPValidationError
+
+
+export function useGetAnalysisJobApiV1AnalysisJobsJobIdGet<TData = Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError = void | HTTPValidationError>(
+ jobId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAnalysisJobApiV1AnalysisJobsJobIdGet<TData = Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError = void | HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAnalysisJobApiV1AnalysisJobsJobIdGet<TData = Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError = void | HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 분석 작업 단건 조회
+ */
+
+export function useGetAnalysisJobApiV1AnalysisJobsJobIdGet<TData = Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError = void | HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisJobApiV1AnalysisJobsJobIdGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * Get analysis result by job ID.
+
+Returns attack paths and risk scores.
+ * @summary 분석 결과 조회
+ */
+export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse200 = unknown
+
+export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse422 = HTTPValidationError
+
+export type getAnalysisResultApiV1AnalysisJobIdResultGetResponseSuccess = (getAnalysisResultApiV1AnalysisJobIdResultGetResponse200);export type getAnalysisResultApiV1AnalysisJobIdResultGetResponseError = (getAnalysisResultApiV1AnalysisJobIdResultGetResponse422);
+export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse = (getAnalysisResultApiV1AnalysisJobIdResultGetResponseSuccess | getAnalysisResultApiV1AnalysisJobIdResultGetResponseError)
+
+export const getGetAnalysisResultApiV1AnalysisJobIdResultGetUrl = (jobId: string,) => {
+
+
+  
+
+  return `/api/v1/analysis/${jobId}/result`
+}
+
+export const getAnalysisResultApiV1AnalysisJobIdResultGet = async (jobId: string, options?: RequestInit): Promise<getAnalysisResultApiV1AnalysisJobIdResultGetResponse> => {
+  
+  return apiClient<getAnalysisResultApiV1AnalysisJobIdResultGetResponse>(getGetAnalysisResultApiV1AnalysisJobIdResultGetUrl(jobId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetAnalysisResultApiV1AnalysisJobIdResultGetQueryKey = (jobId: string,) => {
+    return [
+    `/api/v1/analysis/${jobId}/result`
+    ] as const;
+    }
+
+    
+export const getGetAnalysisResultApiV1AnalysisJobIdResultGetQueryOptions = <TData = Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError = HTTPValidationError>(jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalysisResultApiV1AnalysisJobIdResultGetQueryKey(jobId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>> = ({ signal }) => getAnalysisResultApiV1AnalysisJobIdResultGet(jobId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(jobId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAnalysisResultApiV1AnalysisJobIdResultGetQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>>
+export type GetAnalysisResultApiV1AnalysisJobIdResultGetQueryError = HTTPValidationError
+
+
+export function useGetAnalysisResultApiV1AnalysisJobIdResultGet<TData = Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError = HTTPValidationError>(
+ jobId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAnalysisResultApiV1AnalysisJobIdResultGet<TData = Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError = HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAnalysisResultApiV1AnalysisJobIdResultGet<TData = Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError = HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary 분석 결과 조회
+ */
+
+export function useGetAnalysisResultApiV1AnalysisJobIdResultGet<TData = Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError = HTTPValidationError>(
+ jobId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAnalysisResultApiV1AnalysisJobIdResultGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAnalysisResultApiV1AnalysisJobIdResultGetQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * 표준 persisted-job 워크플로우의 2단계입니다.
+
+이미 생성된 `analysis_jobs` row를 읽고, 그 row에 저장된 `k8s_scan_id`, `aws_scan_id`, `image_scan_id`
+기준으로 raw scan 데이터를 로드해 분석을 실행합니다.
+ * @summary 표준 분석 작업 실행
+ */
+export type executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse200 = unknown
+
+export type executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse422 = HTTPValidationError
+
+export type executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponseSuccess = (executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse200);export type executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponseError = (executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse422);
+export type executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse = (executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponseSuccess | executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponseError)
+
+export const getExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostUrl = (jobId: string,) => {
+
+
+  
+
+  return `/api/v1/analysis/jobs/${jobId}/execute`
+}
+
+export const executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost = async (jobId: string, options?: RequestInit): Promise<executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse> => {
+  
+  return apiClient<executeAnalysisJobApiV1AnalysisJobsJobIdExecutePostResponse>(getExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostUrl(jobId),
+  {      
+    ...options,
+    method: 'POST'
+    
+    
+  }
+);}
+  
+
+
+
+export const getExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>, TError,{jobId: string}, TContext> => {
+
+const mutationKey = ['executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>, {jobId: string}> = (props) => {
+          const {jobId} = props ?? {};
+
+          return  executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost(jobId,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostMutationResult = NonNullable<Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>>
+    
+    export type ExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostMutationError = HTTPValidationError
+
+    /**
+ * @summary 표준 분석 작업 실행
+ */
+export const useExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof executeAnalysisJobApiV1AnalysisJobsJobIdExecutePost>>,
+        TError,
+        {jobId: string},
+        TContext
+      > => {
+      return useMutation(getExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePostMutationOptions(options), queryClient);
+    }
+    /**
+ * 내부 디버그/검증 전용 엔드포인트입니다.
+
+이 경로는 persisted `analysis_jobs` 생성 없이 분석을 즉시 실행하므로 표준 프론트엔드/제품 흐름이 아닙니다.
+표준 제품 흐름은 `POST /api/v1/analysis/jobs` 후 `POST /api/v1/analysis/jobs/{job_id}/execute`를 사용해야 합니다.
+ * @summary 분석 즉시 실행 (내부 디버그/검증 전용)
+ */
+export type executeAnalysisEndpointApiV1AnalysisExecutePostResponse200 = unknown
+
+export type executeAnalysisEndpointApiV1AnalysisExecutePostResponse422 = HTTPValidationError
+
+export type executeAnalysisEndpointApiV1AnalysisExecutePostResponseSuccess = (executeAnalysisEndpointApiV1AnalysisExecutePostResponse200);export type executeAnalysisEndpointApiV1AnalysisExecutePostResponseError = (executeAnalysisEndpointApiV1AnalysisExecutePostResponse422);
+export type executeAnalysisEndpointApiV1AnalysisExecutePostResponse = (executeAnalysisEndpointApiV1AnalysisExecutePostResponseSuccess | executeAnalysisEndpointApiV1AnalysisExecutePostResponseError)
+
+export const getExecuteAnalysisEndpointApiV1AnalysisExecutePostUrl = () => {
+
+
+  
+
+  return `/api/v1/analysis/execute`
+}
+
+export const executeAnalysisEndpointApiV1AnalysisExecutePost = async (debugAnalysisExecuteRequest: DebugAnalysisExecuteRequest, options?: RequestInit): Promise<executeAnalysisEndpointApiV1AnalysisExecutePostResponse> => {
+  
+  return apiClient<executeAnalysisEndpointApiV1AnalysisExecutePostResponse>(getExecuteAnalysisEndpointApiV1AnalysisExecutePostUrl(),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      debugAnalysisExecuteRequest,)
+  }
+);}
+  
+
+
+
+export const getExecuteAnalysisEndpointApiV1AnalysisExecutePostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>, TError,{data: DebugAnalysisExecuteRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>, TError,{data: DebugAnalysisExecuteRequest}, TContext> => {
+
+const mutationKey = ['executeAnalysisEndpointApiV1AnalysisExecutePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>, {data: DebugAnalysisExecuteRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  executeAnalysisEndpointApiV1AnalysisExecutePost(data,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteAnalysisEndpointApiV1AnalysisExecutePostMutationResult = NonNullable<Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>>
+    export type ExecuteAnalysisEndpointApiV1AnalysisExecutePostMutationBody = DebugAnalysisExecuteRequest
+    export type ExecuteAnalysisEndpointApiV1AnalysisExecutePostMutationError = HTTPValidationError
+
+    /**
+ * @summary 분석 즉시 실행 (내부 디버그/검증 전용)
+ */
+export const useExecuteAnalysisEndpointApiV1AnalysisExecutePost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>, TError,{data: DebugAnalysisExecuteRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof executeAnalysisEndpointApiV1AnalysisExecutePost>>,
+        TError,
+        {data: DebugAnalysisExecuteRequest},
+        TContext
+      > => {
+      return useMutation(getExecuteAnalysisEndpointApiV1AnalysisExecutePostMutationOptions(options), queryClient);
     }
     

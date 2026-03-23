@@ -12,7 +12,9 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 3. **작업 생성**: 대시보드 또는 스케줄러가 `POST /api/v1/scans/start` 호출 → `created` 작업 생성
 4. **작업 클레임**: 워커가 `GET /api/v1/scans/pending` 폴링 (Bearer 인증) → created 작업 claim
 5. **실행 및 업로드**: claim한 워커가 실제 스캔 실행 후 `POST /api/v1/scans/{scan_id}/upload-url` 사용
-6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → Analysis 파이프라인 트리거
+6. **완료 보고**: 워커가 `POST /api/v1/scans/{scan_id}/complete` 호출 → 스캔 완료만 기록
+7. **분석 작업 생성**: 사용자가 `POST /api/v1/analysis/jobs` 호출 → 선택한 scan_id로 analysis_jobs 생성
+8. **분석 실행**: 사용자가 `POST /api/v1/analysis/jobs/{job_id}/execute` 호출
 
  * OpenAPI spec version: 4.0.0
  */
@@ -61,30 +63,30 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 /**
  * 대시보드 또는 스케줄러가 호출하여 `created` 상태의 스캔 작업을 생성하는 작업 등록 API입니다.
 이 엔드포인트는 스캔을 직접 실행하지 않으며, 워커가 이후 `/pending`을 폴링해 claim할 작업만 등록합니다.
-응답의 `scan_id`는 생성된 스캔 작업의 식별자이며 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
+응답에는 생성된 스캔 작업 목록이 포함되며, 이후 `upload-url` 및 `complete` 호출에 사용됩니다.
 
 **실제 동작 흐름:**
-1. 대시보드 또는 스케줄러가 `/start`를 호출해 큐 작업을 생성합니다.
+1. 대시보드 또는 스케줄러가 `/start`를 호출해 클러스터 타입 기준 큐 작업을 생성합니다.
 2. 스캐너 워커가 `/pending`을 폴링해 자신이 처리할 created 작업을 claim합니다.
 3. claim에 성공한 워커가 실제 스캔을 수행한 뒤 결과를 업로드하고 `/complete`를 호출합니다.
 
-**스캐너 유형:**
-- `k8s` — Kubernetes 클러스터 리소스 (Pods, RBAC, Secrets, Services 등)
-- `aws` — AWS 클라우드 리소스 (IAM, S3, RDS, EC2, SecurityGroups)
-- `image` — 컨테이너 이미지 취약점 (CVE, EPSS, 서명)
+**클러스터 타입별 fan-out:**
+- `eks`, `self-managed` → `k8s` + `image`
+- `aws` → `aws`
+
 클러스터와 scanner_type 조합당 하나의 활성 스캔만 허용합니다.
-활성 상태(`created`, `processing`, `uploading`)가 이미 있으면 409를 반환합니다.
+fan-out 대상 중 하나라도 활성 상태(`created`, `processing`, `uploading`)가 이미 있으면 전체 요청은 409로 거부됩니다.
  * @summary 스캔 작업 큐 생성
  */
 export type startScanApiV1ScansStartPostResponse201 = ScanStartResponse
+
+export type startScanApiV1ScansStartPostResponse404 = void
 
 export type startScanApiV1ScansStartPostResponse409 = void
 
 export type startScanApiV1ScansStartPostResponse422 = void
 
-export type startScanApiV1ScansStartPostResponseSuccess = (startScanApiV1ScansStartPostResponse201);
-export type startScanApiV1ScansStartPostResponseError = (startScanApiV1ScansStartPostResponse409 | startScanApiV1ScansStartPostResponse422);
-
+export type startScanApiV1ScansStartPostResponseSuccess = (startScanApiV1ScansStartPostResponse201);export type startScanApiV1ScansStartPostResponseError = (startScanApiV1ScansStartPostResponse404 | startScanApiV1ScansStartPostResponse409 | startScanApiV1ScansStartPostResponse422);
 export type startScanApiV1ScansStartPostResponse = (startScanApiV1ScansStartPostResponseSuccess | startScanApiV1ScansStartPostResponseError)
 
 export const getStartScanApiV1ScansStartPostUrl = () => {
@@ -173,9 +175,7 @@ export type claimPendingScanApiV1ScansPendingGetResponse403 = void
 
 export type claimPendingScanApiV1ScansPendingGetResponse422 = HTTPValidationError
 
-export type claimPendingScanApiV1ScansPendingGetResponseSuccess = (claimPendingScanApiV1ScansPendingGetResponse200 | claimPendingScanApiV1ScansPendingGetResponse204);
-export type claimPendingScanApiV1ScansPendingGetResponseError = (claimPendingScanApiV1ScansPendingGetResponse401 | claimPendingScanApiV1ScansPendingGetResponse403 | claimPendingScanApiV1ScansPendingGetResponse422);
-
+export type claimPendingScanApiV1ScansPendingGetResponseSuccess = (claimPendingScanApiV1ScansPendingGetResponse200 | claimPendingScanApiV1ScansPendingGetResponse204);export type claimPendingScanApiV1ScansPendingGetResponseError = (claimPendingScanApiV1ScansPendingGetResponse401 | claimPendingScanApiV1ScansPendingGetResponse403 | claimPendingScanApiV1ScansPendingGetResponse422);
 export type claimPendingScanApiV1ScansPendingGetResponse = (claimPendingScanApiV1ScansPendingGetResponseSuccess | claimPendingScanApiV1ScansPendingGetResponseError)
 
 export const getClaimPendingScanApiV1ScansPendingGetUrl = (params: ClaimPendingScanApiV1ScansPendingGetParams,) => {
@@ -293,15 +293,15 @@ export function useClaimPendingScanApiV1ScansPendingGet<TData = Awaited<ReturnTy
 
 Presigned URL은 600초(10분) 후 만료됩니다.
 
-**S3 키 형식:** `scans/{cluster_id}/{scan_id}/{scanner_type}/{file_name}`
+**S3 키 형식:** `scans/{cluster_id}/{scan_id}/{scanner_type}/{scanner_type}-snapshot.json`
 
 `scanner_type`은 스캔 세션에 의해 결정됩니다 (`/start` 호출 시 설정).
-각 스캐너는 자체 prefix에 기록합니다. 유효한 스캐너 유형: `k8s`, `aws`, `image`.
+각 스캐너는 canonical raw snapshot 파일명으로 기록합니다. 유효한 스캐너 유형: `k8s`, `aws`, `image`.
 
 **예시:**
-- `scans/prod-cluster/scan123/k8s/resources.json`
-- `scans/prod-cluster/scan123/aws/iam.json`
-- `scans/prod-cluster/scan123/image/cve.json`
+- `scans/prod-cluster/scan123/k8s/k8s-snapshot.json`
+- `scans/prod-cluster/scan123/aws/aws-snapshot.json`
+- `scans/prod-cluster/scan123/image/image-snapshot.json`
  * @summary 파일 업로드용 presigned URL 발급
  */
 export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200 = UploadUrlResponse
@@ -316,9 +316,7 @@ export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 = void
 
 export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422 = HTTPValidationError
 
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200);
-export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422);
-
+export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse200);export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponse401 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse403 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse404 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse409 | getUploadUrlApiV1ScansScanIdUploadUrlPostResponse422);
 export type getUploadUrlApiV1ScansScanIdUploadUrlPostResponse = (getUploadUrlApiV1ScansScanIdUploadUrlPostResponseSuccess | getUploadUrlApiV1ScansScanIdUploadUrlPostResponseError)
 
 export const getGetUploadUrlApiV1ScansScanIdUploadUrlPostUrl = (scanId: string,) => {
@@ -396,9 +394,9 @@ export const useGetUploadUrlApiV1ScansScanIdUploadUrlPost = <TError = void | HTT
 동작은 다음과 같습니다:
 1. 업로드된 S3 파일 존재 여부 검증
 2. 상태를 `processing` 또는 `uploading`에서 `completed`로 전이
-3. 현재 구현된 분석 오케스트레이션 체크(`maybe_trigger_analysis`)만 호출
+3. 분석 작업 생성은 하지 않음. 이후 사용자가 별도로 `POST /api/v1/analysis/jobs`를 호출해야 함
 
-즉, complete는 다음 오케스트레이션 단계로 넘기는 역할이며 분석 파이프라인 실행 자체를 수행하지 않습니다.
+즉, complete는 스캔 완료를 기록하는 역할만 하며 분석 파이프라인 실행 자체를 수행하지 않습니다.
  * @summary 스캐너 완료(업로드 완료) 알림
  */
 export type completeScanApiV1ScansScanIdCompletePostResponse202 = ScanCompleteResponse
@@ -415,9 +413,7 @@ export type completeScanApiV1ScansScanIdCompletePostResponse409 = void
 
 export type completeScanApiV1ScansScanIdCompletePostResponse422 = HTTPValidationError
 
-export type completeScanApiV1ScansScanIdCompletePostResponseSuccess = (completeScanApiV1ScansScanIdCompletePostResponse202);
-export type completeScanApiV1ScansScanIdCompletePostResponseError = (completeScanApiV1ScansScanIdCompletePostResponse400 | completeScanApiV1ScansScanIdCompletePostResponse401 | completeScanApiV1ScansScanIdCompletePostResponse403 | completeScanApiV1ScansScanIdCompletePostResponse404 | completeScanApiV1ScansScanIdCompletePostResponse409 | completeScanApiV1ScansScanIdCompletePostResponse422);
-
+export type completeScanApiV1ScansScanIdCompletePostResponseSuccess = (completeScanApiV1ScansScanIdCompletePostResponse202);export type completeScanApiV1ScansScanIdCompletePostResponseError = (completeScanApiV1ScansScanIdCompletePostResponse400 | completeScanApiV1ScansScanIdCompletePostResponse401 | completeScanApiV1ScansScanIdCompletePostResponse403 | completeScanApiV1ScansScanIdCompletePostResponse404 | completeScanApiV1ScansScanIdCompletePostResponse409 | completeScanApiV1ScansScanIdCompletePostResponse422);
 export type completeScanApiV1ScansScanIdCompletePostResponse = (completeScanApiV1ScansScanIdCompletePostResponseSuccess | completeScanApiV1ScansScanIdCompletePostResponseError)
 
 export const getCompleteScanApiV1ScansScanIdCompletePostUrl = (scanId: string,) => {
@@ -501,9 +497,7 @@ export type getScanDetailApiV1ScansScanIdGetResponse404 = void
 
 export type getScanDetailApiV1ScansScanIdGetResponse422 = HTTPValidationError
 
-export type getScanDetailApiV1ScansScanIdGetResponseSuccess = (getScanDetailApiV1ScansScanIdGetResponse200);
-export type getScanDetailApiV1ScansScanIdGetResponseError = (getScanDetailApiV1ScansScanIdGetResponse404 | getScanDetailApiV1ScansScanIdGetResponse422);
-
+export type getScanDetailApiV1ScansScanIdGetResponseSuccess = (getScanDetailApiV1ScansScanIdGetResponse200);export type getScanDetailApiV1ScansScanIdGetResponseError = (getScanDetailApiV1ScansScanIdGetResponse404 | getScanDetailApiV1ScansScanIdGetResponse422);
 export type getScanDetailApiV1ScansScanIdGetResponse = (getScanDetailApiV1ScansScanIdGetResponseSuccess | getScanDetailApiV1ScansScanIdGetResponseError)
 
 export const getGetScanDetailApiV1ScansScanIdGetUrl = (scanId: string,) => {
@@ -615,9 +609,7 @@ export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 = 
 
 export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422 = HTTPValidationError
 
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200);
-export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422);
-
+export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse200);export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse404 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse409 | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse422);
 export type getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponse = (getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseSuccess | getRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetResponseError)
 
 export const getGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGetUrl = (scanId: string,) => {
@@ -732,9 +724,7 @@ export type getScanStatusApiV1ScansScanIdStatusGetResponse404 = void
 
 export type getScanStatusApiV1ScansScanIdStatusGetResponse422 = HTTPValidationError
 
-export type getScanStatusApiV1ScansScanIdStatusGetResponseSuccess = (getScanStatusApiV1ScansScanIdStatusGetResponse200);
-export type getScanStatusApiV1ScansScanIdStatusGetResponseError = (getScanStatusApiV1ScansScanIdStatusGetResponse404 | getScanStatusApiV1ScansScanIdStatusGetResponse422);
-
+export type getScanStatusApiV1ScansScanIdStatusGetResponseSuccess = (getScanStatusApiV1ScansScanIdStatusGetResponse200);export type getScanStatusApiV1ScansScanIdStatusGetResponseError = (getScanStatusApiV1ScansScanIdStatusGetResponse404 | getScanStatusApiV1ScansScanIdStatusGetResponse422);
 export type getScanStatusApiV1ScansScanIdStatusGetResponse = (getScanStatusApiV1ScansScanIdStatusGetResponseSuccess | getScanStatusApiV1ScansScanIdStatusGetResponseError)
 
 export const getGetScanStatusApiV1ScansScanIdStatusGetUrl = (scanId: string,) => {
@@ -842,9 +832,7 @@ export type listClusterScansApiV1ClustersClusterIdScansGetResponse200 = ClusterS
 
 export type listClusterScansApiV1ClustersClusterIdScansGetResponse422 = HTTPValidationError
 
-export type listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess = (listClusterScansApiV1ClustersClusterIdScansGetResponse200);
-export type listClusterScansApiV1ClustersClusterIdScansGetResponseError = (listClusterScansApiV1ClustersClusterIdScansGetResponse422);
-
+export type listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess = (listClusterScansApiV1ClustersClusterIdScansGetResponse200);export type listClusterScansApiV1ClustersClusterIdScansGetResponseError = (listClusterScansApiV1ClustersClusterIdScansGetResponse422);
 export type listClusterScansApiV1ClustersClusterIdScansGetResponse = (listClusterScansApiV1ClustersClusterIdScansGetResponseSuccess | listClusterScansApiV1ClustersClusterIdScansGetResponseError)
 
 export const getListClusterScansApiV1ClustersClusterIdScansGetUrl = (clusterId: string,) => {

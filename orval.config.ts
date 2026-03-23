@@ -1,9 +1,6 @@
 import { defineConfig } from 'orval'
 
 export default defineConfig({
-    hooks: {
-        afterAllFilesWrite: 'node ./scripts/normalize-orval-output.mjs',
-    },
     deployguard: {
         input: {
             target: 'https://analysis.deployguard.org/openapi.json',
@@ -19,6 +16,9 @@ export default defineConfig({
                     name: 'apiClient',
                 },
             },
+        },
+        hooks: {
+            afterAllFilesWrite: 'node ./scripts/normalize-orval-output.mjs',
         },
     },
 })
