@@ -22,6 +22,7 @@ FROM nginx:1.27-alpine
 
 # nginx 기본 static 경로
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # 포트
 EXPOSE 80
