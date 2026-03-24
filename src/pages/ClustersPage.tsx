@@ -346,7 +346,6 @@ const ClustersPage: React.FC = () => {
                                     <tr>
                                         <th>Name</th>
                                         <th>Cluster ID</th>
-                                        <th>Description</th>
                                         <th>Type</th>
                                         <th>Created At</th>
                                         <th className="text-end">Actions</th>
@@ -355,7 +354,7 @@ const ClustersPage: React.FC = () => {
                                 <tbody>
                                     {clusters.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="text-center text-muted py-4">
+                                            <td colSpan={5} className="text-center text-muted py-4">
                                                 No clusters found.
                                             </td>
                                         </tr>
@@ -369,27 +368,6 @@ const ClustersPage: React.FC = () => {
                                         >
                                             <td>{cluster.name}</td>
                                             <td className="text-muted">{cluster.id}</td>
-                                            <td>
-                                                <div>{cluster.description ?? '-'}</div>
-                                                {(cluster.aws_account_id ||
-                                                    cluster.aws_region ||
-                                                    cluster.aws_role_arn) && (
-                                                    <div className="mt-2 small text-muted">
-                                                        <div>
-                                                            <strong>AWS Account:</strong>{' '}
-                                                            {cluster.aws_account_id ?? '-'}
-                                                        </div>
-                                                        <div>
-                                                            <strong>AWS Region:</strong>{' '}
-                                                            {cluster.aws_region ?? '-'}
-                                                        </div>
-                                                        <div className="text-break">
-                                                            <strong>AssumeRole ARN:</strong>{' '}
-                                                            {cluster.aws_role_arn ?? '-'}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </td>
                                             <td>
                                                 <span
                                                     className={`badge ${getClusterTypeBadgeClass(
