@@ -46,6 +46,7 @@ import type {
   ScanCompleteRequest,
   ScanCompleteResponse,
   ScanDetailResponse,
+  ScanFailResponse,
   ScanStartRequest,
   ScanStartResponse,
   ScanStatusResponse,
@@ -483,6 +484,88 @@ export const useCompleteScanApiV1ScansScanIdCompletePost = <TError = void | HTTP
         TContext
       > => {
       return useMutation(getCompleteScanApiV1ScansScanIdCompletePostMutationOptions(options), queryClient);
+    }
+    /**
+ * 스캔 세션을 수동으로 `failed` 상태로 전이합니다.
+
+- `created`, `processing`, `uploading` 상태는 `failed`로 전이됩니다.
+- `completed`, `failed` 상태는 idempotent success로 처리됩니다.
+ * @summary 스캔 세션 실패 처리
+ */
+export type failScanApiV1ScansScanIdFailPostResponse202 = ScanFailResponse
+
+export type failScanApiV1ScansScanIdFailPostResponse404 = void
+
+export type failScanApiV1ScansScanIdFailPostResponse422 = HTTPValidationError
+
+export type failScanApiV1ScansScanIdFailPostResponseSuccess = (failScanApiV1ScansScanIdFailPostResponse202);export type failScanApiV1ScansScanIdFailPostResponseError = (failScanApiV1ScansScanIdFailPostResponse404 | failScanApiV1ScansScanIdFailPostResponse422);
+export type failScanApiV1ScansScanIdFailPostResponse = (failScanApiV1ScansScanIdFailPostResponseSuccess | failScanApiV1ScansScanIdFailPostResponseError)
+
+export const getFailScanApiV1ScansScanIdFailPostUrl = (scanId: string,) => {
+
+
+  
+
+  return `/api/v1/scans/${scanId}/fail`
+}
+
+export const failScanApiV1ScansScanIdFailPost = async (scanId: string, options?: RequestInit): Promise<failScanApiV1ScansScanIdFailPostResponse> => {
+  
+  return apiClient<failScanApiV1ScansScanIdFailPostResponse>(getFailScanApiV1ScansScanIdFailPostUrl(scanId),
+  {      
+    ...options,
+    method: 'POST'
+    
+    
+  }
+);}
+  
+
+
+
+export const getFailScanApiV1ScansScanIdFailPostMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>, TError,{scanId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>, TError,{scanId: string}, TContext> => {
+
+const mutationKey = ['failScanApiV1ScansScanIdFailPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>, {scanId: string}> = (props) => {
+          const {scanId} = props ?? {};
+
+          return  failScanApiV1ScansScanIdFailPost(scanId,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FailScanApiV1ScansScanIdFailPostMutationResult = NonNullable<Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>>
+    
+    export type FailScanApiV1ScansScanIdFailPostMutationError = void | HTTPValidationError
+
+    /**
+ * @summary 스캔 세션 실패 처리
+ */
+export const useFailScanApiV1ScansScanIdFailPost = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>, TError,{scanId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof failScanApiV1ScansScanIdFailPost>>,
+        TError,
+        {scanId: string},
+        TContext
+      > => {
+      return useMutation(getFailScanApiV1ScansScanIdFailPostMutationOptions(options), queryClient);
     }
     /**
  * 스캔 세션의 메타데이터를 조회합니다.

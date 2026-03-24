@@ -89,6 +89,7 @@ export * from './remediationRecommendationListResponse';
 export * from './scanCompleteRequest';
 export * from './scanCompleteResponse';
 export * from './scanDetailResponse';
+export * from './scanFailResponse';
 export * from './scannerType';
 export * from './scanStartItemResponse';
 export * from './scanStartRequest';

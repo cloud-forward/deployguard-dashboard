@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import type {
   ClusterScanListResponse,
@@ -7,6 +8,10 @@ import type {
   ScanStatusResponse,
 } from '../api/model';
 import {
+  getGetScanDetailApiV1ScansScanIdGetQueryKey,
+  getGetScanStatusApiV1ScansScanIdStatusGetQueryKey,
+  getListClusterScansApiV1ClustersClusterIdScansGetQueryKey,
+  useFailScanApiV1ScansScanIdFailPost,
   useGetRawResultDownloadUrlApiV1ScansScanIdRawResultUrlGet,
   useGetScanDetailApiV1ScansScanIdGet,
   useGetScanStatusApiV1ScansScanIdStatusGet,
@@ -91,7 +96,11 @@ const isScanStatusResponse = (value: unknown): value is ScanStatusResponse =>
 const isRawScanResultUrlResponse = (value: unknown): value is RawScanResultUrlResponse =>
   Boolean(value && typeof value === 'object' && 'download_url' in value);
 
+const canManuallyFailScan = (status: string) =>
+  status === 'created' || status === 'processing' || status === 'uploading';
+
 const ScansPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const {
     data: clustersResponse,
     isLoading: isClustersLoading,
@@ -112,6 +121,11 @@ const ScansPage: React.FC = () => {
   const [selectedClusterId, setSelectedClusterId] = useState('');
   const [expandedScanId, setExpandedScanId] = useState('');
   const [shouldLoadRawResult, setShouldLoadRawResult] = useState(false);
+  const [failingScanId, setFailingScanId] = useState('');
+  const [scanFeedback, setScanFeedback] = useState<{
+    type: 'success' | 'danger';
+    message: string;
+  } | null>(null);
   const activeClusterId =
     (selectedClusterId && clusters.some((cluster) => cluster.id === selectedClusterId)
       ? selectedClusterId
@@ -175,6 +189,46 @@ const ScansPage: React.FC = () => {
     ? rawResultResponse
     : null;
   const effectiveStatus = status?.status ?? detail?.status ?? expandedScan?.status ?? '';
+  const { mutate: failScan, isPending: isFailingScan } = useFailScanApiV1ScansScanIdFailPost();
+
+  const handleFailScan = (scanId: string) => {
+    const confirmed = window.confirm('정말 이 스캔을 취소하시겠습니까?');
+    if (!confirmed) {
+      return;
+    }
+
+    setFailingScanId(scanId);
+    setScanFeedback(null);
+    failScan(
+      { scanId },
+      {
+        onSuccess: () => {
+          setScanFeedback({
+            type: 'success',
+            message: 'Scan marked failed.',
+          });
+          queryClient.invalidateQueries({
+            queryKey: getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(activeClusterId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: getGetScanDetailApiV1ScansScanIdGetQueryKey(scanId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: getGetScanStatusApiV1ScansScanIdStatusGetQueryKey(scanId),
+          });
+        },
+        onError: (error) => {
+          setScanFeedback({
+            type: 'danger',
+            message: toErrorMessage(error, 'Failed to mark scan failed.'),
+          });
+        },
+        onSettled: () => {
+          setFailingScanId((current) => (current === scanId ? '' : current));
+        },
+      },
+    );
+  };
 
   return (
     <div>
@@ -246,6 +300,14 @@ const ScansPage: React.FC = () => {
               </span>
             </div>
 
+            {scanFeedback && (
+              <div className="px-3 pt-3">
+                <div className={`alert alert-${scanFeedback.type} mb-0`} role="alert">
+                  {scanFeedback.message}
+                </div>
+              </div>
+            )}
+
             {isScansLoading && (
               <div className="p-4 text-center text-muted">Loading scan history...</div>
             )}
@@ -299,22 +361,37 @@ const ScansPage: React.FC = () => {
                             <td className="text-nowrap">{formatDateTime(scan.created_at)}</td>
                             <td className="text-nowrap">{formatDateTime(scan.completed_at)}</td>
                             <td className="text-end">
-                              <button
-                                type="button"
-                                className={`btn btn-sm ${isExpanded ? 'btn-secondary' : 'btn-outline-secondary'}`}
-                                onClick={() => {
-                                  if (isExpanded) {
-                                    setExpandedScanId('');
-                                    setShouldLoadRawResult(false);
-                                    return;
-                                  }
+                              <div className="d-inline-flex gap-2">
+                                {canManuallyFailScan(scan.status) && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() => handleFailScan(scan.scan_id)}
+                                    disabled={isFailingScan && failingScanId === scan.scan_id}
+                                  >
+                                    {isFailingScan && failingScanId === scan.scan_id
+                                      ? 'Cancelling...'
+                                      : 'Cancel'}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm ${isExpanded ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                                  onClick={() => {
+                                    setScanFeedback(null);
+                                    if (isExpanded) {
+                                      setExpandedScanId('');
+                                      setShouldLoadRawResult(false);
+                                      return;
+                                    }
 
-                                  setExpandedScanId(scan.scan_id);
-                                  setShouldLoadRawResult(false);
-                                }}
-                              >
-                                {isExpanded ? 'Hide Details' : 'View Details'}
-                              </button>
+                                    setExpandedScanId(scan.scan_id);
+                                    setShouldLoadRawResult(false);
+                                  }}
+                                >
+                                  {isExpanded ? 'Hide Details' : 'View Details'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                           {isExpanded && (
