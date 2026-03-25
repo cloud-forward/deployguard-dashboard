@@ -23,8 +23,8 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
   const items = isClusterScanListResponse(data) ? (data.items ?? []) : [];
   const latestStatus = (items[0]?.status as string | undefined) ?? '';
 
-  let dotColor = '#4b5563';
-  let statusText = '스캔 없음';
+  let dotColor = '#6b7280';
+  let statusText = '미연결';
 
   if (latestStatus === 'completed') {
     dotColor = '#22c55e';
@@ -36,18 +36,24 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
     ['running', 'processing', 'queued', 'created', 'uploading'].includes(latestStatus)
   ) {
     dotColor = '#f59e0b';
-    statusText = '스캔 중';
+    statusText = '스캔중';
   }
 
   return (
-    <span className="dg-scan-pill">
-      <span className="dg-scan-pill-name">{name}</span>
-      <span className="dg-scan-pill-sep" aria-hidden="true">•</span>
-      <span className="dg-scan-pill-dot" style={{ color: dotColor }} aria-hidden="true">
-        ●
-      </span>
-      <span className="dg-scan-pill-status">{statusText}</span>
-    </span>
+    <div className="d-flex align-items-center gap-1">
+      <span className="text-white small">{name}</span>
+      <span
+        aria-hidden="true"
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          display: 'inline-block',
+          backgroundColor: dotColor,
+        }}
+      />
+      <span className="small" style={{ color: dotColor }}>{statusText}</span>
+    </div>
   );
 };
 

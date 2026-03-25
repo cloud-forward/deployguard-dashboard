@@ -339,7 +339,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       <div className="card" style={{ height: 600, position: 'relative' }}>
         <div className="px-2 py-1 bg-light border-bottom small">
           <div className="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
-            <span className="text-muted fw-semibold">어택 경로:</span>
+            <span className="text-muted fw-semibold text-nowrap">공격 경로:</span>
             <div
               className="d-flex align-items-center gap-1 overflow-auto flex-nowrap"
               style={{ maxHeight: 28, whiteSpace: 'nowrap', width: '100%' }}
