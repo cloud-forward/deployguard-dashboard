@@ -92,7 +92,7 @@ const ClustersPage: React.FC = () => {
             case 'eks':
                 return 'EKS';
             case 'self-managed':
-                return 'Self-managed';
+                return '자체 관리형';
             case 'aws':
                 return 'AWS';
             default:
@@ -226,7 +226,7 @@ const ClustersPage: React.FC = () => {
 
     const handleDelete = (cluster: Cluster) => {
         const confirmed = window.confirm(
-            `Delete cluster "${cluster.name}"? This action cannot be undone.`,
+            `클러스터 "${cluster.name}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
         );
         if (!confirmed) {
             return;
@@ -264,14 +264,14 @@ const ClustersPage: React.FC = () => {
                         scannerTypes.length > 0 ? ` (${scannerTypes.join(', ')})` : '';
                     setScanFeedback({
                         clusterName: cluster.name,
-                        message: `Scan request created${scanLabel}`,
+                        message: `스캔 요청 생성됨${scanLabel}`,
                         isError: false,
                     });
                 },
                 onError: () => {
                     setScanFeedback({
                         clusterName: cluster.name,
-                        message: 'Failed to create scan request',
+                        message: '스캔 요청 생성에 실패했습니다',
                         isError: true,
                     });
                 },
@@ -301,18 +301,16 @@ const ClustersPage: React.FC = () => {
     return (
         <div>
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 className="h2">Clusters</h1>
-                    <p className="dg-subtitle-text">
-                        Management of protected infrastructure clusters.
-                    </p>
+                <div className="d-flex align-items-baseline gap-3">
+                    <h1 className="h2 mb-0 fw-bold">클러스터</h1>
+                    <span className="fs-6" style={{ color: '#f2f2f2' }}>연결된 클러스터 관리</span>
                 </div>
                 <button
                     className="btn btn-primary"
                     onClick={handleCreate}
                     disabled={isCreating}
                 >
-                    {isCreating ? 'Creating...' : 'Create Cluster'}
+                    {isCreating ? '생성 중…' : '클러스터 생성'}
                 </button>
             </div>
             {scanFeedback && (
@@ -321,21 +319,21 @@ const ClustersPage: React.FC = () => {
                     role="alert"
                 >
                     <strong>{scanFeedback.message}</strong>
-                    {!scanFeedback.isError ? ` for ${scanFeedback.clusterName}.` : null}
+                    {!scanFeedback.isError ? ` — ${scanFeedback.clusterName}.` : null}
                 </div>
             )}
 
             <div className="card shadow-sm">
                 <div className="card-body p-0">
                     {isLoading && (
-                        <div className="p-4 text-center text-muted">Loading clusters...</div>
+                        <div className="p-4 text-center text-muted">클러스터 불러오는 중…</div>
                     )}
                     {isError && (
                         <div className="p-4">
                             <div className="alert alert-danger mb-0" role="alert">
                                 {error instanceof Error
                                     ? error.message
-                                    : getErrorMessage(error, 'Failed to load clusters.')} 
+                                    : getErrorMessage(error, '클러스터를 불러오지 못했습니다.')}
                             </div>
                         </div>
                     )}
@@ -344,18 +342,18 @@ const ClustersPage: React.FC = () => {
                             <table className="table table-hover mb-0 align-middle">
                                 <thead className="table-light">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Cluster ID</th>
-                                        <th>Type</th>
-                                        <th>Created At</th>
-                                        <th className="text-end">Actions</th>
+                                        <th>이름</th>
+                                        <th>클러스터 ID</th>
+                                        <th>유형</th>
+                                        <th>생성일</th>
+                                        <th className="text-end">작업</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {clusters.length === 0 && (
                                         <tr>
                                             <td colSpan={5} className="text-center text-muted py-4">
-                                                No clusters found.
+                                                클러스터 없음.
                                             </td>
                                         </tr>
                                     )}
@@ -391,7 +389,7 @@ const ClustersPage: React.FC = () => {
                                                             handleOpenInventory(cluster);
                                                         }}
                                                     >
-                                                        Inventory 보기
+                                                        인벤토리 보기
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-success"
@@ -405,8 +403,8 @@ const ClustersPage: React.FC = () => {
                                                         }
                                                     >
                                                         {isStartingScan && startingClusterId === cluster.id
-                                                            ? 'Starting...'
-                                                            : 'Scan Request'}
+                                                            ? '시작 중…'
+                                                            : '스캔 요청'}
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-secondary"
@@ -415,7 +413,7 @@ const ClustersPage: React.FC = () => {
                                                             handleEdit(cluster);
                                                         }}
                                                     >
-                                                        Edit
+                                                        편집
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
@@ -425,7 +423,7 @@ const ClustersPage: React.FC = () => {
                                                         }}
                                                         disabled={isDeleting}
                                                     >
-                                                        {isDeleting ? 'Deleting...' : 'Delete'}
+                                                        {isDeleting ? '삭제 중…' : '삭제'}
                                                     </button>
                                                 </div>
                                             </td>
@@ -450,8 +448,8 @@ const ClustersPage: React.FC = () => {
                 isSubmitting={selectedCluster ? isUpdating : isCreating}
                 errorMessage={
                     selectedCluster
-                        ? getErrorMessage(updateError, 'Failed to update cluster.')
-                        : getErrorMessage(createError, 'Failed to create cluster.')
+                        ? getErrorMessage(updateError, '클러스터 업데이트에 실패했습니다.')
+                        : getErrorMessage(createError, '클러스터 생성에 실패했습니다.')
                 }
             />
             <ClusterOnboardingModal

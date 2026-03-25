@@ -226,11 +226,11 @@ const RiskPage: React.FC = () => {
   const getScannerTypeLabel = (scannerType: string) => {
     switch (scannerType) {
       case 'k8s':
-        return 'Kubernetes Scans';
+        return 'Kubernetes 스캔';
       case 'image':
-        return 'Image Scans';
+        return '이미지 스캔';
       case 'aws':
-        return 'AWS Scans';
+        return 'AWS 스캔';
       default:
         return scannerType;
     }
@@ -258,7 +258,7 @@ const RiskPage: React.FC = () => {
     return new Date(value).toLocaleString();
   };
 
-  const formatRawResult = (value: boolean) => (value ? 'Available' : 'Missing');
+  const formatRawResult = (value: boolean) => (value ? '사용 가능' : '없음');
 
   const handleScanSelection = (field: keyof SelectedScans, scanId: string) => {
     setSelectedScans((current) => ({
@@ -288,7 +288,7 @@ const RiskPage: React.FC = () => {
     if (selectedCount === 0) {
       setFeedback({
         type: 'danger',
-        message: 'Select at least one completed scan result before creating an analysis job.',
+        message: '분석 작업 생성 전에 완료된 스캔 결과를 하나 이상 선택하세요.',
       });
       return;
     }
@@ -305,7 +305,7 @@ const RiskPage: React.FC = () => {
           if (!jobId) {
             setFeedback({
               type: 'danger',
-              message: 'Analysis job was created, but no job ID was returned.',
+              message: '분석 작업이 생성되었지만 작업 ID가 반환되지 않았습니다.',
             });
             return;
           }
@@ -326,7 +326,7 @@ const RiskPage: React.FC = () => {
               onSuccess: () => {
                 setFeedback({
                   type: 'success',
-                  message: `Analysis job ${jobId} created and execution started.`,
+                  message: `분석 작업 ${jobId}이(가) 생성되고 실행이 시작되었습니다.`,
                 });
                 queryClient.invalidateQueries({
                   queryKey: getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey(
@@ -340,7 +340,7 @@ const RiskPage: React.FC = () => {
               onError: () => {
                 setFeedback({
                   type: 'danger',
-                  message: `Analysis job ${jobId} was created, but execution failed to start.`,
+                  message: `분석 작업 ${jobId}이(가) 생성되었지만 실행 시작에 실패했습니다.`,
                 });
               },
             },
@@ -349,7 +349,7 @@ const RiskPage: React.FC = () => {
         onError: () => {
           setFeedback({
             type: 'danger',
-            message: 'Failed to create analysis job.',
+            message: '분석 작업 생성에 실패했습니다.',
           });
         },
       },
@@ -379,21 +379,21 @@ const RiskPage: React.FC = () => {
           </div>
           <div className="d-flex align-items-center gap-2">
             <span className={`badge ${getStatusBadgeClass(scan.status)}`}>{scan.status}</span>
-            {isSelected && <span className="badge bg-primary">Selected</span>}
+            {isSelected && <span className="badge bg-primary">선택됨</span>}
           </div>
         </div>
         <div className="row g-2 small text-muted">
           <div className="col-12 col-md-6">
-            <strong className="text-dark">Created:</strong> {formatDateTime(scan.created_at)}
+            <strong className="text-dark">생성:</strong> {formatDateTime(scan.created_at)}
           </div>
           <div className="col-12 col-md-6">
-            <strong className="text-dark">Completed:</strong> {formatDateTime(scan.completed_at)}
+            <strong className="text-dark">완료:</strong> {formatDateTime(scan.completed_at)}
           </div>
           <div className="col-12 col-md-6">
-            <strong className="text-dark">Files:</strong> {scan.file_count}
+            <strong className="text-dark">파일:</strong> {scan.file_count}
           </div>
           <div className="col-12 col-md-6">
-            <strong className="text-dark">Raw Result:</strong> {formatRawResult(scan.has_raw_result)}
+            <strong className="text-dark">원시 결과:</strong> {formatRawResult(scan.has_raw_result)}
           </div>
         </div>
       </button>
@@ -402,13 +402,9 @@ const RiskPage: React.FC = () => {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 mb-1">Risk Optimization</h1>
-          <p className="dg-subtitle-text mb-0">
-            Analysis workflows, job tracking, and recommended mitigations.
-          </p>
-        </div>
+      <div className="d-flex align-items-baseline gap-3 mb-4">
+        <h1 className="h2 mb-0 fw-bold">위험 최적화</h1>
+        <span className="fs-6" style={{ color: '#f2f2f2' }}>리스크 분석 및 초크포인트 탐지</span>
       </div>
 
       {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="risk" /> : null}
@@ -420,7 +416,7 @@ const RiskPage: React.FC = () => {
             className={`nav-link ${activeTab === 'analysis' ? 'active' : ''}`}
             onClick={() => setActiveTab('analysis')}
           >
-            Analysis
+            분석
           </button>
         </li>
         <li className="nav-item">
@@ -429,7 +425,7 @@ const RiskPage: React.FC = () => {
             className={`nav-link ${activeTab === 'recommendations' ? 'active' : ''}`}
             onClick={() => setActiveTab('recommendations')}
           >
-            Recommendations
+            권장 사항
           </button>
         </li>
       </ul>
@@ -440,16 +436,15 @@ const RiskPage: React.FC = () => {
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
                 <div>
-                  <h3 className="h5 mb-1">Manual Analysis</h3>
+                  <h3 className="h5 mb-1">수동 분석</h3>
                   <p className="text-muted mb-0">
-                    Scan Scope only filters visible candidates. Selected scan IDs persist globally
-                    across scope changes.
+                    스캔 범위는 표시되는 후보만 필터링합니다. 선택한 스캔 ID는 범위 변경 시에도 전역적으로 유지됩니다.
                   </p>
                 </div>
                 <div className="d-flex gap-2 flex-wrap align-items-end">
                   <div style={{ minWidth: '280px' }}>
                     <label htmlFor="cluster-select" className="form-label mb-1">
-                      Scan Scope
+                      스캔 범위
                     </label>
                     <select
                       id="cluster-select"
@@ -458,7 +453,7 @@ const RiskPage: React.FC = () => {
                       onChange={(event) => setSelectedClusterId(event.target.value)}
                       disabled={isLoadingClusters || clusters.length === 0}
                     >
-                      {clusters.length === 0 && <option value="">No clusters available</option>}
+                      {clusters.length === 0 && <option value="">사용 가능한 클러스터 없음</option>}
                       {clusters.map((cluster) => (
                         <option key={cluster.id} value={cluster.id}>
                           {cluster.name}
@@ -472,16 +467,15 @@ const RiskPage: React.FC = () => {
                     onClick={handleRefresh}
                     disabled={!selectedClusterId}
                   >
-                    Refresh
+                    새로 고침
                   </button>
                 </div>
               </div>
 
               {selectedCluster && (
                 <div className="mt-3 small text-muted">
-                  Showing scan candidates for <strong className="text-dark">{selectedCluster.name}</strong>{' '}
-                  ({selectedCluster.cluster_type ?? 'unknown'} cluster). Current selections are not
-                  cleared when you switch scope.
+                  <strong className="text-dark">{selectedCluster.name}</strong>의 스캔 후보 표시{' '}
+                  ({selectedCluster.cluster_type ?? '알 수 없음'} 클러스터). 범위를 변경해도 현재 선택은 초기화되지 않습니다.
                 </div>
               )}
 
@@ -499,21 +493,20 @@ const RiskPage: React.FC = () => {
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                      <h4 className="h6 mb-1">Scan Candidates</h4>
+                      <h4 className="h6 mb-1">스캔 후보</h4>
                       <p className="text-muted small mb-0">
-                        Select concrete completed scan records. Visible candidates are scope-specific,
-                        but selection state is global.
+                        완료된 구체적인 스캔 레코드를 선택하세요. 표시되는 후보는 범위별이지만 선택 상태는 전역입니다.
                       </p>
                     </div>
                     <span className="badge bg-light text-dark border">
-                      {selectedCount} selected
+                      {selectedCount}개 선택됨
                     </span>
                   </div>
 
                   {isLoadingScans ? (
-                    <div className="text-muted">Loading scan candidates...</div>
+                    <div className="text-muted">스캔 후보 불러오는 중…</div>
                   ) : visibleScannerGroups.length === 0 ? (
-                    <div className="text-muted">No completed scans found for this cluster.</div>
+                    <div className="text-muted">이 클러스터에서 완료된 스캔 없음.</div>
                   ) : (
                     <div className="d-flex flex-column gap-4">
                       {visibleScannerGroups.map((group) => {
@@ -524,14 +517,13 @@ const RiskPage: React.FC = () => {
                             <div className="d-flex justify-content-between align-items-center mb-2">
                               <h5 className="h6 mb-0">{getScannerTypeLabel(group.scannerType)}</h5>
                               <span className="text-muted small">
-                                {group.items.length} completed candidate{group.items.length === 1 ? '' : 's'}
+                                {group.items.length}개의 완료된 후보
                               </span>
                             </div>
 
                             {group.items.length === 0 ? (
                               <div className="border rounded-3 p-3 text-muted small">
-                                No completed {group.scannerType} scan results are available for the
-                                current cluster scope.
+                                현재 클러스터 범위에서 완료된 {group.scannerType} 스캔 결과가 없습니다.
                               </div>
                             ) : (
                               <div className="d-flex flex-column gap-2">
@@ -552,10 +544,9 @@ const RiskPage: React.FC = () => {
             <div className="col-12 col-xl-5">
                 <div className="card shadow-sm border-0 mb-4">
                 <div className="card-body">
-                  <h4 className="h6 mb-3">Create And Execute</h4>
+                  <h4 className="h6 mb-3">생성 및 실행</h4>
                   <p className="text-muted small mb-3">
-                    This summary always reflects the global selected scan IDs, not just the current
-                    visible scope.
+                    이 요약은 현재 표시된 범위가 아닌 전역적으로 선택된 스캔 ID를 항상 반영합니다.
                   </p>
                   <div className="d-flex flex-column gap-2 small">
                     <div>
@@ -576,7 +567,7 @@ const RiskPage: React.FC = () => {
                       !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
                     }
                   >
-                    {isCreatingJob || isExecutingJob ? 'Submitting...' : 'Create Job And Execute'}
+                    {isCreatingJob || isExecutingJob ? '제출 중…' : '작업 생성 및 실행'}
                   </button>
                 </div>
               </div>
@@ -585,9 +576,9 @@ const RiskPage: React.FC = () => {
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                      <h4 className="h6 mb-1">Job Status</h4>
+                      <h4 className="h6 mb-1">작업 상태</h4>
                       <p className="text-muted small mb-0">
-                        Polling the persisted analysis job after execution starts.
+                        실행 시작 후 저장된 분석 작업을 폴링합니다.
                       </p>
                     </div>
                     {selectedActiveJob && (
@@ -598,35 +589,35 @@ const RiskPage: React.FC = () => {
                   </div>
 
                   {!activeJobId && (
-                    <div className="text-muted">Select a recent job or create a new one.</div>
+                    <div className="text-muted">최근 작업을 선택하거나 새 작업을 생성하세요.</div>
                   )}
 
                   {activeJobId && !selectedActiveJob && (
-                    <div className="text-muted">Loading job status...</div>
+                    <div className="text-muted">작업 상태 불러오는 중…</div>
                   )}
 
                   {selectedActiveJob && (
                     <div className="d-flex flex-column gap-2 small">
                       <div>
-                        <strong>Job ID:</strong>{' '}
+                        <strong>작업 ID:</strong>{' '}
                         <span className="text-break">{selectedActiveJob.job_id}</span>
                       </div>
                       <div>
-                        <strong>Current Step:</strong> {selectedActiveJob.current_step ?? '-'}
+                        <strong>현재 단계:</strong> {selectedActiveJob.current_step ?? '-'}
                       </div>
                       <div>
-                        <strong>Error:</strong> {selectedActiveJob.error_message ?? '-'}
+                        <strong>오류:</strong> {selectedActiveJob.error_message ?? '-'}
                       </div>
                       <div>
-                        <strong>Created:</strong> {formatDateTime(selectedActiveJob.created_at)}
+                        <strong>생성:</strong> {formatDateTime(selectedActiveJob.created_at)}
                       </div>
                       <div>
-                        <strong>Started:</strong> {formatDateTime(selectedActiveJob.started_at)}
+                        <strong>시작:</strong> {formatDateTime(selectedActiveJob.started_at)}
                       </div>
                       <div>
-                        <strong>Completed:</strong> {formatDateTime(selectedActiveJob.completed_at)}
+                        <strong>완료:</strong> {formatDateTime(selectedActiveJob.completed_at)}
                       </div>
-                      {isPollingJob && <div className="text-muted">Refreshing status...</div>}
+                      {isPollingJob && <div className="text-muted">상태 새로 고침 중…</div>}
                     </div>
                   )}
                 </div>
@@ -638,27 +629,27 @@ const RiskPage: React.FC = () => {
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                  <h4 className="h6 mb-1">Recent Analysis Jobs</h4>
+                  <h4 className="h6 mb-1">최근 분석 작업</h4>
                   <p className="text-muted small mb-0">
-                    Recent persisted analysis jobs for the current cluster scope.
+                    현재 클러스터 범위의 최근 저장된 분석 작업.
                   </p>
                 </div>
               </div>
 
               {isLoadingJobs ? (
-                <div className="text-muted">Loading analysis jobs...</div>
+                <div className="text-muted">분석 작업 불러오는 중…</div>
               ) : jobItems.length === 0 ? (
-                <div className="text-muted">No analysis jobs found for this cluster.</div>
+                <div className="text-muted">이 클러스터에서 분석 작업 없음.</div>
               ) : (
                 <div className="table-responsive">
                   <table className="table align-middle mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th>Job ID</th>
-                        <th>Status</th>
-                        <th>Current Step</th>
-                        <th>Created</th>
-                        <th>Selected Scans</th>
+                        <th>작업 ID</th>
+                        <th>상태</th>
+                        <th>현재 단계</th>
+                        <th>생성</th>
+                        <th>선택된 스캔</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -700,7 +691,7 @@ const RiskPage: React.FC = () => {
       {activeTab === 'recommendations' && (
         <div>
           <div className="mb-4">
-            <h3 className="h5 mb-3">Top Recommendations</h3>
+            <h3 className="h5 mb-3">주요 권장 사항</h3>
             <ChokePointList />
           </div>
         </div>

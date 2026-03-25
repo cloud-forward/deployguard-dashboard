@@ -53,7 +53,7 @@ const formatScannerType = (value: string) => {
     case 'aws':
       return 'AWS';
     case 'image':
-      return 'Image';
+      return '이미지';
     default:
       return value;
   }
@@ -72,7 +72,7 @@ const renderResourceBadges = (resources?: Record<string, number>) => {
   const entries = Object.entries(resources ?? {}).sort((left, right) => right[1] - left[1]);
 
   if (entries.length === 0) {
-    return <span className="text-muted small">No data</span>;
+    return <span className="text-muted small">데이터 없음</span>;
   }
 
   return (
@@ -157,14 +157,14 @@ const InventorySummarySection: React.FC = () => {
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
-          <h1 className="h2 mb-1">Overview</h1>
+          <h1 className="h2 mb-1">개요</h1>
           <p className="dg-subtitle-text mb-0">
-            Real inventory summary for the selected cluster.
+            선택된 클러스터의 실제 인벤토리 요약.
           </p>
         </div>
         <div style={{ minWidth: 320 }}>
           <label htmlFor="dashboard-cluster-select" className="form-label mb-1">
-            Cluster
+            클러스터
           </label>
           <select
             id="dashboard-cluster-select"
@@ -174,7 +174,7 @@ const InventorySummarySection: React.FC = () => {
             disabled={isClustersLoading || clusters.length === 0}
           >
             {clusters.length === 0 ? (
-              <option value="">No clusters available</option>
+              <option value="">사용 가능한 클러스터 없음</option>
             ) : (
               clusters.map((cluster) => (
                 <option key={cluster.id} value={cluster.id}>
@@ -188,19 +188,19 @@ const InventorySummarySection: React.FC = () => {
 
       {isClustersLoading && (
         <div className="alert alert-secondary" role="status">
-          Loading clusters...
+          클러스터 불러오는 중…
         </div>
       )}
 
       {isClustersError && (
         <div className="alert alert-danger" role="alert">
-          {toMessage(clustersError, 'Failed to load clusters.')}
+          {toMessage(clustersError, '클러스터를 불러오지 못했습니다.')}
         </div>
       )}
 
       {!isClustersLoading && !isClustersError && clusters.length === 0 && (
         <div className="alert alert-info" role="alert">
-          No clusters found. Create a cluster first to view the real inventory summary.
+          클러스터 없음. 실제 인벤토리 요약을 보려면 먼저 클러스터를 생성하세요.
         </div>
       )}
 
@@ -208,22 +208,22 @@ const InventorySummarySection: React.FC = () => {
         <>
           <div className="row g-4 mb-4">
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="Total Assets" value={totalAssets} />
+              <StatCard title="전체 자산" value={totalAssets} />
             </div>
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="K8s Assets" value={k8sAssets} />
+              <StatCard title="K8s 자산" value={k8sAssets} />
             </div>
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="AWS Assets" value={awsAssets} />
+              <StatCard title="AWS 자산" value={awsAssets} />
             </div>
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="Entry Points" value={entryPoints} />
+              <StatCard title="진입점" value={entryPoints} />
             </div>
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="Crown Jewels" value={crownJewels} />
+              <StatCard title="핵심 자산" value={crownJewels} />
             </div>
             <div className="col-12 col-sm-6 col-xl-2">
-              <StatCard title="Critical Paths" value={criticalPaths} />
+              <StatCard title="치명적 경로" value={criticalPaths} />
             </div>
           </div>
 
@@ -231,17 +231,17 @@ const InventorySummarySection: React.FC = () => {
             <div className="d-grid gap-2 mb-4">
               {isSummaryError && (
                 <div className="alert alert-danger mb-0" role="alert">
-                  {toMessage(summaryError, 'Failed to load inventory summary.')}
+                  {toMessage(summaryError, '인벤토리 요약을 불러오지 못했습니다.')}
                 </div>
               )}
               {isSpotlightError && (
                 <div className="alert alert-danger mb-0" role="alert">
-                  {toMessage(spotlightError, 'Failed to load risk spotlight.')}
+                  {toMessage(spotlightError, '리스크 스포트라이트를 불러오지 못했습니다.')}
                 </div>
               )}
               {isScannerStatusError && (
                 <div className="alert alert-danger mb-0" role="alert">
-                  {toMessage(scannerStatusError, 'Failed to load scanner status.')}
+                  {toMessage(scannerStatusError, '스캐너 상태를 불러오지 못했습니다.')}
                 </div>
               )}
             </div>
@@ -253,13 +253,13 @@ const InventorySummarySection: React.FC = () => {
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
                     <div>
-                      <h2 className="h5 mb-1">Resource Breakdown</h2>
+                      <h2 className="h5 mb-1">리소스 분류</h2>
                       <p className="text-muted small mb-0">
-                        Aggregated inventory counts for {selectedCluster.name}.
+                        {selectedCluster.name}의 인벤토리 집계.
                       </p>
                     </div>
                     {(isSummaryLoading || isSpotlightLoading) && (
-                      <span className="badge text-bg-light border">Loading...</span>
+                      <span className="badge text-bg-light border">불러오는 중…</span>
                     )}
                   </div>
                   <div className="mb-3">
@@ -279,17 +279,17 @@ const InventorySummarySection: React.FC = () => {
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
                     <div>
-                      <h2 className="h5 mb-1">Scanner Status</h2>
+                      <h2 className="h5 mb-1">스캐너 상태</h2>
                       <p className="text-muted small mb-0">
-                        Latest scanner coverage for the selected cluster.
+                        선택된 클러스터의 최신 스캐너 커버리지.
                       </p>
                     </div>
                     {isScannerStatusLoading && (
-                      <span className="badge text-bg-light border">Loading...</span>
+                      <span className="badge text-bg-light border">불러오는 중…</span>
                     )}
                   </div>
                   {scanners.length === 0 ? (
-                    <div className="text-muted small">No scanner status available.</div>
+                    <div className="text-muted small">사용 가능한 스캐너 상태 없음.</div>
                   ) : (
                     <div className="d-flex flex-column gap-2">
                       {scanners.map((scanner: InvScannerItem) => (
@@ -301,7 +301,7 @@ const InventorySummarySection: React.FC = () => {
                             <div>
                               <div className="fw-semibold">{scanner.display_name}</div>
                               <div className="small text-muted">
-                                {formatScannerType(scanner.scanner_type)} · Last scan{' '}
+                                {formatScannerType(scanner.scanner_type)} · 마지막 스캔{' '}
                                 {formatDateTime(scanner.last_scan_at)}
                               </div>
                             </div>

@@ -1,4 +1,14 @@
 :root {
+  --dg-bg-primary: #0a1021;
+  --dg-bg-card: #111827;
+  --dg-border: #1f2937;
+  --dg-accent: #3b82f6;
+  --dg-text-primary: #f9fafb;
+  --dg-text-muted: #6b7280;
+  --dg-success: #22c55e;
+  --dg-danger: #ef4444;
+  --dg-warning: #f59e0b;
+
   --text: #e5e7eb;
   --text-h: #f8fafc;
   --bg: #070f22;
@@ -11,8 +21,8 @@
   --shadow:
     rgba(0, 0, 0, 0.55) 0 10px 20px -3px, rgba(0, 0, 0, 0.35) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --heading: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -42,6 +52,11 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+* {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
 h1,
@@ -102,4 +117,10 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+@keyframes live-pulse {
+  0%   { opacity: 1;   transform: scale(1); }
+  50%  { opacity: 0.4; transform: scale(1.3); }
+  100% { opacity: 1;   transform: scale(1); }
 }

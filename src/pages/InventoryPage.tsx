@@ -297,11 +297,9 @@ const InventoryPage: React.FC = () => {
 
   return (
     <div className="position-relative">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 mb-1">Inventory</h1>
-          <p className="dg-subtitle-text mb-0">Cluster inventory summary, asset grid, and risk spotlight.</p>
-        </div>
+      <div className="d-flex align-items-baseline gap-3 mb-4">
+        <h1 className="h2 mb-0 fw-bold">인벤토리</h1>
+        <span className="fs-6" style={{ color: '#f2f2f2' }}>클러스터, 자산 요약, 자산 그리드, 위험 포인트</span>
       </div>
 
       <ClusterFlowNav clusterId={clusterId} current="inventory" />

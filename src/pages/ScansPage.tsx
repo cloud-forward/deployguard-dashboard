@@ -34,13 +34,13 @@ const statusBadgeClass: Record<string, string> = {
 };
 
 const statusLabel: Record<string, string> = {
-  queued: 'Queued',
-  created: 'Queued',
-  running: 'Running',
-  processing: 'Processing',
-  uploading: 'Uploading',
-  completed: 'Completed',
-  failed: 'Failed',
+  queued: '대기 중',
+  created: '대기 중',
+  running: '실행 중',
+  processing: '처리 중',
+  uploading: '업로드 중',
+  completed: '완료',
+  failed: '실패',
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -205,7 +205,7 @@ const ScansPage: React.FC = () => {
         onSuccess: () => {
           setScanFeedback({
             type: 'success',
-            message: 'Scan marked failed.',
+            message: '스캔이 실패로 표시되었습니다.',
           });
           queryClient.invalidateQueries({
             queryKey: getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(activeClusterId),
@@ -220,7 +220,7 @@ const ScansPage: React.FC = () => {
         onError: (error) => {
           setScanFeedback({
             type: 'danger',
-            message: toErrorMessage(error, 'Failed to mark scan failed.'),
+            message: toErrorMessage(error, '스캔 실패 표시에 실패했습니다.'),
           });
         },
         onSettled: () => {
@@ -233,15 +233,13 @@ const ScansPage: React.FC = () => {
   return (
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div>
-          <h1 className="h2 mb-1">Scans</h1>
-          <p className="dg-subtitle-text mb-0">
-            Recent scan requests and processing status by cluster.
-          </p>
+        <div className="d-flex align-items-baseline gap-3">
+          <h1 className="h2 mb-0 fw-bold">스캐너</h1>
+          <span className="fs-6" style={{ color: '#f2f2f2' }}>스캔 이력 및 커버리지 현황</span>
         </div>
         <div style={{ minWidth: 280 }}>
           <label htmlFor="scan-cluster-select" className="form-label mb-1">
-            Cluster
+            클러스터
           </label>
           <select
             id="scan-cluster-select"
@@ -255,7 +253,7 @@ const ScansPage: React.FC = () => {
             disabled={isClustersLoading || clusters.length === 0}
           >
             {clusters.length === 0 ? (
-              <option value="">No clusters available</option>
+              <option value="">사용 가능한 클러스터 없음</option>
             ) : (
               clusters.map((cluster) => (
                 <option key={cluster.id} value={cluster.id}>
@@ -269,19 +267,19 @@ const ScansPage: React.FC = () => {
 
       {isClustersLoading && (
         <div className="alert alert-secondary" role="status">
-          Loading clusters...
+          클러스터 불러오는 중…
         </div>
       )}
 
       {isClustersError && (
         <div className="alert alert-danger" role="alert">
-          {toErrorMessage(clustersError, 'Failed to load clusters.')}
+          {toErrorMessage(clustersError, '클러스터를 불러오지 못했습니다.')}
         </div>
       )}
 
       {!isClustersLoading && !isClustersError && clusters.length === 0 && (
         <div className="alert alert-info mb-0" role="alert">
-          No clusters found. Create a cluster first to view scan history.
+          클러스터 없음. 스캔 기록을 보려면 먼저 클러스터를 생성하세요.
         </div>
       )}
 
@@ -290,13 +288,13 @@ const ScansPage: React.FC = () => {
           <div className="card-body p-0">
             <div className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom">
               <div>
-                <h2 className="h6 mb-1">Scan History</h2>
+                <h2 className="h6 mb-1">스캔 기록</h2>
                 <p className="text-muted small mb-0">
-                  {selectedCluster ? `${selectedCluster.name} (${selectedCluster.id})` : 'Selected cluster'}
+                  {selectedCluster ? `${selectedCluster.name} (${selectedCluster.id})` : '선택된 클러스터'}
                 </p>
               </div>
               <span className="badge text-bg-dark">
-                {scanList?.total ?? scans.length} total
+                {scanList?.total ?? scans.length}건
               </span>
             </div>
 
@@ -309,20 +307,20 @@ const ScansPage: React.FC = () => {
             )}
 
             {isScansLoading && (
-              <div className="p-4 text-center text-muted">Loading scan history...</div>
+              <div className="p-4 text-center text-muted">스캔 기록 불러오는 중…</div>
             )}
 
             {isScansError && (
               <div className="p-4">
                 <div className="alert alert-danger mb-0" role="alert">
-                  {toErrorMessage(scansError, 'Failed to load scan history.')}
+                  {toErrorMessage(scansError, '스캔 기록을 불러오지 못했습니다.')}
                 </div>
               </div>
             )}
 
             {!isScansLoading && !isScansError && scans.length === 0 && (
               <div className="p-4 text-center text-muted">
-                No scan history found for this cluster.
+                이 클러스터에서 스캔 기록 없음.
               </div>
             )}
 
@@ -331,12 +329,12 @@ const ScansPage: React.FC = () => {
                 <table className="table table-hover mb-0 align-middle">
                   <thead className="table-light">
                     <tr>
-                      <th>Cluster</th>
-                      <th>Scanner Type</th>
-                      <th>Status</th>
-                      <th>Requested At</th>
-                      <th>Completed At</th>
-                      <th className="text-end">Action</th>
+                      <th>클러스터</th>
+                      <th>스캐너 유형</th>
+                      <th>상태</th>
+                      <th>요청 시각</th>
+                      <th>완료 시각</th>
+                      <th className="text-end">작업</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -370,8 +368,8 @@ const ScansPage: React.FC = () => {
                                     disabled={isFailingScan && failingScanId === scan.scan_id}
                                   >
                                     {isFailingScan && failingScanId === scan.scan_id
-                                      ? 'Cancelling...'
-                                      : 'Cancel'}
+                                      ? '취소 중…'
+                                      : '취소'}
                                   </button>
                                 )}
                                 <button
@@ -389,7 +387,7 @@ const ScansPage: React.FC = () => {
                                     setShouldLoadRawResult(false);
                                   }}
                                 >
-                                  {isExpanded ? 'Hide Details' : 'View Details'}
+                                  {isExpanded ? '상세 숨기기' : '상세 보기'}
                                 </button>
                               </div>
                             </td>
@@ -400,14 +398,14 @@ const ScansPage: React.FC = () => {
                                 <div className="p-3">
                                   <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                                     <div>
-                                      <h3 className="h6 mb-1">Scan Detail</h3>
+                                      <h3 className="h6 mb-1">스캔 상세</h3>
                                       <p className="text-muted small mb-0">
-                                        Live detail and status for {scan.scan_id}
+                                        {scan.scan_id}의 실시간 상세 정보 및 상태
                                       </p>
                                     </div>
                                     <div className="d-flex gap-2">
                                       <span className={`badge ${statusBadgeClass[effectiveStatus] ?? 'bg-secondary'}`}>
-                                        {(statusLabel[effectiveStatus] ?? effectiveStatus) || 'Unknown'}
+                                        {(statusLabel[effectiveStatus] ?? effectiveStatus) || '알 수 없음'}
                                       </span>
                                       <button
                                         type="button"
@@ -415,62 +413,62 @@ const ScansPage: React.FC = () => {
                                         onClick={() => setShouldLoadRawResult(true)}
                                         disabled={isRawResultLoading}
                                       >
-                                        {isRawResultLoading ? 'Loading Raw Result...' : 'Get Raw Result Link'}
+                                        {isRawResultLoading ? '원시 결과 불러오는 중…' : '원시 결과 링크 가져오기'}
                                       </button>
                                     </div>
                                   </div>
 
                                   {(isScanDetailLoading || isScanStatusLoading) && (
-                                    <div className="text-muted small mb-3">Loading scan details...</div>
+                                    <div className="text-muted small mb-3">스캔 상세 정보 불러오는 중…</div>
                                   )}
 
                                   {(isScanDetailError || isScanStatusError) && (
                                     <div className="alert alert-danger py-2 mb-3" role="alert">
                                       {isScanDetailError
-                                        ? toErrorMessage(scanDetailError, 'Failed to load scan detail.')
-                                        : toErrorMessage(scanStatusError, 'Failed to load scan status.')}
+                                        ? toErrorMessage(scanDetailError, '스캔 상세 정보를 불러오지 못했습니다.')
+                                        : toErrorMessage(scanStatusError, '스캔 상태를 불러오지 못했습니다.')}
                                     </div>
                                   )}
 
                                   <div className="row g-3 small">
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Scan ID</div>
+                                      <div className="text-muted mb-1">스캔 ID</div>
                                       <code className="text-break">{detail?.scan_id ?? status?.scan_id ?? scan.scan_id}</code>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Scanner Type</div>
+                                      <div className="text-muted mb-1">스캐너 유형</div>
                                       <div>{detail?.scanner_type ?? status?.scanner_type ?? scan.scanner_type}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Status</div>
+                                      <div className="text-muted mb-1">상태</div>
                                       <div>{(statusLabel[effectiveStatus] ?? effectiveStatus) || '-'}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Cluster ID</div>
+                                      <div className="text-muted mb-1">클러스터 ID</div>
                                       <div className="text-break">{detail?.cluster_id ?? status?.cluster_id ?? activeClusterId}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Requested At</div>
+                                      <div className="text-muted mb-1">요청 시각</div>
                                       <div>{formatDateTime(detail?.created_at ?? status?.created_at ?? scan.created_at)}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Started At</div>
-                                      <div className="text-muted">Not available from current API</div>
+                                      <div className="text-muted mb-1">시작 시각</div>
+                                      <div className="text-muted">현재 API에서 제공되지 않음</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Completed At</div>
+                                      <div className="text-muted mb-1">완료 시각</div>
                                       <div>{formatDateTime(detail?.completed_at ?? status?.completed_at ?? scan.completed_at)}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
-                                      <div className="text-muted mb-1">Error Message</div>
-                                      <div className="text-muted">Not available from current API</div>
+                                      <div className="text-muted mb-1">오류 메시지</div>
+                                      <div className="text-muted">현재 API에서 제공되지 않음</div>
                                     </div>
                                     <div className="col-12">
-                                      <div className="text-muted mb-1">Stored S3 Keys</div>
+                                      <div className="text-muted mb-1">저장된 S3 키</div>
                                       {renderList(detail?.s3_keys)}
                                     </div>
                                     <div className="col-12">
-                                      <div className="text-muted mb-1">Uploaded Files</div>
+                                      <div className="text-muted mb-1">업로드된 파일</div>
                                       {renderList(status?.files)}
                                     </div>
                                   </div>
@@ -478,9 +476,9 @@ const ScansPage: React.FC = () => {
                                   {shouldLoadRawResult && rawResult?.download_url && (
                                     <div className="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 mb-0">
                                       <div>
-                                        Raw result link is ready
+                                        원시 결과 링크가 준비되었습니다
                                         {rawResult.expires_in
-                                          ? ` (${rawResult.expires_in}s expiry)`
+                                          ? ` (유효 기간: ${rawResult.expires_in}초)`
                                           : ''}
                                         .
                                       </div>
@@ -490,7 +488,7 @@ const ScansPage: React.FC = () => {
                                         rel="noreferrer"
                                         className="btn btn-sm btn-success"
                                       >
-                                        Open Raw Result
+                                        원시 결과 열기
                                       </a>
                                     </div>
                                   )}
@@ -499,7 +497,7 @@ const ScansPage: React.FC = () => {
                                     <div className="alert alert-warning mt-3 mb-0" role="alert">
                                       {toErrorMessage(
                                         rawResultError,
-                                        'Raw result link is not available for this scan yet.',
+                                        '이 스캔의 원시 결과 링크가 아직 준비되지 않았습니다.',
                                       )}
                                     </div>
                                   )}
