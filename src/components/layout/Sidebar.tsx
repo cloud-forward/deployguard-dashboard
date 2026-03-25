@@ -1,116 +1,154 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-
-const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: 'DB' },
-  { path: '/attack-graph', label: 'Attack Graph', icon: 'AG' },
-  { path: '/clusters', label: 'Clusters', icon: 'CL' },
-  { path: '/scans', label: 'Scans', icon: 'SC' },
-  { path: '/risk', label: 'Risk Optimization', icon: 'RO' },
-];
+import React, { useMemo } from 'react';
+import { NavLink, useMatch } from 'react-router-dom';
+import { useListClustersApiV1ClustersGet } from '../../api/generated/clusters/clusters';
 
 const Sidebar: React.FC = () => {
+  const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
+  const isInventoryActive = inventoryMatch !== null;
+
+  const { data: clustersResponse } = useListClustersApiV1ClustersGet();
+  const firstClusterId = useMemo(() => {
+    const list = Array.isArray(clustersResponse) ? clustersResponse : [];
+    return list[0]?.id ?? '';
+  }, [clustersResponse]);
+
+  const inventoryHref = inventoryMatch
+    ? `/clusters/${inventoryMatch.params.clusterId}/inventory`
+    : firstClusterId
+      ? `/clusters/${firstClusterId}/inventory`
+      : '/clusters';
+
+  const navItems = [
+    { badge: 'OV', label: '개요',            path: '/dashboard',    exact: true },
+    { badge: 'AG', label: '공격 경로 그래프', path: '/attack-graph', exact: true },
+    { badge: 'CL', label: '클러스터',         path: '/clusters',     exact: true },
+    { badge: 'IV', label: '인벤토리',         path: inventoryHref,   exact: false, forceActive: isInventoryActive },
+    { badge: 'SC', label: '스캐너',           path: '/scans',        exact: true },
+    { badge: 'RO', label: '위험 최적화',      path: '/risk',         exact: true },
+  ];
+
   return (
     <nav
       id="sidebarMenu"
-      className="col-md-3 col-lg-2 d-md-block collapse dg-sidebar"
-      style={{ minHeight: '100vh' }}
+      className="dg-sidebar d-md-block collapse"
+      aria-label="메인 내비게이션"
     >
       <style>{`
         .dg-sidebar {
-          background: linear-gradient(180deg, #0d162b 0%, #111b31 100%);
-          border-right: 1px solid #2b3650;
+          background: #0d1b2a;
+          border-right: 1px solid var(--dg-border, #1f2937);
+          width: 64px;
+          min-width: 64px;
+          flex-shrink: 0;
+          min-height: calc(100vh - 54px);
+          overflow: hidden;
+          transition: width 0.22s ease;
+        }
+        .dg-sidebar:hover {
+          width: 220px;
+        }
+        @media (max-width: 767.98px) {
+          .dg-sidebar {
+            width: 100%;
+            min-width: 0;
+          }
+          .dg-sidebar-label {
+            opacity: 1 !important;
+          }
         }
         .dg-sidebar-shell {
-          padding-top: 1.25rem;
-          padding-bottom: 1.25rem;
-        }
-        .dg-sidebar-heading {
-          font-size: 0.72rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: #94a3b8;
-          margin: 0 1rem 0.75rem;
-          font-weight: 700;
+          padding: 0.75rem 0;
         }
         .dg-sidebar-list {
-          gap: 0.35rem;
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
         }
         .dg-sidebar-link {
-          border-radius: 0.85rem;
-          margin: 0 0.45rem;
-          padding: 0.58rem 0.78rem;
-          color: #dbeafe !important;
           display: flex;
           align-items: center;
-          gap: 0.65rem;
-          font-size: 0.98rem;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          line-height: 1.25rem;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
+          gap: 0.75rem;
+          padding: 0.62rem 0.9rem;
+          color: #64748b;
+          text-decoration: none;
+          border-left: 3px solid transparent;
+          white-space: nowrap;
+          transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
         .dg-sidebar-link:hover {
-          background: rgba(99, 102, 241, 0.2);
-          color: #f8fafc !important;
-          transform: translateY(-1px);
-          border-color: rgba(129, 140, 248, 0.25);
+          background: rgba(59, 130, 246, 0.08);
+          color: #cbd5e1;
+          border-left-color: rgba(59, 130, 246, 0.35);
         }
         .dg-sidebar-link.is-active {
-          background: linear-gradient(135deg, #4f46e5, #4338ca);
-          color: #ffffff !important;
-          border-color: #3730a3;
-          box-shadow: 0 6px 20px -10px rgba(79, 70, 229, 0.6);
+          border-left-color: var(--dg-accent, #3b82f6);
+          background: rgba(59, 130, 246, 0.14);
+          color: #f9fafb;
         }
-        .dg-sidebar-link.is-active .dg-sidebar-icon,
-        .dg-sidebar-link:hover .dg-sidebar-icon {
-          background: #ffffff22;
-          color: #ffffff;
-          border-color: rgba(255, 255, 255, 0.35);
-        }
-        .dg-sidebar-link.is-active .dg-sidebar-text {
-          font-weight: 600;
-        }
-        .dg-sidebar-icon {
-          width: 1.95rem;
-          height: 1.95rem;
+        .dg-sidebar-badge {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          border-radius: 0.5rem;
-          background: #1f2a44;
-          color: #cbd5f5;
-          font-size: 0.76rem;
+          min-width: 2rem;
+          width: 2rem;
+          height: 2rem;
+          border-radius: 0.45rem;
+          background: #1e2d3d;
+          color: #7dd3fc;
+          font-size: 0.67rem;
           font-weight: 700;
-          letter-spacing: 0.02em;
-          border: 1px solid #3a4a6a;
-          font-family: inherit;
-          transition: all 0.2s ease;
+          letter-spacing: 0.03em;
+          flex-shrink: 0;
+          border: 1px solid #334155;
+          transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
-        .dg-sidebar-link.active:focus-visible,
-        .dg-sidebar-link:focus-visible {
-          outline: 2px solid #4f46e5;
-          outline-offset: 2px;
+        .dg-sidebar-link.is-active .dg-sidebar-badge {
+          background: var(--dg-accent, #3b82f6);
+          color: #fff;
+          border-color: #2563eb;
+        }
+        .dg-sidebar-link:hover .dg-sidebar-badge {
+          background: #1e3a5f;
+          color: #93c5fd;
+          border-color: #3b82f6;
+        }
+        .dg-sidebar-label {
+          font-size: 0.83rem;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+          line-height: 1.2;
+          opacity: 0;
+          transition: opacity 0.18s ease;
+          pointer-events: none;
+        }
+        .dg-sidebar:hover .dg-sidebar-label {
+          opacity: 1;
+        }
+        .dg-sidebar-divider {
+          height: 1px;
+          background: var(--dg-border, #1f2937);
+          margin: 0.5rem 0.9rem;
+          opacity: 0.6;
         }
       `}</style>
-      <div className="position-sticky pt-3 dg-sidebar-shell">
-        <div className="mb-3">
-          <p className="dg-sidebar-heading">Navigation</p>
-        </div>
-        <ul className="nav flex-column dg-sidebar-list">
+      <div className="dg-sidebar-shell">
+        <ul className="dg-sidebar-list">
           {navItems.map((item) => (
-            <li className="nav-item" key={item.path}>
+            <li key={item.badge}>
               <NavLink
                 to={item.path}
+                end={item.exact}
                 className={({ isActive }) =>
-                  `nav-link dg-sidebar-link ${isActive ? 'is-active' : ''}`
+                  `dg-sidebar-link${(item.forceActive ?? isActive) ? ' is-active' : ''}`
                 }
               >
-                <span className="dg-sidebar-icon" aria-hidden="true">
-                  {item.icon}
+                <span className="dg-sidebar-badge" aria-hidden="true">
+                  {item.badge}
                 </span>
-                <span className="dg-sidebar-text">{item.label}</span>
+                <span className="dg-sidebar-label">{item.label}</span>
               </NavLink>
             </li>
           ))}

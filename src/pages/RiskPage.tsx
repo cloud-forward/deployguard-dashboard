@@ -402,13 +402,9 @@ const RiskPage: React.FC = () => {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 mb-1">리스크 최적화</h1>
-          <p className="dg-subtitle-text mb-0">
-            분석 워크플로, 작업 추적 및 권장 완화 조치.
-          </p>
-        </div>
+      <div className="d-flex align-items-baseline gap-3 mb-4">
+        <h1 className="h2 mb-0 fw-bold">위험 최적화</h1>
+        <span className="fs-6" style={{ color: '#f2f2f2' }}>리스크 분석 및 초크포인트 탐지</span>
       </div>
 
       {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="risk" /> : null}

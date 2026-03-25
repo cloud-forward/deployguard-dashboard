@@ -301,11 +301,9 @@ const ClustersPage: React.FC = () => {
     return (
         <div>
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 className="h2">클러스터</h1>
-                    <p className="dg-subtitle-text">
-                        보호된 인프라 클러스터 관리.
-                    </p>
+                <div className="d-flex align-items-baseline gap-3">
+                    <h1 className="h2 mb-0 fw-bold">클러스터</h1>
+                    <span className="fs-6" style={{ color: '#f2f2f2' }}>연결된 클러스터 관리</span>
                 </div>
                 <button
                     className="btn btn-primary"

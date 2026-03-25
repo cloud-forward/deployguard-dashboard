@@ -553,11 +553,9 @@ const AttackGraphPage: React.FC = () => {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-1">
-        <div>
-          <h1 className="h3 mb-1">어택 그래프</h1>
-          <p className="dg-subtitle-text mb-0 small">잠재적 어택 벡터 시각화.</p>
-        </div>
+      <div className="d-flex align-items-baseline gap-3 mb-4">
+        <h1 className="h3 mb-0 fw-bold">어택 그래프</h1>
+        <span className="fs-6" style={{ color: '#f2f2f2' }}>잠재적 어택 벡터 시각화</span>
       </div>
 
       {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="graph" /> : null}

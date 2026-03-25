@@ -233,11 +233,9 @@ const ScansPage: React.FC = () => {
   return (
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div>
-          <h1 className="h2 mb-1">스캔</h1>
-          <p className="dg-subtitle-text mb-0">
-            클러스터별 최근 스캔 요청 및 처리 상태.
-          </p>
+        <div className="d-flex align-items-baseline gap-3">
+          <h1 className="h2 mb-0 fw-bold">스캐너</h1>
+          <span className="fs-6" style={{ color: '#f2f2f2' }}>스캔 이력 및 커버리지 현황</span>
         </div>
         <div style={{ minWidth: 280 }}>
           <label htmlFor="scan-cluster-select" className="form-label mb-1">
