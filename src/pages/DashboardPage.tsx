@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FileText } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, ChevronDown, FileText } from 'lucide-react';
 import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import {
   useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet,
@@ -85,8 +85,23 @@ interface StatRow {
 /* ─── page ──────────────────────────────────────────────────────────────── */
 
 const DashboardPage: React.FC = () => {
-  const [period, setPeriod] = useState('최근 7일');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const [selectedClusterId, setSelectedClusterId] = useState('');
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setShowCalendar(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const formatDate = (date: Date) =>
+    `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
 
   /* clusters */
   const {
@@ -167,16 +182,62 @@ const DashboardPage: React.FC = () => {
         <div className="d-flex align-items-baseline gap-3">
           <h4 className="mb-0 fw-bold">대시보드 개요</h4>
           <span className="fs-6" style={{ color: '#f2f2f2' }}>클러스터 보안 현황 요약</span>
-          <select
-            className="form-select form-select-sm w-auto"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            aria-label="기간 선택"
-          >
-            <option>최근 7일</option>
-            <option>최근 30일</option>
-            <option>최근 90일</option>
-          </select>
+          {/* TODO: pass selectedDate to data hooks once they support a date param */}
+          <div className="position-relative" ref={calendarRef}>
+            <button
+              className="btn btn-sm d-flex align-items-center gap-2"
+              style={{
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f2f2f2',
+                borderRadius: 8,
+                whiteSpace: 'nowrap',
+              }}
+              onClick={() => setShowCalendar((prev) => !prev)}
+            >
+              <Calendar size={14} />
+              {formatDate(selectedDate)}
+              <ChevronDown size={14} />
+            </button>
+
+            {showCalendar && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '110%',
+                  left: 0,
+                  zIndex: 999,
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  borderRadius: 10,
+                  padding: 12,
+                  minWidth: 260,
+                }}
+              >
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ background: '#0a1021', color: '#f2f2f2', border: '1px solid #334155' }}
+                  value={selectedDate.toISOString().split('T')[0]}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    setSelectedDate(new Date(e.target.value));
+                    setShowCalendar(false);
+                  }}
+                />
+                <button
+                  className="btn btn-sm w-100 mt-2"
+                  style={{ background: '#3b82f6', color: '#fff', borderRadius: 6 }}
+                  onClick={() => {
+                    setSelectedDate(new Date());
+                    setShowCalendar(false);
+                  }}
+                >
+                  오늘로 이동
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right */}
@@ -226,10 +287,43 @@ const DashboardPage: React.FC = () => {
       {/* ── Section A — 공격경로 ────────────────────────────────────────── */}
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
-          <div className="mb-3">
-            <h2 className="h5 mb-1">공격경로</h2>
-            <p className="text-muted small mb-0">파드에서 S3로의 공격 경로</p>
-          </div>
+          {(() => {
+            const riskSummary = summary?.risk_summary;
+            const liveStatus = !riskSummary
+              ? 'disconnected'
+              : (riskSummary.critical_path_count ?? 0) > 0
+                ? 'threat'
+                : (riskSummary.entry_point_count ?? 0) > 0 || (riskSummary.crown_jewel_count ?? 0) > 0
+                  ? 'warning'
+                  : 'safe';
+            const liveConfig = {
+              safe:         { color: '#22c55e' },
+              warning:      { color: '#f59e0b' },
+              threat:       { color: '#ef4444' },
+              disconnected: { color: '#6b7280' },
+            };
+            const { color } = liveConfig[liveStatus];
+            return (
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <h6 className="mb-0 fw-bold">공격경로</h6>
+                <div className="d-flex align-items-center gap-1">
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 10, height: 10, borderRadius: '50%',
+                      backgroundColor: color,
+                      display: 'inline-block',
+                      boxShadow: `0 0 6px ${color}`,
+                      animation: liveStatus !== 'disconnected'
+                        ? 'live-pulse 1.5s ease-in-out infinite'
+                        : 'none',
+                    }}
+                  />
+                  <span className="small fw-semibold" style={{ color }}>Live</span>
+                </div>
+              </div>
+            );
+          })()}
           <div
             className="d-flex justify-content-center align-items-center rounded border"
             style={{
