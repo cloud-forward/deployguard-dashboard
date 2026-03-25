@@ -579,13 +579,12 @@ const AttackGraphPage: React.FC = () => {
             </button>
           </div>
           {activeSource === 'live' ? (
-            <div style={{ minWidth: 280 }}>
-              <label htmlFor="attack-graph-cluster-select" className="form-label mb-1 small text-muted">
-                클러스터
-              </label>
+            <div className="d-flex align-items-center gap-2">
+              <span className="text-muted small text-nowrap">클러스터</span>
               <select
                 id="attack-graph-cluster-select"
                 className="form-select form-select-sm"
+                style={{ minWidth: 320 }}
                 value={activeClusterId}
                 onChange={(event) => {
                   setSelectedClusterId(event.target.value);
