@@ -88,7 +88,7 @@ const buildAttackGraphApiPayload = (elements: ElementDefinition[]): AttackGraphA
     paths: [
       {
         id: 'mock-path-1',
-        label: 'Attack path from Pod to S3',
+        label: '파드에서 S3로의 어택 경로',
         node_ids: ['pod-1', 'sa-1', 'iam-1', 's3-1'],
         edge_ids: ['e1', 'e2', 'e3'],
         severity: 'high',
@@ -185,8 +185,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
   onFiltersChange,
-  emptyStateTitle = 'No attack graph data.',
-  emptyStateBody = 'No nodes or edges are available for the current selection.',
+  emptyStateTitle = '어택 그래프 데이터 없음.',
+  emptyStateBody = '현재 선택에 사용 가능한 노드 또는 엣지가 없습니다.',
   liveSummary,
   liveEvidenceCount,
 }) => {
@@ -312,12 +312,12 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
           <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 align-items-center small">
             {liveSummary ? (
               <span className="text-muted">
-                Summary: <strong className="text-dark">{liveSummary}</strong>
+                요약: <strong className="text-dark">{liveSummary}</strong>
               </span>
             ) : null}
             {typeof liveEvidenceCount === 'number' ? (
               <span className="text-muted">
-                Evidence count: <strong className="text-dark">{liveEvidenceCount}</strong>
+                증거 수: <strong className="text-dark">{liveEvidenceCount}</strong>
               </span>
             ) : null}
           </div>
@@ -339,7 +339,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       <div className="card" style={{ height: 600, position: 'relative' }}>
         <div className="px-2 py-1 bg-light border-bottom small">
           <div className="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
-            <span className="text-muted fw-semibold">Attack Paths:</span>
+            <span className="text-muted fw-semibold">어택 경로:</span>
             <div
               className="d-flex align-items-center gap-1 overflow-auto flex-nowrap"
               style={{ maxHeight: 28, whiteSpace: 'nowrap', width: '100%' }}
@@ -361,10 +361,10 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
                     setSelectedEdge(null);
                   }}
                 >
-                  {path.label || `Path ${path.id}`}
+                  {path.label || `경로 ${path.id}`}
                 </button>
               ))}
-              {attackPaths.length === 0 ? <span className="text-muted">No paths available.</span> : null}
+              {attackPaths.length === 0 ? <span className="text-muted">사용 가능한 경로 없음.</span> : null}
             </div>
           </div>
         </div>
@@ -442,11 +442,11 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
             }}
           >
             <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-              <strong>Edge Details</strong>
+              <strong>엣지 상세</strong>
               <button
                 type="button"
                 className="btn-close btn-close-white"
-                aria-label="Close"
+                aria-label="닫기"
                 onClick={() => {
                   setSelectedMode('none');
                   setSelectedEdge(null);
@@ -455,27 +455,27 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
               />
             </div>
             <div className="card-body">
-              <p className="small text-muted mb-3">Selected edge details</p>
+              <p className="small text-muted mb-3">선택된 엣지 상세 정보</p>
               <table className="table table-sm table-borderless mb-0">
                 <tbody>
                   <tr>
-                    <td className="text-muted fw-semibold">Relation</td>
+                    <td className="text-muted fw-semibold">관계</td>
                     <td>{selectedEdge?.relation || 'n/a'}</td>
                   </tr>
                   <tr>
-                    <td className="text-muted fw-semibold">Source</td>
+                    <td className="text-muted fw-semibold">출발지</td>
                     <td>{selectedEdge?.source}</td>
                   </tr>
                   <tr>
-                    <td className="text-muted fw-semibold">Target</td>
+                    <td className="text-muted fw-semibold">도착지</td>
                     <td>{selectedEdge?.target}</td>
                   </tr>
                   <tr>
-                    <td className="text-muted fw-semibold">Label</td>
+                    <td className="text-muted fw-semibold">레이블</td>
                     <td>{selectedEdge?.label || selectedEdge?.id}</td>
                   </tr>
                   <tr>
-                    <td className="text-muted fw-semibold">Reason</td>
+                    <td className="text-muted fw-semibold">이유</td>
                     <td>{selectedEdge?.reason || 'n/a'}</td>
                   </tr>
                 </tbody>
@@ -487,13 +487,13 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
       <div className="mt-2 d-flex gap-3 flex-wrap">
         <span className="text-muted small">
-          <strong>{filteredGraph.nodes.length}</strong> nodes ·<strong>{filteredGraph.edges.length}</strong> edges
+          <strong>{filteredGraph.nodes.length}</strong> 노드 ·<strong>{filteredGraph.edges.length}</strong> 엣지
         </span>
         <span className="text-muted small">
-          Mode: <strong>{selectedMode}</strong>
-          {selectedMode === 'node' && selectedNode ? ` · node ${selectedNode.label}` : null}
-          {selectedMode === 'edge' && selectedEdge ? ` · edge ${selectedEdge.id}` : null}
-          {selectedMode === 'path' && selectedPath ? ` · path ${selectedPath.label || selectedPath.id}` : null}
+          모드: <strong>{selectedMode}</strong>
+          {selectedMode === 'node' && selectedNode ? ` · 노드 ${selectedNode.label}` : null}
+          {selectedMode === 'edge' && selectedEdge ? ` · 엣지 ${selectedEdge.id}` : null}
+          {selectedMode === 'path' && selectedPath ? ` · 경로 ${selectedPath.label || selectedPath.id}` : null}
         </span>
       </div>
     </>
@@ -555,8 +555,8 @@ const AttackGraphPage: React.FC = () => {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-1">
         <div>
-          <h1 className="h3 mb-1">Attack Graph</h1>
-          <p className="dg-subtitle-text mb-0 small">Visualization of potential attack vectors.</p>
+          <h1 className="h3 mb-1">어택 그래프</h1>
+          <p className="dg-subtitle-text mb-0 small">잠재적 어택 벡터 시각화.</p>
         </div>
       </div>
 
@@ -564,26 +564,26 @@ const AttackGraphPage: React.FC = () => {
 
       <div className="card border-0 shadow-sm mb-1">
         <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-center">
-          <div className="btn-group btn-group-sm" role="tablist" aria-label="Attack graph data source">
+          <div className="btn-group btn-group-sm" role="tablist" aria-label="어택 그래프 데이터 소스">
             <button
               type="button"
               className={`btn ${activeSource === 'mock' ? 'btn-dark' : 'btn-outline-secondary'}`}
               onClick={() => setActiveSource('mock')}
             >
-              Mock
+              모의
             </button>
             <button
               type="button"
               className={`btn ${activeSource === 'live' ? 'btn-dark' : 'btn-outline-secondary'}`}
               onClick={() => setActiveSource('live')}
             >
-              Live
+              실시간
             </button>
           </div>
           {activeSource === 'live' ? (
             <div style={{ minWidth: 280 }}>
               <label htmlFor="attack-graph-cluster-select" className="form-label mb-1 small text-muted">
-                Cluster
+                클러스터
               </label>
               <select
                 id="attack-graph-cluster-select"
@@ -596,7 +596,7 @@ const AttackGraphPage: React.FC = () => {
                 disabled={isClustersLoading || clusters.length === 0}
               >
                 {clusters.length === 0 ? (
-                  <option value="">No clusters available</option>
+                  <option value="">사용 가능한 클러스터 없음</option>
                 ) : (
                   clusters.map((cluster) => (
                     <option key={cluster.id} value={cluster.id}>
@@ -616,7 +616,7 @@ const AttackGraphPage: React.FC = () => {
         <>
           {isClustersError ? (
             <div className="alert alert-danger mb-1" role="alert">
-              {toErrorMessage(clustersError, 'Failed to load clusters for the live attack graph.')}
+              {toErrorMessage(clustersError, '실시간 어택 그래프용 클러스터를 불러오지 못했습니다.')}
             </div>
           ) : null}
           <AttackGraphContent
@@ -627,23 +627,23 @@ const AttackGraphPage: React.FC = () => {
             liveEvidenceCount={livePayload.evidence_count ?? null}
             emptyStateTitle={
               isClustersLoading
-                ? 'Loading live attack graph...'
+                ? '실시간 어택 그래프 불러오는 중…'
                 : !activeClusterId
-                  ? 'No cluster selected.'
+                  ? '선택된 클러스터 없음.'
                   : isLiveGraphError
-                    ? 'Live attack graph is unavailable.'
-                    : 'No live attack graph data.'
+                    ? '실시간 어택 그래프를 사용할 수 없습니다.'
+                    : '실시간 어택 그래프 데이터 없음.'
             }
             emptyStateBody={
               isClustersLoading
-                ? 'Fetching cluster options before loading the live attack graph.'
+                ? '실시간 어택 그래프 불러오기 전 클러스터 옵션을 가져오는 중.'
                 : !activeClusterId
-                  ? 'Select a cluster to request /api/v1/clusters/{cluster_id}/attack-graph.'
+                  ? '클러스터를 선택하여 /api/v1/clusters/{cluster_id}/attack-graph를 요청하세요.'
                   : isLiveGraphLoading
-                    ? 'Fetching graph data from the backend endpoint.'
+                    ? '백엔드 엔드포인트에서 그래프 데이터를 가져오는 중.'
                     : isLiveGraphError
-                      ? toErrorMessage(liveGraphError, 'The backend attack-graph request failed.')
-                      : 'The backend returned no nodes or edges for this cluster.'
+                      ? toErrorMessage(liveGraphError, '백엔드 어택 그래프 요청이 실패했습니다.')
+                      : '백엔드가 이 클러스터에 대한 노드 또는 엣지를 반환하지 않았습니다.'
             }
           />
         </>
