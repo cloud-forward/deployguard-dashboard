@@ -1,280 +1,139 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, ChevronDown, FileText } from 'lucide-react';
-import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
-import {
-  useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet,
-  useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet,
-  useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet,
-} from '../api/generated/inventory/inventory';
-import type {
-  ClusterResponse,
-  InvRiskSpotlightResponse,
-  InvScannerItem,
-  InvScannerStatusResponse,
-  InvSummaryResponse,
-} from '../api/model';
+import React, { useMemo } from 'react';
+import { useGetMyAssetsApiV1MeAssetsGet, useGetMyOverviewApiV1MeOverviewGet } from '../api/generated/auth/auth';
+import type { MeAssetInventoryItemResponse, MeAssetInventoryListResponse, UserOverviewResponse } from '../api/model';
 import StatCard from '../components/dashboard/StatCard';
 
-/* ─── helpers ────────────────────────────────────────────────────────────── */
-
-const sumResourceCounts = (resources?: Record<string, number>) =>
-  Object.values(resources ?? {}).reduce((total, count) => total + count, 0);
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-};
-
-const getBadgeClass = (status?: string) => {
-  switch (status) {
-    case 'active':
-    case 'covered':
-      return 'bg-success';
-    case 'partial':
-      return 'bg-warning text-dark';
-    case 'inactive':
-    case 'not_covered':
-      return 'bg-secondary';
-    default:
-      return 'bg-secondary';
+const getRiskBadge = (baseRisk?: number | null) => {
+  if (baseRisk == null) {
+    return <span className="text-muted small">-</span>;
   }
-};
 
-const formatScannerType = (value: string) => {
-  switch (value) {
-    case 'k8s': return 'K8s';
-    case 'aws': return 'AWS';
-    case 'image': return '이미지';
-    default: return value;
+  if (baseRisk >= 80) {
+    return <span className="badge bg-danger-subtle text-danger border border-danger-subtle">Critical</span>;
   }
-};
 
-const isInventorySummaryResponse = (v: unknown): v is InvSummaryResponse =>
-  Boolean(v && typeof v === 'object' && 'total_node_count' in v);
-
-const isInventoryRiskSpotlightResponse = (v: unknown): v is InvRiskSpotlightResponse =>
-  Boolean(v && typeof v === 'object' && 'entry_points' in v && 'crown_jewels' in v);
-
-const isInventoryScannerStatusResponse = (v: unknown): v is InvScannerStatusResponse =>
-  Boolean(v && typeof v === 'object' && 'scanners' in v);
-
-const renderResourceBadges = (resources?: Record<string, number>) => {
-  const entries = Object.entries(resources ?? {}).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) {
-    return <span className="text-muted small">데이터 없음</span>;
+  if (baseRisk >= 60) {
+    return <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">High</span>;
   }
-  return (
-    <div className="d-flex flex-wrap gap-2">
-      {entries.map(([name, count]) => (
-        <span key={name} className="badge rounded-pill text-bg-light border">
-          {name}: {count}
-        </span>
-      ))}
-    </div>
-  );
+
+  if (baseRisk >= 40) {
+    return <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">Medium</span>;
+  }
+
+  return <span className="badge bg-success-subtle text-success border border-success-subtle">Low</span>;
 };
 
-/* ─── stat row data ──────────────────────────────────────────────────────── */
+const getDomainBadgeClass = (domain?: string | null) => {
+  if (domain === 'k8s') {
+    return 'bg-primary-subtle text-primary border border-primary-subtle';
+  }
 
-interface StatRow {
-  title: string;
-  value: number;
-}
+  if (domain === 'aws') {
+    return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+  }
 
-/* ─── page ──────────────────────────────────────────────────────────────── */
+  return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+};
+
+const isUserOverviewResponse = (value: unknown): value is UserOverviewResponse =>
+  Boolean(value && typeof value === 'object');
+
+const isMeAssetInventoryListResponse = (value: unknown): value is MeAssetInventoryListResponse =>
+  Boolean(value && typeof value === 'object' && 'items' in value);
+
+const buildCountMap = (
+  assets: MeAssetInventoryItemResponse[],
+  getKey: (asset: MeAssetInventoryItemResponse) => string | null | undefined,
+) => {
+  const counts = new Map<string, number>();
+
+  for (const asset of assets) {
+    const key = getKey(asset);
+    if (!key) {
+      continue;
+    }
+
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1])
+    .map(([label, count]) => ({ label, count }));
+};
 
 const DashboardPage: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [showCalendar, setShowCalendar] = useState(false);
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const [selectedClusterId, setSelectedClusterId] = useState('');
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const formatDate = (date: Date) =>
-    `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
-
-  /* clusters */
-  const {
-    data: clustersResponse,
-    isLoading: isClustersLoading,
-  } = useListClustersApiV1ClustersGet();
-
-  const clusters = useMemo<ClusterResponse[]>(
-    () => (Array.isArray(clustersResponse) ? clustersResponse : []),
-    [clustersResponse],
-  );
-
-  useEffect(() => {
-    if (!selectedClusterId && clusters.length > 0) {
-      setSelectedClusterId(clusters[0].id);
-    }
-  }, [clusters, selectedClusterId]);
-
-  const activeClusterId =
-    (selectedClusterId && clusters.some((c) => c.id === selectedClusterId)
-      ? selectedClusterId
-      : clusters[0]?.id) ?? '';
-
-  const selectedCluster = clusters.find((c) => c.id === activeClusterId) ?? null;
-
-  /* inventory */
-  const { data: summaryResponse, isLoading: isSummaryLoading } =
-    useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet(activeClusterId, {
-      query: { enabled: Boolean(activeClusterId) },
-    });
-
-  const { data: spotlightResponse, isLoading: isSpotlightLoading } =
-    useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet(
-      activeClusterId,
-      { query: { enabled: Boolean(activeClusterId) } },
-    );
-
-  const { data: scannerStatusResponse, isLoading: isScannerStatusLoading } =
-    useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet(
-      activeClusterId,
-      { query: { enabled: Boolean(activeClusterId) } },
-    );
-
-  /* derived */
-  const summary = isInventorySummaryResponse(summaryResponse) ? summaryResponse : null;
-  const spotlight = isInventoryRiskSpotlightResponse(spotlightResponse) ? spotlightResponse : null;
-  const scannerStatus = isInventoryScannerStatusResponse(scannerStatusResponse)
-    ? scannerStatusResponse
-    : null;
-  const scanners = Array.isArray(scannerStatus?.scanners) ? scannerStatus.scanners : [];
-
-  const statRows: StatRow[] = [
-    { title: '전체 자산', value: summary?.total_node_count ?? 0 },
-    { title: 'K8s 자산', value: sumResourceCounts(summary?.k8s_resources) },
-    { title: 'AWS 자산', value: sumResourceCounts(summary?.aws_resources) },
-    {
-      title: '진입점',
-      value:
-        summary?.risk_summary?.entry_point_count ??
-        spotlight?.entry_points?.length ??
-        0,
+  const overviewQuery = useGetMyOverviewApiV1MeOverviewGet({
+    query: {
+      retry: false,
     },
-    {
-      title: '핵심 자산',
-      value:
-        summary?.risk_summary?.crown_jewel_count ??
-        spotlight?.crown_jewels?.length ??
-        0,
+  });
+
+  const assetsQuery = useGetMyAssetsApiV1MeAssetsGet({
+    query: {
+      retry: false,
     },
-    { title: '치명적 경로', value: summary?.risk_summary?.critical_path_count ?? 0 },
+  });
+
+  const overview = isUserOverviewResponse(overviewQuery.data) ? overviewQuery.data : null;
+  const assetList = isMeAssetInventoryListResponse(assetsQuery.data) ? assetsQuery.data : null;
+  const assets = Array.isArray(assetList?.items) ? assetList.items : [];
+
+  const statRows = [
+    { title: '전체 자산', value: overview?.total_assets ?? 0 },
+    { title: 'K8s 자산', value: overview?.k8s_assets ?? 0 },
+    { title: 'AWS 자산', value: overview?.aws_assets ?? 0 },
+    { title: 'Public 자산', value: overview?.public_assets ?? 0 },
+    { title: '진입점', value: overview?.entry_point_assets ?? 0 },
+    { title: '핵심 자산', value: overview?.crown_jewel_assets ?? 0 },
   ];
+
+  const assetTypeCounts = useMemo(
+    () => buildCountMap(assets, (asset) => asset.asset_type).slice(0, 8),
+    [assets],
+  );
+  const domainCounts = useMemo(
+    () => buildCountMap(assets, (asset) => asset.asset_domain ?? 'unknown'),
+    [assets],
+  );
+  const clusterCounts = useMemo(
+    () => buildCountMap(assets, (asset) => asset.cluster_name).slice(0, 6),
+    [assets],
+  );
+  const flaggedCounts = useMemo(
+    () => [
+      { label: 'Public', count: assets.filter((asset) => Boolean(asset.is_public)).length, className: 'bg-info-subtle text-info-emphasis border border-info-subtle' },
+      { label: 'Entry Point', count: assets.filter((asset) => Boolean(asset.is_entry_point)).length, className: 'bg-danger-subtle text-danger border border-danger-subtle' },
+      { label: 'Crown Jewel', count: assets.filter((asset) => Boolean(asset.is_crown_jewel)).length, className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
+      { label: 'High Risk', count: assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length, className: 'bg-light text-dark border' },
+    ],
+    [assets],
+  );
 
   return (
     <div>
-      {/* ── Header bar ─────────────────────────────────────────────────── */}
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        {/* Left */}
-        <div className="d-flex align-items-baseline gap-3">
-          <h4 className="mb-0 fw-bold">대시보드 개요</h4>
-          <span className="fs-6" style={{ color: '#f2f2f2' }}>클러스터 보안 현황 요약</span>
-          {/* TODO: pass selectedDate to data hooks once they support a date param */}
-          <div className="position-relative" ref={calendarRef}>
-            <button
-              className="btn btn-sm d-flex align-items-center gap-2"
-              style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: '#f2f2f2',
-                borderRadius: 8,
-                whiteSpace: 'nowrap',
-              }}
-              onClick={() => setShowCalendar((prev) => !prev)}
-            >
-              <Calendar size={14} />
-              {formatDate(selectedDate)}
-              <ChevronDown size={14} />
-            </button>
-
-            {showCalendar && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '110%',
-                  left: 0,
-                  zIndex: 999,
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: 10,
-                  padding: 12,
-                  minWidth: 260,
-                }}
-              >
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  style={{ background: '#0a1021', color: '#f2f2f2', border: '1px solid #334155' }}
-                  value={selectedDate.toISOString().split('T')[0]}
-                  max={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => {
-                    setSelectedDate(new Date(e.target.value));
-                    setShowCalendar(false);
-                  }}
-                />
-                <button
-                  className="btn btn-sm w-100 mt-2"
-                  style={{ background: '#3b82f6', color: '#fff', borderRadius: 6 }}
-                  onClick={() => {
-                    setSelectedDate(new Date());
-                    setShowCalendar(false);
-                  }}
-                >
-                  오늘로 이동
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right */}
-        <div className="d-flex align-items-center gap-3">
-          <span className="text-muted small">클러스터</span>
-          <select
-            className="form-select form-select-sm"
-            style={{ minWidth: 320 }}
-            value={activeClusterId}
-            onChange={(e) => setSelectedClusterId(e.target.value)}
-            disabled={isClustersLoading || clusters.length === 0}
-            aria-label="클러스터 선택"
-          >
-            {clusters.length === 0 ? (
-              <option value="">사용 가능한 클러스터 없음</option>
-            ) : (
-              clusters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))
-            )}
-          </select>
-          <button
-            type="button"
-            className="btn btn-primary d-flex align-items-center gap-2 text-nowrap"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => alert('보고서 생성 기능 준비 중입니다.')}
-          >
-            <FileText size={20} />
-            보고서 생성
-          </button>
-        </div>
+      <div className="d-flex align-items-baseline gap-3 mb-4">
+        <h4 className="mb-0 fw-bold">대시보드 개요</h4>
+        <span className="fs-6" style={{ color: '#f2f2f2' }}>사용자 기준 자산 요약</span>
       </div>
 
-      {/* ── Stat cards ─────────────────────────────────────────────────── */}
-      {selectedCluster && (
+      {overviewQuery.isLoading ? (
+        <div className="row g-3 mb-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="col-6 col-sm-4 col-xl-2">
+              <div className="card border-0 shadow-sm h-100">
+                <div className="card-body placeholder-glow">
+                  <span className="placeholder col-7 d-block mb-2" />
+                  <span className="placeholder placeholder-lg col-5 d-block" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : overviewQuery.isError ? (
+        <div className="alert alert-danger mb-4" role="alert">
+          사용자 개요를 불러오지 못했습니다.
+        </div>
+      ) : (
         <div className="row g-3 mb-4">
           {statRows.map((card) => (
             <div key={card.title} className="col-6 col-sm-4 col-xl-2">
@@ -284,25 +143,21 @@ const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Section A — 공격경로 ────────────────────────────────────────── */}
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
           {(() => {
-            const riskSummary = summary?.risk_summary;
-            const liveStatus = !riskSummary
-              ? 'disconnected'
-              : (riskSummary.critical_path_count ?? 0) > 0
+            const liveStatus = (overview?.entry_point_assets ?? 0) > 0 || (overview?.crown_jewel_assets ?? 0) > 0
+              ? 'warning'
+              : (overview?.public_assets ?? 0) > 0
                 ? 'threat'
-                : (riskSummary.entry_point_count ?? 0) > 0 || (riskSummary.crown_jewel_count ?? 0) > 0
-                  ? 'warning'
-                  : 'safe';
+                : 'safe';
             const liveConfig = {
-              safe:         { color: '#22c55e' },
-              warning:      { color: '#f59e0b' },
-              threat:       { color: '#ef4444' },
-              disconnected: { color: '#6b7280' },
+              safe: { color: '#22c55e' },
+              warning: { color: '#f59e0b' },
+              threat: { color: '#ef4444' },
             };
             const { color } = liveConfig[liveStatus];
+
             return (
               <div className="d-flex align-items-center gap-2 mb-3">
                 <h6 className="mb-0 fw-bold">공격경로</h6>
@@ -310,13 +165,13 @@ const DashboardPage: React.FC = () => {
                   <span
                     aria-hidden="true"
                     style={{
-                      width: 10, height: 10, borderRadius: '50%',
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
                       backgroundColor: color,
                       display: 'inline-block',
                       boxShadow: `0 0 6px ${color}`,
-                      animation: liveStatus !== 'disconnected'
-                        ? 'live-pulse 1.5s ease-in-out infinite'
-                        : 'none',
+                      animation: 'live-pulse 1.5s ease-in-out infinite',
                     }}
                   />
                   <span className="small fw-semibold" style={{ color }}>Live</span>
@@ -337,94 +192,121 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Section B — 2-column grid ───────────────────────────────────── */}
       <div className="row g-4">
-        {/* Left — 리소스 분류 */}
         <div className="col-12 col-xl-7">
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
                 <div>
-                  <h2 className="h5 mb-1">리소스 분류</h2>
+                  <h2 className="h5 mb-1">자산 분포</h2>
                   <p className="text-muted small mb-0">
-                    {selectedCluster
-                      ? `${selectedCluster.name}의 인벤토리 집계`
-                      : '클러스터를 선택하세요'}
+                    사용자 기준 전체 자산을 유형과 도메인으로 묶은 요약입니다.
                   </p>
                 </div>
-                {(isSummaryLoading || isSpotlightLoading) && (
+                {assetsQuery.isLoading ? (
                   <span className="badge text-bg-light border">불러오는 중…</span>
-                )}
+                ) : null}
               </div>
 
-              {selectedCluster ? (
-                <>
-                  <div className="mb-3">
-                    <div className="small text-muted mb-2">Kubernetes</div>
-                    {renderResourceBadges(summary?.k8s_resources)}
-                  </div>
-                  <div>
-                    <div className="small text-muted mb-2">AWS</div>
-                    {renderResourceBadges(summary?.aws_resources)}
-                  </div>
-                </>
+              {assetsQuery.isError ? (
+                <div className="alert alert-danger mb-0" role="alert">
+                  자산 요약을 불러오지 못했습니다.
+                </div>
+              ) : assets.length === 0 ? (
+                <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
               ) : (
-                <p className="text-muted small mb-0">
-                  클러스터를 선택하면 인벤토리가 표시됩니다.
-                </p>
+                <div className="d-flex flex-column gap-4">
+                  <div>
+                    <div className="small text-muted mb-2">Asset Type</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {assetTypeCounts.map((item) => (
+                        <span key={item.label} className="badge rounded-pill text-bg-light border px-3 py-2">
+                          {item.label}: {item.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="small text-muted mb-2">Domain</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {domainCounts.map((item) => (
+                        <span key={item.label} className={`badge rounded-pill px-3 py-2 ${getDomainBadgeClass(item.label)}`}>
+                          {item.label}: {item.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="small text-muted mb-2">상위 클러스터</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {clusterCounts.length === 0 ? (
+                        <span className="text-muted small">클러스터 정보 없음</span>
+                      ) : (
+                        clusterCounts.map((item) => (
+                          <span key={item.label} className="badge rounded-pill text-bg-light border px-3 py-2">
+                            {item.label}: {item.count}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right — 스캐너 상태 */}
         <div className="col-12 col-xl-5">
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
                 <div>
-                  <h2 className="h5 mb-1">스캐너 상태</h2>
+                  <h2 className="h5 mb-1">주요 분류</h2>
                   <p className="text-muted small mb-0">
-                    선택된 클러스터의 최신 스캐너 커버리지
+                    `/api/v1/me/assets` 기반 플래그 및 위험도 집계입니다.
                   </p>
                 </div>
-                {isScannerStatusLoading && (
+                {assetsQuery.isLoading ? (
                   <span className="badge text-bg-light border">불러오는 중…</span>
-                )}
+                ) : null}
               </div>
 
-              {!selectedCluster ? (
-                <p className="text-muted small mb-0">
-                  클러스터를 선택하면 스캐너 상태가 표시됩니다.
-                </p>
-              ) : scanners.length === 0 ? (
-                <p className="text-muted small mb-0">사용 가능한 스캐너 상태 없음.</p>
+              {assetsQuery.isError ? (
+                <div className="alert alert-danger mb-0" role="alert">
+                  자산 분류 집계를 불러오지 못했습니다.
+                </div>
+              ) : assets.length === 0 ? (
+                <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
               ) : (
-                <div className="d-flex flex-column gap-2">
-                  {scanners.map((scanner: InvScannerItem) => (
-                    <div
-                      key={`${scanner.scanner_type}-${scanner.scan_id ?? 'none'}`}
-                      className="border rounded p-3"
-                    >
-                      <div className="d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                          <div className="fw-semibold">{scanner.display_name}</div>
-                          <div className="small text-muted">
-                            {formatScannerType(scanner.scanner_type)} · 마지막 스캔{' '}
-                            {formatDateTime(scanner.last_scan_at)}
-                          </div>
-                        </div>
-                        <div className="d-flex gap-2 flex-shrink-0">
-                          <span className={`badge ${getBadgeClass(scanner.status)}`}>
-                            {scanner.status}
-                          </span>
-                          <span className={`badge ${getBadgeClass(scanner.coverage_status)}`}>
-                            {scanner.coverage_status}
-                          </span>
-                        </div>
+                <div className="d-flex flex-column gap-3">
+                  {flaggedCounts.map((item) => (
+                    <div key={item.label} className="border rounded p-3">
+                      <div className="d-flex justify-content-between align-items-center gap-3">
+                        <span className={`badge ${item.className}`}>{item.label}</span>
+                        <div className="fw-semibold fs-5">{item.count}</div>
                       </div>
                     </div>
                   ))}
+
+                  <div className="pt-2 border-top">
+                    <div className="small text-muted mb-2">고위험 샘플</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {assets
+                        .filter((asset) => (asset.base_risk ?? 0) >= 60)
+                        .sort((left, right) => (right.base_risk ?? 0) - (left.base_risk ?? 0))
+                        .slice(0, 6)
+                        .map((asset) => (
+                          <span key={asset.asset_id} className="badge rounded-pill text-bg-light border px-3 py-2">
+                            {asset.name} {getRiskBadge(asset.base_risk)}
+                          </span>
+                        ))}
+                      {assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length === 0 ? (
+                        <span className="text-muted small">고위험 자산 없음</span>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
