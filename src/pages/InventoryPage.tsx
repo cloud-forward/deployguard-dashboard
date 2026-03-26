@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -23,16 +23,14 @@ import type {
   InvAssetListResponse,
   InvRiskSpotlightItem,
   InvRiskSpotlightResponse,
-  InvScannerStatusResponse,
   InvSummaryResponse,
 } from '../api/model';
+import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import {
   useGetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet,
   useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet,
-  useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet,
   useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet,
 } from '../api/generated/inventory/inventory';
-import ClusterFlowNav from '../components/layout/ClusterFlowNav';
 
 type InventoryTab = 'all' | 'k8s' | 'aws' | 'entry-points' | 'crown-jewels';
 
@@ -48,7 +46,6 @@ type DetailAsset = {
   scanner_coverage?: Record<string, string>;
 };
 
-const PAGE_SIZE = 20;
 const DEFAULT_SCANNERS = ['k8s', 'aws', 'image'];
 
 const formatDateTime = (value?: string | null, fallback = '-') =>
@@ -135,9 +132,6 @@ const toDetailSpotlight = (
 const isSummaryResponse = (value: unknown): value is InvSummaryResponse =>
   Boolean(value && typeof value === 'object' && 'total_node_count' in value);
 
-const isScannerStatusResponse = (value: unknown): value is InvScannerStatusResponse =>
-  Boolean(value && typeof value === 'object' && 'scanners' in value);
-
 const isAssetListResponse = (value: unknown): value is InvAssetListResponse =>
   Boolean(value && typeof value === 'object' && 'assets' in value && 'total_count' in value);
 
@@ -157,21 +151,14 @@ const SectionError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
 
 const SummarySkeleton: React.FC = () => (
   <div className="card shadow-sm border-0">
-    <div className="card-body">
+    <div className="card-body py-3">
       <div className="row g-3 placeholder-glow">
         {Array.from({ length: 7 }).map((_, index) => (
           <div className="col-12 col-sm-6 col-xl" key={index}>
             <div className="border rounded-4 p-3">
               <span className="placeholder col-5 d-block mb-2" />
-              <span className="placeholder col-8 placeholder-lg d-block" />
+              <span className="placeholder col-8 d-block" />
             </div>
-          </div>
-        ))}
-      </div>
-      <div className="d-flex flex-wrap gap-3 mt-4 placeholder-glow">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div className="border rounded-pill px-4 py-3" style={{ minWidth: 220 }} key={index}>
-            <span className="placeholder col-10 d-block" />
           </div>
         ))}
       </div>
@@ -233,22 +220,26 @@ const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
   const { clusterId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<InventoryTab>('all');
-  const [page, setPage] = useState(1);
   const [selectedAsset, setSelectedAsset] = useState<DetailAsset | null>(null);
+  const { data: clustersResponse, isLoading: isClustersLoading } = useListClustersApiV1ClustersGet();
+  const clusters = useMemo(
+    () => (Array.isArray(clustersResponse) ? clustersResponse : []).map((cluster) => ({
+      id: cluster.id,
+      name: cluster.name,
+    })),
+    [clustersResponse],
+  );
+  const selectedCluster = clusters.find((cluster) => cluster.id === clusterId) ?? null;
 
   const assetParams = useMemo<GetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGetParams>(() => {
-    const base = { page, page_size: PAGE_SIZE };
-    if (activeTab === 'k8s') return { ...base, domain: 'k8s' };
-    if (activeTab === 'aws') return { ...base, domain: 'aws' };
-    if (activeTab === 'entry-points') return { ...base, is_entry_point: true };
-    if (activeTab === 'crown-jewels') return { ...base, is_crown_jewel: true };
-    return base;
-  }, [activeTab, page]);
+    if (activeTab === 'k8s') return { domain: 'k8s' };
+    if (activeTab === 'aws') return { domain: 'aws' };
+    if (activeTab === 'entry-points') return { is_entry_point: true };
+    if (activeTab === 'crown-jewels') return { is_crown_jewel: true };
+    return {};
+  }, [activeTab]);
 
   const summaryQuery = useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet(clusterId, {
-    query: { enabled: Boolean(clusterId), retry: false },
-  });
-  const scannerQuery = useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet(clusterId, {
     query: { enabled: Boolean(clusterId), retry: false },
   });
   const assetsQuery = useGetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet(clusterId, assetParams, {
@@ -259,22 +250,19 @@ const InventoryPage: React.FC = () => {
   });
 
   const summary = isSummaryResponse(summaryQuery.data) ? summaryQuery.data : undefined;
-  const scannerStatus = isScannerStatusResponse(scannerQuery.data) ? scannerQuery.data : undefined;
   const assetList = isAssetListResponse(assetsQuery.data) ? assetsQuery.data : undefined;
   const spotlight = isRiskSpotlightResponse(spotlightQuery.data) ? spotlightQuery.data : undefined;
-
-  const scanners = Array.isArray(scannerStatus?.scanners) ? scannerStatus.scanners : [];
   const assets = Array.isArray(assetList?.assets) ? assetList.assets : [];
   const entryPoints = Array.isArray(spotlight?.entry_points) ? spotlight.entry_points : [];
   const crownJewels = Array.isArray(spotlight?.crown_jewels) ? spotlight.crown_jewels : [];
 
   const scannerTypes = useMemo(() => {
     const merged = new Set<string>(DEFAULT_SCANNERS);
-    scanners.forEach((scanner) => merged.add(scanner.scanner_type));
+    assets.forEach((asset) => {
+      Object.keys(asset.scanner_coverage ?? {}).forEach((scannerType) => merged.add(scannerType));
+    });
     return Array.from(merged);
-  }, [scanners]);
-
-  const totalPages = Math.max(1, Math.ceil((assetList?.total_count ?? 0) / PAGE_SIZE));
+  }, [assets]);
   const spotlightEmpty = entryPoints.length === 0 && crownJewels.length === 0;
   const summaryCards = [
     ['전체 자산', summary?.total_node_count ?? 0],
@@ -288,55 +276,256 @@ const InventoryPage: React.FC = () => {
 
   const handleTabChange = (tab: InventoryTab) => {
     setActiveTab(tab);
-    setPage(1);
   };
+
+  useEffect(() => {
+    setActiveTab('all');
+    setSelectedAsset(null);
+  }, [clusterId]);
 
   if (!clusterId) {
     return <div className="alert alert-warning">Cluster ID가 없어 Inventory를 불러올 수 없습니다.</div>;
   }
 
   return (
-    <div className="position-relative">
-      <div className="d-flex align-items-baseline gap-3 mb-4">
-        <h1 className="h2 mb-0 fw-bold">인벤토리</h1>
-        <span className="fs-6" style={{ color: '#f2f2f2' }}>클러스터, 자산 요약, 자산 그리드, 위험 포인트</span>
+    <div className="position-relative dg-inventory-page">
+      <style>{`
+        .dg-inventory-page {
+          --dg-inventory-asset-height: clamp(23rem, calc(100vh - 28rem), 29rem);
+          --dg-inventory-spotlight-height: clamp(18rem, calc(100vh - 33rem), 24rem);
+        }
+        .dg-inventory-heading {
+          display: flex;
+          align-items: baseline;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+        .dg-inventory-subtitle {
+          color: #cbd5e1;
+          font-size: 0.92rem;
+          line-height: 1.35;
+        }
+        .dg-inventory-cluster-picker {
+          display: flex;
+          align-items: center;
+          gap: 0.7rem;
+          min-width: 320px;
+        }
+        .dg-inventory-cluster-label {
+          margin: 0;
+          color: #e2e8f0;
+          font-size: 0.84rem;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .dg-inventory-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+        .dg-inventory-summary-item {
+          border: 1px solid rgba(51, 65, 85, 0.88);
+          border-radius: 1rem;
+          padding: 0.9rem 1rem;
+          background: linear-gradient(180deg, rgba(8, 15, 30, 0.96), rgba(15, 23, 42, 0.96));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+        }
+        .dg-inventory-summary-item .dg-summary-label {
+          font-size: 0.72rem;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #cbd5e1;
+          margin-bottom: 0.35rem;
+        }
+        .dg-inventory-summary-item .dg-summary-value {
+          font-size: 1.1rem;
+          font-weight: 700;
+          line-height: 1.25;
+          color: #f8fafc;
+          word-break: break-word;
+        }
+        .dg-inventory-panel {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .dg-inventory-panel-header {
+          padding: 1rem 1.1rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+        .dg-inventory-panel-body {
+          flex: 1 1 auto;
+          min-height: 0;
+        }
+        .dg-inventory-asset-scroll {
+          max-height: var(--dg-inventory-asset-height);
+          overflow: auto;
+        }
+        .dg-inventory-asset-table {
+          table-layout: fixed;
+          width: 100%;
+          margin-bottom: 0;
+        }
+        .dg-inventory-asset-table th,
+        .dg-inventory-asset-table td {
+          padding: 0.7rem 0.75rem;
+          vertical-align: middle;
+        }
+        .dg-inventory-asset-table tbody tr,
+        .dg-inventory-asset-table tbody tr > td {
+          background-color: #ffffff;
+        }
+        .dg-inventory-asset-table tbody tr:hover > td {
+          background-color: #f8fafc;
+        }
+        .dg-inventory-asset-table th:nth-child(1),
+        .dg-inventory-asset-table td:nth-child(1) {
+          width: 24%;
+        }
+        .dg-inventory-asset-table th:nth-child(2),
+        .dg-inventory-asset-table td:nth-child(2) {
+          width: 11%;
+        }
+        .dg-inventory-asset-table th:nth-child(3),
+        .dg-inventory-asset-table td:nth-child(3) {
+          width: 9%;
+        }
+        .dg-inventory-asset-table th:nth-child(4),
+        .dg-inventory-asset-table td:nth-child(4) {
+          width: 13%;
+        }
+        .dg-inventory-asset-table th:nth-child(5),
+        .dg-inventory-asset-table td:nth-child(5) {
+          width: 10%;
+        }
+        .dg-inventory-asset-table th:nth-child(6),
+        .dg-inventory-asset-table td:nth-child(6) {
+          width: 13%;
+        }
+        .dg-inventory-asset-table th:nth-child(7),
+        .dg-inventory-asset-table td:nth-child(7) {
+          width: 20%;
+        }
+        .dg-inventory-asset-name {
+          min-width: 0;
+        }
+        .dg-inventory-asset-name-text {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .dg-inventory-asset-scroll thead th {
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          background: #e5e7eb;
+          color: #334155;
+          box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.32);
+        }
+        .dg-inventory-spotlight-scroll {
+          max-height: var(--dg-inventory-spotlight-height);
+          overflow: auto;
+          padding: 1rem 1.1rem 1.1rem;
+        }
+        .dg-inventory-spotlight-section {
+          border: 1px solid rgba(203, 213, 225, 0.9);
+          border-radius: 1rem;
+          padding: 0.95rem;
+          background: #ffffff;
+          color: #0f172a;
+          box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.45);
+        }
+        .dg-inventory-spotlight-section .text-muted {
+          color: #64748b !important;
+        }
+        .dg-inventory-spotlight-card {
+          background: #ffffff;
+          border-color: #cbd5e1;
+          color: #0f172a;
+        }
+        .dg-inventory-spotlight-card:hover,
+        .dg-inventory-spotlight-card:focus {
+          background: #f8fafc;
+          border-color: #94a3b8;
+          color: #0f172a;
+        }
+        @media (max-width: 1399.98px) {
+          .dg-inventory-summary-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 991.98px) {
+          .dg-inventory-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .dg-inventory-cluster-picker {
+            min-width: 0;
+            width: 100%;
+          }
+          .dg-inventory-asset-scroll,
+          .dg-inventory-spotlight-scroll {
+            max-height: none;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .dg-inventory-summary-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div className="d-flex justify-content-between align-items-end gap-3 mb-2 flex-wrap">
+        <div className="dg-inventory-heading">
+          <h1 className="h2 mb-0 fw-bold">인벤토리</h1>
+          <span className="dg-inventory-subtitle">클러스터 자산과 위험 포인트를 한눈에 확인합니다.</span>
+        </div>
+        <div className="dg-inventory-cluster-picker">
+          <label htmlFor="inventory-cluster-select" className="dg-inventory-cluster-label">
+            클러스터
+          </label>
+          <select
+            id="inventory-cluster-select"
+            className="form-select"
+            value={clusterId}
+            onChange={(event) => {
+              const nextClusterId = event.target.value;
+              if (!nextClusterId || nextClusterId === clusterId) {
+                return;
+              }
+              navigate(`/clusters/${nextClusterId}/inventory`);
+            }}
+            disabled={isClustersLoading || clusters.length === 0}
+          >
+            {clusters.length === 0 ? (
+              <option value={clusterId}>{selectedCluster?.name ?? '사용 가능한 클러스터 없음'}</option>
+            ) : (
+              clusters.map((cluster) => (
+                <option key={cluster.id} value={cluster.id}>
+                  {cluster.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
       </div>
 
-      <ClusterFlowNav clusterId={clusterId} current="inventory" />
-
-      <div className="d-flex flex-column gap-4">
-        {summaryQuery.isLoading || scannerQuery.isLoading ? (
+      <div className="d-flex flex-column gap-3">
+        {summaryQuery.isLoading ? (
           <SummarySkeleton />
-        ) : summaryQuery.isError || scannerQuery.isError ? (
+        ) : summaryQuery.isError ? (
           <div className="card shadow-sm border-0">
-            <SectionError onRetry={() => { summaryQuery.refetch(); scannerQuery.refetch(); }} />
+            <SectionError onRetry={() => { summaryQuery.refetch(); }} />
           </div>
         ) : (
           <div className="card shadow-sm border-0">
-            <div className="card-body">
-              <div className="row g-3">
+            <div className="card-body py-3">
+              <div className="dg-inventory-summary-grid">
                 {summaryCards.map(([label, value]) => (
-                  <div className="col-12 col-sm-6 col-xl" key={label}>
-                    <div className="border rounded-4 p-3 h-100">
-                      <div className="small text-uppercase text-muted mb-2">{label}</div>
-                      <div className="fs-4 fw-semibold">{value}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="d-flex flex-wrap gap-3 mt-4">
-                {scanners.slice(0, 3).map((scanner) => (
-                  <div className="border rounded-pill px-3 py-2 d-flex align-items-center gap-3" key={scanner.scanner_type}>
-                    <span
-                      className={`rounded-circle ${scanner.status === 'active' ? 'bg-success' : 'bg-secondary'}`}
-                      style={{ width: 10, height: 10 }}
-                    />
-                    <div>
-                      <div className="fw-semibold">{scanner.display_name}</div>
-                      <div className="small text-muted">
-                        {scanner.status === 'active' ? `Active · ${formatDateTime(scanner.last_scan_at)}` : 'Not Connected'}
-                      </div>
-                    </div>
+                  <div className="dg-inventory-summary-item" key={label}>
+                    <div className="dg-summary-label">{label}</div>
+                    <div className="dg-summary-value">{value}</div>
                   </div>
                 ))}
               </div>
@@ -344,146 +533,140 @@ const InventoryPage: React.FC = () => {
           </div>
         )}
 
-        <div className="card shadow-sm border-0">
-          <div className="card-body p-0">
-            <div className="p-4 border-bottom d-flex justify-content-between align-items-center gap-3 flex-wrap">
-              <div>
-                <h3 className="h5 mb-1">Asset Grid</h3>
-                <p className="text-muted mb-0">총 {assetList?.total_count ?? 0}개 자산</p>
+        <div className="d-flex flex-column gap-3">
+          <div>
+            <div className="card shadow-sm border-0 dg-inventory-panel">
+              <div className="dg-inventory-panel-header d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                  <h3 className="h5 mb-1">Asset Grid</h3>
+                  <p className="text-muted mb-0">총 {assetList?.total_count ?? 0}개 자산</p>
+                </div>
+                <div className="btn-group flex-wrap" role="tablist" aria-label="Asset filters">
+                  {[
+                    ['all', 'All'],
+                    ['k8s', 'K8s'],
+                    ['aws', 'AWS'],
+                    ['entry-points', 'Entry Points'],
+                    ['crown-jewels', 'Crown Jewels'],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`btn ${activeTab === key ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => handleTabChange(key as InventoryTab)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="btn-group flex-wrap" role="tablist" aria-label="Asset filters">
-                {[
-                  ['all', 'All'],
-                  ['k8s', 'K8s'],
-                  ['aws', 'AWS'],
-                  ['entry-points', 'Entry Points'],
-                  ['crown-jewels', 'Crown Jewels'],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`btn ${activeTab === key ? 'btn-primary' : 'btn-outline-secondary'}`}
-                    onClick={() => handleTabChange(key as InventoryTab)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {assetsQuery.isLoading ? (
-              <div className="p-4"><AssetSkeleton /></div>
-            ) : assetsQuery.isError ? (
-              <SectionError onRetry={() => assetsQuery.refetch()} />
-            ) : assets.length === 0 ? (
-              <div className="p-5 text-center text-muted">아직 스캔 결과가 없습니다</div>
-            ) : (
-              <>
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>이름</th>
-                        <th>타입</th>
-                        <th>도메인</th>
-                        <th>Namespace</th>
-                        <th>Risk</th>
-                        <th>분류</th>
-                        <th>Coverage</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assets.map((asset) => {
-                        const { Icon, color } = getNodeTypeMeta(asset.node_type);
-                        const riskMeta = getRiskMeta(asset.base_risk);
-
-                        return (
-                          <tr key={asset.node_id} role="button" onClick={() => setSelectedAsset(toDetailAsset(asset))}>
-                            <td>
-                              <div className="d-flex align-items-center gap-3">
-                                <span className="d-inline-flex align-items-center justify-content-center rounded-3 border" style={{ width: 32, height: 32, color }}>
-                                  <Icon size={18} />
-                                </span>
-                                <span className="fw-semibold">{asset.name}</span>
-                              </div>
-                            </td>
-                            <td>{asset.node_type}</td>
-                            <td><span className={`badge ${getDomainClass(asset.domain)}`}>{asset.domain}</span></td>
-                            <td>{asset.namespace ?? '-'}</td>
-                            <td>{riskMeta ? <span className={`badge ${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</td>
-                            <td>
-                              <div className="d-flex flex-wrap gap-2">
-                                {asset.is_entry_point ? <span className="badge bg-danger-subtle text-danger border border-danger-subtle">Entry Point</span> : null}
-                                {asset.is_crown_jewel ? <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Crown Jewel</span> : null}
-                                {!asset.is_entry_point && !asset.is_crown_jewel ? '-' : null}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="d-flex flex-wrap gap-2">
-                                {scannerTypes.map((scannerType) => {
-                                  const coverage = asset.scanner_coverage?.[scannerType];
-                                  const isCovered = coverage === 'covered';
-                                  const isNotCovered = coverage === 'not_covered';
-
-                                  return (
-                                    <span
-                                      key={scannerType}
-                                      className={`badge d-inline-flex align-items-center gap-1 ${
-                                        isCovered
-                                          ? 'bg-success-subtle text-success border border-success-subtle'
-                                          : isNotCovered
-                                            ? 'bg-secondary-subtle text-secondary border border-secondary-subtle'
-                                            : 'bg-dark-subtle text-light border border-secondary-subtle'
-                                      }`}
-                                    >
-                                      {scannerType}
-                                      {isCovered ? <Check size={12} /> : isNotCovered ? <X size={12} /> : 'N/A'}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </td>
+              <div className="dg-inventory-panel-body">
+                {assetsQuery.isLoading ? (
+                  <div className="p-4"><AssetSkeleton /></div>
+                ) : assetsQuery.isError ? (
+                  <SectionError onRetry={() => assetsQuery.refetch()} />
+                ) : assets.length === 0 ? (
+                  <div className="p-5 text-center text-muted">아직 스캔 결과가 없습니다</div>
+                ) : (
+                  <div className="dg-inventory-asset-scroll">
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle dg-inventory-asset-table">
+                        <thead className="table-light">
+                          <tr>
+                            <th>이름</th>
+                            <th>타입</th>
+                            <th>도메인</th>
+                            <th>Namespace</th>
+                            <th>Risk</th>
+                            <th>분류</th>
+                            <th>Coverage</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="d-flex justify-content-between align-items-center p-4 border-top flex-wrap gap-3">
-                  <div className="small text-muted">페이지 {page} / {totalPages}</div>
-                  <div className="d-flex gap-2">
-                    <button type="button" className="btn btn-outline-secondary" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                      이전
-                    </button>
-                    <button type="button" className="btn btn-outline-secondary" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>
-                      다음
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                        </thead>
+                        <tbody>
+                          {assets.map((asset) => {
+                            const { Icon, color } = getNodeTypeMeta(asset.node_type);
+                            const riskMeta = getRiskMeta(asset.base_risk);
 
-        <div className="card shadow-sm border-0">
-          <div className="card-body">
-            <div className="mb-4">
-              <h3 className="h5 mb-1">Risk Spotlight</h3>
-              <p className="text-muted mb-0">Entry Points와 Crown Jewels를 좌우 섹션으로 나눠 표시합니다.</p>
-            </div>
-            {spotlightQuery.isLoading ? (
-              <SpotlightSkeleton />
-            ) : spotlightQuery.isError ? (
-              <SectionError onRetry={() => spotlightQuery.refetch()} />
-            ) : spotlightEmpty ? (
-              <div className="py-5 text-center text-muted">
-                아직 분석 결과가 없습니다. 분석이 완료되면 위험 자산이 표시됩니다.
+                            return (
+                              <tr key={asset.node_id} role="button" onClick={() => setSelectedAsset(toDetailAsset(asset))}>
+                                <td>
+                                  <div className="d-flex align-items-center gap-2 dg-inventory-asset-name">
+                                    <span className="d-inline-flex align-items-center justify-content-center rounded-3 border" style={{ width: 32, height: 32, color }}>
+                                      <Icon size={18} />
+                                    </span>
+                                    <span className="fw-semibold dg-inventory-asset-name-text" title={asset.name}>
+                                      {asset.name.length > 15 ? `${asset.name.slice(0, 15)}...` : asset.name}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td>{asset.node_type}</td>
+                                <td><span className={`badge ${getDomainClass(asset.domain)}`}>{asset.domain}</span></td>
+                                <td>{asset.namespace ?? '-'}</td>
+                                <td>{riskMeta ? <span className={`badge ${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</td>
+                                <td>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {asset.is_entry_point ? <span className="badge bg-danger-subtle text-danger border border-danger-subtle">Entry Point</span> : null}
+                                    {asset.is_crown_jewel ? <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Crown Jewel</span> : null}
+                                    {!asset.is_entry_point && !asset.is_crown_jewel ? '-' : null}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {scannerTypes.map((scannerType) => {
+                                      const coverage = asset.scanner_coverage?.[scannerType];
+                                      const isCovered = coverage === 'covered';
+                                      const isNotCovered = coverage === 'not_covered';
+
+                                      return (
+                                        <span
+                                          key={scannerType}
+                                          className={`badge d-inline-flex align-items-center gap-1 ${
+                                            isCovered
+                                              ? 'bg-success-subtle text-success border border-success-subtle'
+                                              : isNotCovered
+                                                ? 'bg-secondary-subtle text-secondary border border-secondary-subtle'
+                                                : 'bg-dark-subtle text-light border border-secondary-subtle'
+                                          }`}
+                                        >
+                                          {scannerType}
+                                          {isCovered ? <Check size={12} /> : isNotCovered ? <X size={12} /> : 'N/A'}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="row g-4">
-                <div className="col-12 col-xl-6">
-                  <div className="card shadow-sm border-0 h-100">
-                    <div className="card-body">
+            </div>
+          </div>
+
+          <div>
+            <div className="card shadow-sm border-0 dg-inventory-panel">
+              <div className="dg-inventory-panel-header">
+                <h3 className="h5 mb-1">Risk Spotlight</h3>
+                <p className="text-muted mb-0">Entry Points와 Crown Jewels를 빠르게 확인합니다.</p>
+              </div>
+
+              <div className="dg-inventory-panel-body">
+                {spotlightQuery.isLoading ? (
+                  <div className="p-4"><SpotlightSkeleton /></div>
+                ) : spotlightQuery.isError ? (
+                  <SectionError onRetry={() => spotlightQuery.refetch()} />
+                ) : spotlightEmpty ? (
+                  <div className="py-5 text-center text-muted">
+                    아직 분석 결과가 없습니다. 분석이 완료되면 위험 자산이 표시됩니다.
+                  </div>
+                ) : (
+                  <div className="dg-inventory-spotlight-scroll d-flex flex-column gap-3">
+                    <div className="dg-inventory-spotlight-section">
                       <h4 className="h6 mb-3">Entry Points</h4>
                       {entryPoints.length === 0 ? (
                         <div className="text-muted">아직 분석 결과가 없습니다</div>
@@ -494,7 +677,7 @@ const InventoryPage: React.FC = () => {
                             const riskMeta = getRiskMeta(item.base_risk);
 
                             return (
-                              <button type="button" className="btn btn-outline-secondary text-start rounded-4 p-3" key={item.node_id} onClick={() => setSelectedAsset(toDetailSpotlight(item, 'entry-point'))}>
+                              <button type="button" className="btn btn-outline-secondary text-start rounded-4 p-3 dg-inventory-spotlight-card" key={item.node_id} onClick={() => setSelectedAsset(toDetailSpotlight(item, 'entry-point'))}>
                                 <div className="d-flex align-items-start gap-3">
                                   <span className="d-inline-flex align-items-center justify-content-center rounded-3 border" style={{ width: 32, height: 32, color }}>
                                     <Icon size={18} />
@@ -516,11 +699,8 @@ const InventoryPage: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-                <div className="col-12 col-xl-6">
-                  <div className="card shadow-sm border-0 h-100">
-                    <div className="card-body">
+
+                    <div className="dg-inventory-spotlight-section">
                       <h4 className="h6 mb-3">Crown Jewels</h4>
                       {crownJewels.length === 0 ? (
                         <div className="text-muted">아직 분석 결과가 없습니다</div>
@@ -531,7 +711,7 @@ const InventoryPage: React.FC = () => {
                             const riskMeta = getRiskMeta(item.base_risk);
 
                             return (
-                              <button type="button" className="btn btn-outline-secondary text-start rounded-4 p-3" key={item.node_id} onClick={() => setSelectedAsset(toDetailSpotlight(item, 'crown-jewel'))}>
+                              <button type="button" className="btn btn-outline-secondary text-start rounded-4 p-3 dg-inventory-spotlight-card" key={item.node_id} onClick={() => setSelectedAsset(toDetailSpotlight(item, 'crown-jewel'))}>
                                 <div className="d-flex align-items-start gap-3">
                                   <span className="d-inline-flex align-items-center justify-content-center rounded-3 border" style={{ width: 32, height: 32, color }}>
                                     <Icon size={18} />
@@ -551,9 +731,9 @@ const InventoryPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

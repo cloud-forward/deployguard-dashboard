@@ -101,7 +101,6 @@ const DashboardPage: React.FC = () => {
   );
   const flaggedCounts = useMemo(
     () => [
-      { label: 'Public', count: assets.filter((asset) => Boolean(asset.is_public)).length, className: 'bg-info-subtle text-info-emphasis border border-info-subtle' },
       { label: 'Entry Point', count: assets.filter((asset) => Boolean(asset.is_entry_point)).length, className: 'bg-danger-subtle text-danger border border-danger-subtle' },
       { label: 'Crown Jewel', count: assets.filter((asset) => Boolean(asset.is_crown_jewel)).length, className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
       { label: 'High Risk', count: assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length, className: 'bg-light text-dark border' },
@@ -137,6 +136,10 @@ const DashboardPage: React.FC = () => {
           border-radius: 0.75rem;
           border: 1px dashed rgba(148, 163, 184, 0.28);
           background: rgba(10, 16, 33, 0.5);
+        }
+        .dg-dashboard-bottom-card .card-body {
+          padding-top: 1rem;
+          padding-bottom: 0.75rem;
         }
         @media (min-width: 1200px) {
           .dg-dashboard-top {
@@ -236,9 +239,9 @@ const DashboardPage: React.FC = () => {
 
       <div className="row g-4">
         <div className="col-12 col-xl-7">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
                   <h2 className="h5 mb-1">자산 분포</h2>
                   <p className="text-muted small mb-0">
@@ -257,7 +260,7 @@ const DashboardPage: React.FC = () => {
               ) : assets.length === 0 ? (
                 <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
               ) : (
-                <div className="d-flex flex-column gap-4">
+                <div className="d-flex flex-column gap-3">
                   <div>
                     <div className="small text-muted mb-2">Asset Type</div>
                     <div className="d-flex flex-wrap gap-2">
@@ -301,9 +304,9 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="col-12 col-xl-5">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
                   <h2 className="h5 mb-1">주요 분류</h2>
                   <p className="text-muted small mb-0">
@@ -324,7 +327,7 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <div className="d-flex flex-column gap-3">
                   {flaggedCounts.map((item) => (
-                    <div key={item.label} className="border rounded p-3">
+                    <div key={item.label} className="border rounded p-2">
                       <div className="d-flex justify-content-between align-items-center gap-3">
                         <span className={`badge ${item.className}`}>{item.label}</span>
                         <div className="fw-semibold fs-5">{item.count}</div>
@@ -332,7 +335,7 @@ const DashboardPage: React.FC = () => {
                     </div>
                   ))}
 
-                  <div className="pt-2 border-top">
+                  <div className="border-top pt-1">
                     <div className="small text-muted mb-2">고위험 샘플</div>
                     <div className="d-flex flex-wrap gap-2">
                       {assets

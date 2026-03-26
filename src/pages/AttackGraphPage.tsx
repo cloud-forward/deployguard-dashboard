@@ -5,7 +5,6 @@ import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import BlastRadiusPanel from '../components/graph/BlastRadiusPanel';
 import GraphFilters from '../components/graph/GraphFilters';
-import ClusterFlowNav from '../components/layout/ClusterFlowNav';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import { mockElements } from '../components/graph/mockGraphData';
 import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
@@ -355,7 +354,10 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         </div>
       </div>
 
-      <div className="card" style={{ height: 600, position: 'relative' }}>
+      <div
+        className="card dg-attack-graph-canvas-card"
+        style={{ position: 'relative' }}
+      >
         <div className="px-2 py-1 bg-light border-bottom small">
           <div className="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
             <span className="text-muted fw-semibold text-nowrap">공격 경로:</span>
@@ -576,12 +578,29 @@ const AttackGraphPage: React.FC = () => {
 
   return (
     <div>
-      <div className="d-flex align-items-baseline gap-3 mb-4">
+      <style>{`
+        .dg-attack-graph-page {
+          --dg-attack-graph-canvas-height: clamp(29rem, calc(100vh - 16rem), 40rem);
+        }
+        .dg-attack-graph-page .dg-attack-graph-canvas-card {
+          height: var(--dg-attack-graph-canvas-height);
+        }
+        @media (max-width: 991.98px) {
+          .dg-attack-graph-page {
+            --dg-attack-graph-canvas-height: 34rem;
+          }
+        }
+        @media (max-width: 767.98px) {
+          .dg-attack-graph-page {
+            --dg-attack-graph-canvas-height: 30rem;
+          }
+        }
+      `}</style>
+      <div className="dg-attack-graph-page">
+      <div className="d-flex align-items-baseline gap-3 mb-3">
         <h1 className="h3 mb-0 fw-bold">어택 그래프</h1>
         <span className="fs-6" style={{ color: '#f2f2f2' }}>잠재적 어택 벡터 시각화</span>
       </div>
-
-      {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="graph" /> : null}
 
       <div className="card border-0 shadow-sm mb-1">
         <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-center">
@@ -672,6 +691,7 @@ const AttackGraphPage: React.FC = () => {
       {/* TODO Step5: advanced filters (critical paths only, escape-only, AWS pivot-only) are not supported by the current mock model */}
       {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData/BlastRadius panel contracts remain in place) */}
       {/* TODO Step5: remove the mock payload once the live graph becomes the default source */}
+      </div>
     </div>
   );
 };
