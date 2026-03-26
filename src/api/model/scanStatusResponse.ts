@@ -27,5 +27,5 @@ export interface ScanStatusResponse {
   status: string;
   created_at: string;
   completed_at?: string | null;
-  files?: string[];
+  s3_keys?: string[];
 }
