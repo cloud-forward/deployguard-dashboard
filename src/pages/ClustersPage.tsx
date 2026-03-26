@@ -31,6 +31,24 @@ type ClusterForm = {
     cluster_type: 'eks' | 'self-managed' | 'aws';
 };
 
+const formatDateOnly = (value?: string | null) => {
+    if (!value) {
+        return '-';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    }).format(date);
+};
+
 const ClustersPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -342,11 +360,11 @@ const ClustersPage: React.FC = () => {
                             <table className="table table-hover mb-0 align-middle">
                                 <thead className="table-light">
                                     <tr>
-                                        <th>이름</th>
-                                        <th>클러스터 ID</th>
-                                        <th>유형</th>
-                                        <th>생성일</th>
-                                        <th className="text-end">작업</th>
+                                        <th className="text-start align-middle">이름</th>
+                                        <th className="text-start align-middle">클러스터 ID</th>
+                                        <th className="text-start align-middle">유형</th>
+                                        <th className="text-start align-middle">생성일</th>
+                                        <th className="text-start align-middle">작업</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -376,9 +394,7 @@ const ClustersPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                {cluster.created_at
-                                                    ? new Date(cluster.created_at).toLocaleString()
-                                                    : '-'}
+                                                {formatDateOnly(cluster.created_at)}
                                             </td>
                                             <td className="text-end">
                                                 <div className="d-inline-flex gap-2">
