@@ -469,7 +469,7 @@ const ScansPage: React.FC = () => {
                                     </div>
                                     <div className="col-12">
                                       <div className="text-muted mb-1">업로드된 파일</div>
-                                      {renderList(status?.files)}
+                                      {renderList(status?.s3_keys ?? [])}
                                     </div>
                                   </div>
 
