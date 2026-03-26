@@ -521,7 +521,7 @@ export const useDeleteClusterApiV1ClustersIdDelete = <TError = void | HTTPValida
  * Attack Graph 화면의 그래프, 경로 목록, 상세 패널을 한 번에 구동하기 위한 MVP 응답입니다.
 
 초기 단계에서는 backend가 `label`, `severity`, boolean 기본값, 빈 `metadata`를 직접 정규화해서 반환합니다.
- * @summary [신규] Attack Graph 조회
+ * @summary Attack Graph 조회
  */
 export type getAttackGraphApiV1ClustersClusterIdAttackGraphGetResponse200 = AttackGraphResponse
 
@@ -609,7 +609,7 @@ export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Aw
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Attack Graph 조회
+ * @summary Attack Graph 조회
  */
 
 export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Awaited<ReturnType<typeof getAttackGraphApiV1ClustersClusterIdAttackGraphGet>>, TError = void | HTTPValidationError>(
@@ -629,7 +629,7 @@ export function useGetAttackGraphApiV1ClustersClusterIdAttackGraphGet<TData = Aw
 
 /**
  * 클러스터 기준 최신 분석에 연결된 persisted attack path 목록을 반환합니다.
- * @summary [신규] Persisted Attack Paths 조회
+ * @summary Persisted Attack Paths 조회
  */
 export type getAttackPathsApiV1ClustersClusterIdAttackPathsGetResponse200 = AttackPathListResponse
 
@@ -717,7 +717,7 @@ export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Aw
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Persisted Attack Paths 조회
+ * @summary Persisted Attack Paths 조회
  */
 
 export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Awaited<ReturnType<typeof getAttackPathsApiV1ClustersClusterIdAttackPathsGet>>, TError = void | HTTPValidationError>(
@@ -737,7 +737,7 @@ export function useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet<TData = Aw
 
 /**
  * 클러스터 기준 최신 분석에 연결된 특정 persisted attack path 상세를 반환합니다.
- * @summary [신규] Persisted Attack Path 상세 조회
+ * @summary Persisted Attack Path 상세 조회
  */
 export type getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGetResponse200 = AttackPathDetailEnvelopeResponse
 
@@ -832,7 +832,7 @@ export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Persisted Attack Path 상세 조회
+ * @summary Persisted Attack Path 상세 조회
  */
 
 export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet<TData = Awaited<ReturnType<typeof getAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet>>, TError = void | HTTPValidationError>(
@@ -853,7 +853,7 @@ export function useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet
 
 /**
  * 클러스터 기준 최신 분석에 연결된 persisted remediation recommendation 목록을 반환합니다.
- * @summary [신규] Persisted Remediation Recommendations 조회
+ * @summary Persisted Remediation Recommendations 조회
  */
 export type getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetResponse200 = RemediationRecommendationListResponse
 
@@ -941,7 +941,7 @@ export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediatio
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Persisted Remediation Recommendations 조회
+ * @summary Persisted Remediation Recommendations 조회
  */
 
 export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet>>, TError = void | HTTPValidationError>(
@@ -961,7 +961,7 @@ export function useGetRemediationRecommendationsApiV1ClustersClusterIdRemediatio
 
 /**
  * 클러스터 기준 최신 분석에 연결된 특정 persisted remediation recommendation 상세를 반환합니다.
- * @summary [신규] Persisted Remediation Recommendation 상세 조회
+ * @summary Persisted Remediation Recommendation 상세 조회
  */
 export type getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetResponse200 = RemediationRecommendationDetailEnvelopeResponse
 
@@ -1056,7 +1056,7 @@ export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemed
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Persisted Remediation Recommendation 상세 조회
+ * @summary Persisted Remediation Recommendation 상세 조회
  */
 
 export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet<TData = Awaited<ReturnType<typeof getRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet>>, TError = void | HTTPValidationError>(
@@ -1077,7 +1077,7 @@ export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemed
 
 /**
  * 수동 요청으로 특정 remediation recommendation 상세에 대한 설명을 생성합니다.
- * @summary [신규] Remediation Recommendation 설명 생성
+ * @summary Remediation Recommendation 설명 생성
  */
 export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse200 = RecommendationExplanationResponse
 
@@ -1146,7 +1146,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationError = void | HTTPValidationError
 
     /**
- * @summary [신규] Remediation Recommendation 설명 생성
+ * @summary Remediation Recommendation 설명 생성
  */
 export const useExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost = <TError = void | HTTPValidationError,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>, TError,{clusterId: string;recommendationId: string;data: RecommendationExplanationRequest}, TContext>, request?: SecondParameter<typeof apiClient>}

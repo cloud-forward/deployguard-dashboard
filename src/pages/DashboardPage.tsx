@@ -101,7 +101,6 @@ const DashboardPage: React.FC = () => {
   );
   const flaggedCounts = useMemo(
     () => [
-      { label: 'Public', count: assets.filter((asset) => Boolean(asset.is_public)).length, className: 'bg-info-subtle text-info-emphasis border border-info-subtle' },
       { label: 'Entry Point', count: assets.filter((asset) => Boolean(asset.is_entry_point)).length, className: 'bg-danger-subtle text-danger border border-danger-subtle' },
       { label: 'Crown Jewel', count: assets.filter((asset) => Boolean(asset.is_crown_jewel)).length, className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
       { label: 'High Risk', count: assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length, className: 'bg-light text-dark border' },
@@ -111,92 +110,138 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
+      <style>{`
+        .dg-dashboard-top {
+          margin-bottom: 1.5rem;
+        }
+        .dg-dashboard-stat-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.9rem;
+        }
+        .dg-dashboard-graph-card .card-body {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
+        }
+        .dg-dashboard-graph-preview {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex: 1 1 auto;
+          min-height: 220px;
+          border-radius: 0.75rem;
+          border: 1px dashed rgba(148, 163, 184, 0.28);
+          background: rgba(10, 16, 33, 0.5);
+        }
+        .dg-dashboard-bottom-card .card-body {
+          padding-top: 1rem;
+          padding-bottom: 0.75rem;
+        }
+        @media (min-width: 1200px) {
+          .dg-dashboard-top {
+            align-items: stretch;
+          }
+          .dg-dashboard-graph-card {
+            height: 100%;
+          }
+          .dg-dashboard-graph-preview {
+            min-height: 0;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .dg-dashboard-stat-grid {
+            grid-template-columns: 1fr;
+          }
+          .dg-dashboard-graph-preview {
+            min-height: 220px;
+          }
+        }
+      `}</style>
       <div className="d-flex align-items-baseline gap-3 mb-4">
         <h4 className="mb-0 fw-bold">대시보드 개요</h4>
         <span className="fs-6" style={{ color: '#f2f2f2' }}>사용자 기준 자산 요약</span>
       </div>
 
-      {overviewQuery.isLoading ? (
-        <div className="row g-3 mb-4">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="col-6 col-sm-4 col-xl-2">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-body placeholder-glow">
-                  <span className="placeholder col-7 d-block mb-2" />
-                  <span className="placeholder placeholder-lg col-5 d-block" />
+      <div className="row g-4 dg-dashboard-top">
+        <div className="col-12 col-xl-4">
+          {overviewQuery.isLoading ? (
+            <div className="dg-dashboard-stat-grid">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="card border-0 shadow-sm h-100">
+                  <div className="card-body placeholder-glow py-3 px-3">
+                    <span className="placeholder col-7 d-block mb-2" />
+                    <span className="placeholder placeholder-lg col-5 d-block" />
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : overviewQuery.isError ? (
+            <div className="alert alert-danger mb-0" role="alert">
+              사용자 개요를 불러오지 못했습니다.
+            </div>
+          ) : (
+            <div className="dg-dashboard-stat-grid">
+              {statRows.map((card) => (
+                <StatCard key={card.title} title={card.title} value={card.value} compact />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="col-12 col-xl-8">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-graph-card">
+            <div className="card-body">
+              {(() => {
+                const liveStatus = (overview?.entry_point_assets ?? 0) > 0 || (overview?.crown_jewel_assets ?? 0) > 0
+                  ? 'warning'
+                  : (overview?.public_assets ?? 0) > 0
+                    ? 'threat'
+                    : 'safe';
+                const liveConfig = {
+                  safe: { color: '#22c55e' },
+                  warning: { color: '#f59e0b' },
+                  threat: { color: '#ef4444' },
+                };
+                const { color } = liveConfig[liveStatus];
+
+                return (
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <h6 className="mb-0 fw-bold">공격경로</h6>
+                    <div className="d-flex align-items-center gap-1">
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: color,
+                          display: 'inline-block',
+                          boxShadow: `0 0 6px ${color}`,
+                          animation: 'live-pulse 1.5s ease-in-out infinite',
+                        }}
+                      />
+                      <span className="small fw-semibold" style={{ color }}>Live</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div className="dg-dashboard-graph-preview">
+                <span className="text-muted small">그래프 데이터를 불러오는 중…</span>
               </div>
             </div>
-          ))}
-        </div>
-      ) : overviewQuery.isError ? (
-        <div className="alert alert-danger mb-4" role="alert">
-          사용자 개요를 불러오지 못했습니다.
-        </div>
-      ) : (
-        <div className="row g-3 mb-4">
-          {statRows.map((card) => (
-            <div key={card.title} className="col-6 col-sm-4 col-xl-2">
-              <StatCard title={card.title} value={card.value} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          {(() => {
-            const liveStatus = (overview?.entry_point_assets ?? 0) > 0 || (overview?.crown_jewel_assets ?? 0) > 0
-              ? 'warning'
-              : (overview?.public_assets ?? 0) > 0
-                ? 'threat'
-                : 'safe';
-            const liveConfig = {
-              safe: { color: '#22c55e' },
-              warning: { color: '#f59e0b' },
-              threat: { color: '#ef4444' },
-            };
-            const { color } = liveConfig[liveStatus];
-
-            return (
-              <div className="d-flex align-items-center gap-2 mb-3">
-                <h6 className="mb-0 fw-bold">공격경로</h6>
-                <div className="d-flex align-items-center gap-1">
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      display: 'inline-block',
-                      boxShadow: `0 0 6px ${color}`,
-                      animation: 'live-pulse 1.5s ease-in-out infinite',
-                    }}
-                  />
-                  <span className="small fw-semibold" style={{ color }}>Live</span>
-                </div>
-              </div>
-            );
-          })()}
-          <div
-            className="d-flex justify-content-center align-items-center rounded border"
-            style={{
-              height: 280,
-              background: 'rgba(10, 16, 33, 0.5)',
-              borderStyle: 'dashed',
-            }}
-          >
-            <span className="text-muted small">그래프 데이터를 불러오는 중…</span>
           </div>
         </div>
       </div>
 
       <div className="row g-4">
         <div className="col-12 col-xl-7">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
                   <h2 className="h5 mb-1">자산 분포</h2>
                   <p className="text-muted small mb-0">
@@ -215,7 +260,7 @@ const DashboardPage: React.FC = () => {
               ) : assets.length === 0 ? (
                 <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
               ) : (
-                <div className="d-flex flex-column gap-4">
+                <div className="d-flex flex-column gap-3">
                   <div>
                     <div className="small text-muted mb-2">Asset Type</div>
                     <div className="d-flex flex-wrap gap-2">
@@ -259,9 +304,9 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="col-12 col-xl-5">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
             <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
                   <h2 className="h5 mb-1">주요 분류</h2>
                   <p className="text-muted small mb-0">
@@ -282,7 +327,7 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <div className="d-flex flex-column gap-3">
                   {flaggedCounts.map((item) => (
-                    <div key={item.label} className="border rounded p-3">
+                    <div key={item.label} className="border rounded p-2">
                       <div className="d-flex justify-content-between align-items-center gap-3">
                         <span className={`badge ${item.className}`}>{item.label}</span>
                         <div className="fw-semibold fs-5">{item.count}</div>
@@ -290,7 +335,7 @@ const DashboardPage: React.FC = () => {
                     </div>
                   ))}
 
-                  <div className="pt-2 border-top">
+                  <div className="border-top pt-1">
                     <div className="small text-muted mb-2">고위험 샘플</div>
                     <div className="d-flex flex-wrap gap-2">
                       {assets

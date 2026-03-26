@@ -100,6 +100,38 @@ const canManuallyFailScan = (status: string) =>
   status === 'created' || status === 'processing' || status === 'uploading';
 
 const ScansPage: React.FC = () => {
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .dg-scans-table-container {
+        max-height: 500px;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 0.375rem;
+      }
+      .dg-scans-table-container table {
+        margin-bottom: 0;
+      }
+      .dg-scans-table-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+      }
+      @media (max-width: 768px) {
+        .dg-scans-table-container {
+          max-height: 400px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const queryClient = useQueryClient();
   const {
     data: clustersResponse,
@@ -325,7 +357,7 @@ const ScansPage: React.FC = () => {
             )}
 
             {!isScansLoading && !isScansError && scans.length > 0 && (
-              <div className="table-responsive">
+              <div className="dg-scans-table-container">
                 <table className="table table-hover mb-0 align-middle">
                   <thead className="table-light">
                     <tr>
