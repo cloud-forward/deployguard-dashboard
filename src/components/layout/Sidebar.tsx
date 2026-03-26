@@ -22,9 +22,9 @@ const Sidebar: React.FC = () => {
     { badge: 'OV', label: '개요',            path: '/dashboard',    exact: true },
     { badge: 'AG', label: '공격 경로 그래프', path: '/attack-graph', exact: true },
     { badge: 'CL', label: '클러스터',         path: '/clusters',     exact: true },
-    { badge: 'IV', label: '인벤토리',         path: inventoryHref,   exact: false, forceActive: isInventoryActive },
     { badge: 'SC', label: '스캐너',           path: '/scans',        exact: true },
     { badge: 'RO', label: '위험 최적화',      path: '/risk',         exact: true },
+    { badge: 'IV', label: '인벤토리',         path: inventoryHref,   exact: false, forceActive: isInventoryActive },
   ];
 
   return (

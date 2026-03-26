@@ -84,21 +84,13 @@ const normalizeSeverity = (value?: string | null): AttackGraphRiskSeverity => {
 const normalizeRelationType = (value?: string | null): AttackGraphEdgeRelation => {
   if (!value) return UNKNOWN;
 
-  const normalized = value.toLowerCase();
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
 
   switch (normalized) {
-    case 'uses':
-    case 'bound_to':
     case 'boundto':
-    case 'grants':
-    case 'escapes_to':
-    case 'assumes':
-    case 'accesses':
-    case 'allows':
-    case 'runs':
-      return normalized === 'boundto' ? 'bound_to' : (normalized as AttackGraphEdgeRelation);
+      return 'bound_to';
     default:
-      return UNKNOWN;
+      return normalized || UNKNOWN;
   }
 };
 
