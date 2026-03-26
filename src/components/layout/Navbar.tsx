@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useGetMeApiV1MeGet } from '../../api/generated/auth/auth';
 import { useListClustersApiV1ClustersGet } from '../../api/generated/clusters/clusters';
 import { useListClusterScansApiV1ClustersClusterIdScansGet } from '../../api/generated/scans/scans';
+import { useAuth } from '../../auth/AuthProvider';
 import type { ClusterScanListResponse } from '../../api/model';
 
 /* ─── helpers ────────────────────────────────────────────────────────────── */
@@ -60,12 +63,26 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
 /* ─── navbar ─────────────────────────────────────────────────────────────── */
 
 const Navbar: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const { data: clustersResponse } = useListClustersApiV1ClustersGet();
+  const { data: meResponse } = useGetMeApiV1MeGet({
+    query: {
+      enabled: Boolean(user),
+      retry: false,
+      staleTime: 60_000,
+    },
+  });
 
   const clusters = useMemo<ClusterOption[]>(() => {
     const list = Array.isArray(clustersResponse) ? clustersResponse : [];
     return list.slice(0, 3).map((c) => ({ id: c.id, name: c.name }));
   }, [clustersResponse]);
+  const canonicalUser = meResponse && typeof meResponse === 'object' && 'email' in meResponse
+    ? meResponse
+    : null;
+  const displayUser = canonicalUser ?? user;
+  const displayName = displayUser?.name?.trim() || displayUser?.email || '로그인 사용자';
 
   return (
     <header className="dg-navbar navbar navbar-dark sticky-top flex-md-nowrap">
@@ -134,6 +151,22 @@ const Navbar: React.FC = () => {
           margin-left: auto;
           overflow: hidden;
         }
+        .dg-user-meta {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding-left: 0.5rem;
+          margin-left: 0.25rem;
+          border-left: 1px solid rgba(255,255,255,0.12);
+        }
+        .dg-user-email {
+          color: #cbd5e1;
+          font-size: 0.78rem;
+          max-width: 220px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .dg-scan-pill {
           display: inline-flex;
           align-items: center;
@@ -173,17 +206,21 @@ const Navbar: React.FC = () => {
         .dg-navbar .navbar-toggler:hover {
           background: rgba(255,255,255,0.1);
         }
+        .dg-mobile-actions {
+          margin-left: auto;
+          padding-right: 0.75rem;
+        }
       `}</style>
 
-      <a className="dg-brand navbar-brand" href="/">
+      <Link className="dg-brand navbar-brand" to="/dashboard">
         <div className="d-flex align-items-center gap-2">
           <div className="dg-brand-mark" aria-hidden="true">DG</div>
           <div className="d-flex align-items-baseline gap-2">
             <span className="dg-brand-text fw-bold text-white">DeployGuard</span>
-            <small className="dg-brand-sub" style={{ color: '#9ca3af' }}>공격 경로 분석 엔진 v4.0</small>
+            <small className="dg-brand-sub" style={{ color: '#9ca3af' }}>공격 경로 분석 엔진</small>
           </div>
         </div>
-      </a>
+      </Link>
 
       <button
         className="navbar-toggler position-absolute d-md-none collapsed"
@@ -197,11 +234,39 @@ const Navbar: React.FC = () => {
         <span className="navbar-toggler-icon" />
       </button>
 
-      {clusters.length > 0 && (
+      <div className="dg-mobile-actions d-md-none">
+        <button
+          type="button"
+          className="btn btn-outline-light btn-sm"
+          onClick={() => {
+            logout();
+            navigate('/login', { replace: true });
+          }}
+        >
+          로그아웃
+        </button>
+      </div>
+
+      {(clusters.length > 0 || user) && (
         <div className="dg-navbar-right d-none d-md-flex">
           {clusters.map((c) => (
             <ClusterScanPill key={c.id} id={c.id} name={c.name} />
           ))}
+          <div className="dg-user-meta">
+            <span className="dg-user-email" title={displayUser?.email ?? displayName}>
+              {displayName}
+            </span>
+            <button
+              type="button"
+              className="btn btn-outline-light btn-sm"
+              onClick={() => {
+                logout();
+                navigate('/login', { replace: true });
+              }}
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
       )}
     </header>

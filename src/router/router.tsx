@@ -1,5 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { PublicOnlyRoute, RequireAuth } from '../components/auth/RouteGuards';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import LoginPage from '../pages/LoginPage';
+import SignupPage from '../pages/SignupPage';
 import DashboardPage from '../pages/DashboardPage';
 import AttackGraphPage from '../pages/AttackGraphPage';
 import ClustersPage from '../pages/ClustersPage';
@@ -9,8 +12,28 @@ import InventoryPage from '../pages/InventoryPage';
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    element: (
+      <PublicOnlyRoute>
+        <LoginPage />
+      </PublicOnlyRoute>
+    ),
+  },
+  {
+    path: '/signup',
+    element: (
+      <PublicOnlyRoute>
+        <SignupPage />
+      </PublicOnlyRoute>
+    ),
+  },
+  {
     path: '/',
-    element: <DashboardLayout />,
+    element: (
+      <RequireAuth>
+        <DashboardLayout />
+      </RequireAuth>
+    ),
     children: [
       {
         index: true,
@@ -49,5 +72,9 @@ export const router = createBrowserRouter([
         element: <InventoryPage />,
       },
     ],
+  },
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ]);

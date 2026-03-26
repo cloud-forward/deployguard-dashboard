@@ -41,6 +41,7 @@ import type {
   AnalysisJobDetailResponse,
   AnalysisJobRequest,
   AnalysisJobResponse,
+  AnalysisResultResponse,
   ClusterAnalysisJobListResponse,
   DebugAnalysisExecuteRequest,
   HTTPValidationError,
@@ -375,7 +376,7 @@ export function useGetAnalysisJobApiV1AnalysisJobsJobIdGet<TData = Awaited<Retur
 Returns attack paths and risk scores.
  * @summary 분석 결과 조회
  */
-export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse200 = unknown
+export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse200 = AnalysisResultResponse
 
 export type getAnalysisResultApiV1AnalysisJobIdResultGetResponse422 = HTTPValidationError
 

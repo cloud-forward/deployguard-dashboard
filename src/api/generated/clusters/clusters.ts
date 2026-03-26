@@ -46,6 +46,8 @@ import type {
   ClusterResponse,
   ClusterUpdateRequest,
   HTTPValidationError,
+  RecommendationExplanationRequest,
+  RecommendationExplanationResponse,
   RemediationRecommendationDetailEnvelopeResponse,
   RemediationRecommendationListResponse
 } from '../../model';
@@ -1073,3 +1075,87 @@ export function useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemed
 
 
 
+/**
+ * 수동 요청으로 특정 remediation recommendation 상세에 대한 설명을 생성합니다.
+ * @summary [신규] Remediation Recommendation 설명 생성
+ */
+export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse200 = RecommendationExplanationResponse
+
+export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse404 = void
+
+export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse422 = HTTPValidationError
+
+export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponseSuccess = (explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse200);export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponseError = (explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse404 | explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse422);
+export type explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse = (explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponseSuccess | explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponseError)
+
+export const getExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostUrl = (clusterId: string,
+    recommendationId: string,) => {
+
+
+  
+
+  return `/api/v1/clusters/${clusterId}/remediation-recommendations/${recommendationId}/explanation`
+}
+
+export const explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost = async (clusterId: string,
+    recommendationId: string,
+    recommendationExplanationRequest: RecommendationExplanationRequest, options?: RequestInit): Promise<explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse> => {
+  
+  return apiClient<explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostResponse>(getExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostUrl(clusterId,recommendationId),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      recommendationExplanationRequest,)
+  }
+);}
+  
+
+
+
+export const getExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>, TError,{clusterId: string;recommendationId: string;data: RecommendationExplanationRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>, TError,{clusterId: string;recommendationId: string;data: RecommendationExplanationRequest}, TContext> => {
+
+const mutationKey = ['explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>, {clusterId: string;recommendationId: string;data: RecommendationExplanationRequest}> = (props) => {
+          const {clusterId,recommendationId,data} = props ?? {};
+
+          return  explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost(clusterId,recommendationId,data,requestOptions)
+        }
+
+
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationResult = NonNullable<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>>
+    export type ExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationBody = RecommendationExplanationRequest
+    export type ExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationError = void | HTTPValidationError
+
+    /**
+ * @summary [신규] Remediation Recommendation 설명 생성
+ */
+export const useExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>, TError,{clusterId: string;recommendationId: string;data: RecommendationExplanationRequest}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof explainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost>>,
+        TError,
+        {clusterId: string;recommendationId: string;data: RecommendationExplanationRequest},
+        TContext
+      > => {
+      return useMutation(getExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPostMutationOptions(options), queryClient);
+    }
+    

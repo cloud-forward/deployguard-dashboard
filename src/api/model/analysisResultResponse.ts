@@ -18,14 +18,16 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
 
  * OpenAPI spec version: 4.0.0
  */
+import type { AnalysisJobDetailResponse } from './analysisJobDetailResponse';
+import type { AnalysisResultLinksResponse } from './analysisResultLinksResponse';
+import type { AnalysisResultSummaryResponse } from './analysisResultSummaryResponse';
+import type { AttackPathListItemResponse } from './attackPathListItemResponse';
+import type { RemediationRecommendationListItemResponse } from './remediationRecommendationListItemResponse';
 
-export interface ScanStatusResponse {
-  scan_id: string;
-  cluster_id: string;
-  scanner_type: string;
-  /** created | processing | uploading | completed | failed */
-  status: string;
-  created_at: string;
-  completed_at?: string | null;
-  s3_keys?: string[];
+export interface AnalysisResultResponse {
+  job: AnalysisJobDetailResponse;
+  summary: AnalysisResultSummaryResponse;
+  attack_paths_preview?: AttackPathListItemResponse[];
+  remediation_preview?: RemediationRecommendationListItemResponse[];
+  links: AnalysisResultLinksResponse;
 }
