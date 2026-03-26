@@ -37,7 +37,7 @@ type SelectedScans = {
   aws_scan_id: string | null;
 };
 
-type AnalysisTab = 'analysis' | 'recommendations';
+type AnalysisTab = 'analysis' | 'results' | 'recommendations';
 
 const isScanSummaryItem = (value: unknown): value is ScanSummaryItemResponse =>
   Boolean(
@@ -409,95 +409,109 @@ const RiskPage: React.FC = () => {
 
       {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="risk" /> : null}
 
-      <ul className="nav nav-tabs mb-4">
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === 'analysis' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analysis')}
-          >
-            분석
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            type="button"
-            className={`nav-link ${activeTab === 'recommendations' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recommendations')}
-          >
-            권장 사항
-          </button>
-        </li>
-      </ul>
+      <div className="d-flex justify-content-between align-items-end gap-3 mb-4">
+        <ul className="nav nav-tabs mb-0">
+          <li className="nav-item">
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'analysis' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analysis')}
+            >
+              분석
+            </button>
+          </li>
+          <li className="nav-item">
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'results' ? 'active' : ''}`}
+              onClick={() => setActiveTab('results')}
+            >
+              결과
+            </button>
+          </li>
+          <li className="nav-item">
+            <button
+              type="button"
+              className={`nav-link ${activeTab === 'recommendations' ? 'active' : ''}`}
+              onClick={() => setActiveTab('recommendations')}
+            >
+              권장 사항
+            </button>
+          </li>
+        </ul>
+        {activeTab === 'analysis' && (
+          <div className="d-flex gap-2 flex-wrap align-items-end">
+            <div style={{ minWidth: '220px' }}>
+              <label htmlFor="cluster-select" className="form-label mb-1 d-block">
+                스캔 범위
+              </label>
+              <select
+                id="cluster-select"
+                className="form-select form-select-sm"
+                value={selectedClusterId}
+                onChange={(event) => setSelectedClusterId(event.target.value)}
+                disabled={isLoadingClusters || clusters.length === 0}
+              >
+                {clusters.length === 0 && <option value="">사용 가능한 클러스터 없음</option>}
+                {clusters.map((cluster) => (
+                  <option key={cluster.id} value={cluster.id}>
+                    {cluster.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              onClick={handleRefresh}
+              disabled={!selectedClusterId}
+            >
+              새로 고침
+            </button>
+          </div>
+        )}
+      </div>
 
       {activeTab === 'analysis' && (
         <div className="d-flex flex-column gap-4">
-          <div className="card shadow-sm border-0">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                <div>
-                  <h3 className="h5 mb-1">수동 분석</h3>
-                  <p className="text-muted mb-0">
-                    스캔 범위는 표시되는 후보만 필터링합니다. 선택한 스캔 ID는 범위 변경 시에도 전역적으로 유지됩니다.
-                  </p>
-                </div>
-                <div className="d-flex gap-2 flex-wrap align-items-end">
-                  <div style={{ minWidth: '280px' }}>
-                    <label htmlFor="cluster-select" className="form-label mb-1">
-                      스캔 범위
-                    </label>
-                    <select
-                      id="cluster-select"
-                      className="form-select"
-                      value={selectedClusterId}
-                      onChange={(event) => setSelectedClusterId(event.target.value)}
-                      disabled={isLoadingClusters || clusters.length === 0}
-                    >
-                      {clusters.length === 0 && <option value="">사용 가능한 클러스터 없음</option>}
-                      {clusters.map((cluster) => (
-                        <option key={cluster.id} value={cluster.id}>
-                          {cluster.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary"
-                    onClick={handleRefresh}
-                    disabled={!selectedClusterId}
-                  >
-                    새로 고침
-                  </button>
-                </div>
-              </div>
-
-              {selectedCluster && (
-                <div className="mt-3 small text-muted">
-                  <strong className="text-dark">{selectedCluster.name}</strong>의 스캔 후보 표시{' '}
-                  ({selectedCluster.cluster_type ?? '알 수 없음'} 클러스터). 범위를 변경해도 현재 선택은 초기화되지 않습니다.
-                </div>
-              )}
-
-              {feedback && (
-                <div className={`alert alert-${feedback.type} mt-3 mb-0`} role="alert">
-                  {feedback.message}
-                </div>
-              )}
+          {feedback && (
+            <div className={`alert alert-${feedback.type} mb-0`} role="alert">
+              {feedback.message}
             </div>
-          </div>
+          )}
 
-          <div className="row g-4">
-            <div className="col-12 col-xl-7">
-              <div className="card shadow-sm border-0 h-100">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                      <h4 className="h6 mb-1">스캔 후보</h4>
-                      <p className="text-muted small mb-0">
-                        완료된 구체적인 스캔 레코드를 선택하세요. 표시되는 후보는 범위별이지만 선택 상태는 전역입니다.
-                      </p>
-                    </div>
+          <div className="row g-3" style={{ alignItems: 'stretch' }}>
+            <div className="col-12 col-xl-7" style={{ display: 'flex' }}>
+              <div className="card shadow-sm border-0 w-100">
+                <div className="card-body py-3">
+                  <style>{`
+                    .dg-risk-candidate-scroll {
+                      overflow-y: auto;
+                      padding-right: 0.5rem;
+                    }
+                    .dg-risk-candidate-scroll.k8s,
+                    .dg-risk-candidate-scroll.image {
+                      max-height: 200px;
+                    }
+                    .dg-risk-candidate-scroll.aws {
+                      max-height: 280px;
+                    }
+                    .dg-risk-candidate-scroll::-webkit-scrollbar {
+                      width: 6px;
+                    }
+                    .dg-risk-candidate-scroll::-webkit-scrollbar-track {
+                      background: transparent;
+                    }
+                    .dg-risk-candidate-scroll::-webkit-scrollbar-thumb {
+                      background: rgba(148, 163, 184, 0.4);
+                      border-radius: 3px;
+                    }
+                    .dg-risk-candidate-scroll::-webkit-scrollbar-thumb:hover {
+                      background: rgba(148, 163, 184, 0.6);
+                    }
+                  `}</style>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h4 className="h6 mb-0">스캔 후보</h4>
                     <span className="badge bg-light text-dark border">
                       {selectedCount}개 선택됨
                     </span>
@@ -508,7 +522,7 @@ const RiskPage: React.FC = () => {
                   ) : visibleScannerGroups.length === 0 ? (
                     <div className="text-muted">이 클러스터에서 완료된 스캔 없음.</div>
                   ) : (
-                    <div className="d-flex flex-column gap-4">
+                    <div className="d-flex flex-column gap-3">
                       {visibleScannerGroups.map((group) => {
                         const field = `${group.scannerType}_scan_id` as keyof SelectedScans;
 
@@ -516,9 +530,11 @@ const RiskPage: React.FC = () => {
                           <div key={group.scannerType}>
                             <div className="d-flex justify-content-between align-items-center mb-2">
                               <h5 className="h6 mb-0">{getScannerTypeLabel(group.scannerType)}</h5>
-                              <span className="text-muted small">
-                                {group.items.length}개의 완료된 후보
-                              </span>
+                              {group.items.length > 1 && (
+                                <span className="text-muted small">
+                                  +{group.items.length - 1}
+                                </span>
+                              )}
                             </div>
 
                             {group.items.length === 0 ? (
@@ -526,10 +542,12 @@ const RiskPage: React.FC = () => {
                                 현재 클러스터 범위에서 완료된 {group.scannerType} 스캔 결과가 없습니다.
                               </div>
                             ) : (
-                              <div className="d-flex flex-column gap-2">
-                                {group.items.map((scan) =>
-                                  renderScanCandidate(scan, field, group.scannerType),
-                                )}
+                              <div className={`dg-risk-candidate-scroll ${group.scannerType}`}>
+                                <div className="d-flex flex-column gap-2">
+                                  {group.items.map((scan) =>
+                                    renderScanCandidate(scan, field, group.scannerType),
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -541,27 +559,24 @@ const RiskPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-12 col-xl-5">
-                <div className="card shadow-sm border-0 mb-4">
-                <div className="card-body">
-                  <h4 className="h6 mb-3">생성 및 실행</h4>
-                  <p className="text-muted small mb-3">
-                    이 요약은 현재 표시된 범위가 아닌 전역적으로 선택된 스캔 ID를 항상 반영합니다.
-                  </p>
-                  <div className="d-flex flex-column gap-2 small">
+            <div className="col-12 col-xl-5" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="card shadow-sm border-0 mb-3" style={{ flexShrink: 0 }}>
+                <div className="card-body py-3">
+                  <h4 className="h6 mb-2">생성 및 실행</h4>
+                  <div className="d-flex flex-column gap-2 small mb-3">
                     <div>
-                      <strong>k8s_scan_id:</strong> {selectedScans.k8s_scan_id ?? '-'}
+                      <strong>k8s:</strong> {selectedScans.k8s_scan_id ?? '-'}
                     </div>
                     <div>
-                      <strong>image_scan_id:</strong> {selectedScans.image_scan_id ?? '-'}
+                      <strong>image:</strong> {selectedScans.image_scan_id ?? '-'}
                     </div>
                     <div>
-                      <strong>aws_scan_id:</strong> {selectedScans.aws_scan_id ?? '-'}
+                      <strong>aws:</strong> {selectedScans.aws_scan_id ?? '-'}
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary mt-3 w-100"
+                    className="btn btn-primary btn-sm w-100"
                     onClick={handleCreateAndExecute}
                     disabled={
                       !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
@@ -572,15 +587,10 @@ const RiskPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="card shadow-sm border-0">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                      <h4 className="h6 mb-1">작업 상태</h4>
-                      <p className="text-muted small mb-0">
-                        실행 시작 후 저장된 분석 작업을 폴링합니다.
-                      </p>
-                    </div>
+              <div className="card shadow-sm border-0" style={{ flex: 1, minHeight: '220px', display: 'flex', flexDirection: 'column' }}>
+                <div className="card-body py-3 d-flex flex-column">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h4 className="h6 mb-0">작업 상태</h4>
                     {selectedActiveJob && (
                       <span className={`badge ${getStatusBadgeClass(selectedActiveJob.status)}`}>
                         {selectedActiveJob.status}
@@ -589,15 +599,15 @@ const RiskPage: React.FC = () => {
                   </div>
 
                   {!activeJobId && (
-                    <div className="text-muted">최근 작업을 선택하거나 새 작업을 생성하세요.</div>
+                    <div className="text-muted small">최근 작업을 선택하거나 새 작업을 생성하세요.</div>
                   )}
 
                   {activeJobId && !selectedActiveJob && (
-                    <div className="text-muted">작업 상태 불러오는 중…</div>
+                    <div className="text-muted small">작업 상태 불러오는 중…</div>
                   )}
 
                   {selectedActiveJob && (
-                    <div className="d-flex flex-column gap-2 small">
+                    <div className="d-flex flex-column gap-1 small">
                       <div>
                         <strong>작업 ID:</strong>{' '}
                         <span className="text-break">{selectedActiveJob.job_id}</span>
@@ -617,39 +627,42 @@ const RiskPage: React.FC = () => {
                       <div>
                         <strong>완료:</strong> {formatDateTime(selectedActiveJob.completed_at)}
                       </div>
-                      {isPollingJob && <div className="text-muted">상태 새로 고침 중…</div>}
+                      {isPollingJob && <div className="text-muted small">상태 새로 고침 중…</div>}
                     </div>
                   )}
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="card shadow-sm border-0">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <h4 className="h6 mb-1">최근 분석 작업</h4>
-                  <p className="text-muted small mb-0">
-                    현재 클러스터 범위의 최근 저장된 분석 작업.
-                  </p>
-                </div>
-              </div>
+      {activeTab === 'results' && (
+        <div className="card shadow-sm border-0">
+          <div className="card-body py-3">
+            <style>{`
+              .dg-risk-results-scroll {
+                max-height: 420px;
+                overflow-y: auto;
+              }
+            `}</style>
+            <h4 className="h6 mb-2">최근 분석 작업</h4>
 
-              {isLoadingJobs ? (
-                <div className="text-muted">분석 작업 불러오는 중…</div>
-              ) : jobItems.length === 0 ? (
-                <div className="text-muted">이 클러스터에서 분석 작업 없음.</div>
-              ) : (
+            {isLoadingJobs ? (
+              <div className="text-muted small">분석 작업 불러오는 중…</div>
+            ) : jobItems.length === 0 ? (
+              <div className="text-muted small">이 클러스터에서 분석 작업 없음.</div>
+            ) : (
+              <div className="dg-risk-results-scroll">
                 <div className="table-responsive">
-                  <table className="table align-middle mb-0">
+                  <table className="table align-middle mb-0 small">
                     <thead className="table-light">
                       <tr>
-                        <th>작업 ID</th>
-                        <th>상태</th>
-                        <th>현재 단계</th>
-                        <th>생성</th>
-                        <th>선택된 스캔</th>
+                        <th className="small">작업 ID</th>
+                        <th className="small">상태</th>
+                        <th className="small">현재 단계</th>
+                        <th className="small">생성</th>
+                        <th className="small">선택된 스캔</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -660,14 +673,14 @@ const RiskPage: React.FC = () => {
                           className={activeJobId === job.job_id ? 'table-active' : undefined}
                           onClick={() => setActiveJobId(job.job_id)}
                         >
-                          <td className="text-break">{job.job_id}</td>
-                          <td>
+                          <td className="text-break small">{job.job_id}</td>
+                          <td className="small">
                             <span className={`badge ${getStatusBadgeClass(job.status)}`}>
                               {job.status}
                             </span>
                           </td>
-                          <td>{job.current_step ?? '-'}</td>
-                          <td>{formatDateTime(job.created_at)}</td>
+                          <td className="small">{job.current_step ?? '-'}</td>
+                          <td className="small">{formatDateTime(job.created_at)}</td>
                           <td className="small text-muted">
                             {[
                               job.k8s_scan_id ? `k8s:${job.k8s_scan_id}` : null,
@@ -682,8 +695,8 @@ const RiskPage: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}

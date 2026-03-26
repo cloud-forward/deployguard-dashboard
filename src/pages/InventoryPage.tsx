@@ -47,6 +47,7 @@ type DetailAsset = {
 };
 
 const DEFAULT_SCANNERS = ['k8s', 'aws', 'image'];
+const FULL_ASSET_PAGE_SIZE = 1000;
 
 const formatDateTime = (value?: string | null, fallback = '-') =>
   value ? new Date(value).toLocaleString('ko-KR') : fallback;
@@ -232,11 +233,12 @@ const InventoryPage: React.FC = () => {
   const selectedCluster = clusters.find((cluster) => cluster.id === clusterId) ?? null;
 
   const assetParams = useMemo<GetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGetParams>(() => {
-    if (activeTab === 'k8s') return { domain: 'k8s' };
-    if (activeTab === 'aws') return { domain: 'aws' };
-    if (activeTab === 'entry-points') return { is_entry_point: true };
-    if (activeTab === 'crown-jewels') return { is_crown_jewel: true };
-    return {};
+    const base = { page: 1, page_size: FULL_ASSET_PAGE_SIZE };
+    if (activeTab === 'k8s') return { ...base, domain: 'k8s' };
+    if (activeTab === 'aws') return { ...base, domain: 'aws' };
+    if (activeTab === 'entry-points') return { ...base, is_entry_point: true };
+    if (activeTab === 'crown-jewels') return { ...base, is_crown_jewel: true };
+    return base;
   }, [activeTab]);
 
   const summaryQuery = useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet(clusterId, {
@@ -357,6 +359,7 @@ const InventoryPage: React.FC = () => {
         .dg-inventory-panel-body {
           flex: 1 1 auto;
           min-height: 0;
+          overflow: hidden;
         }
         .dg-inventory-asset-scroll {
           max-height: var(--dg-inventory-asset-height);
@@ -423,6 +426,10 @@ const InventoryPage: React.FC = () => {
           background: #e5e7eb;
           color: #334155;
           box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.32);
+        }
+        .dg-inventory-asset-scroll .table-responsive,
+        .dg-inventory-asset-scroll .table {
+          margin-bottom: 0;
         }
         .dg-inventory-spotlight-scroll {
           max-height: var(--dg-inventory-spotlight-height);
