@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearStoredAuthSession, getAccessToken } from '../auth/session';
 
 const BASE_URL = import.meta.env.DEV
   ? ''
@@ -16,14 +17,30 @@ export const apiClient = async <T>(
       : Array.isArray(headers)
         ? Object.fromEntries(headers)
         : headers;
+  const accessToken = getAccessToken();
+  const requestHeaders = {
+    ...(normalizedHeaders ?? {}),
+  };
 
-  const response = await axios({
-    url,
-    baseURL: BASE_URL,
-    method,
-    headers: normalizedHeaders,
-    data: body,
-  });
+  if (accessToken && !requestHeaders.Authorization) {
+    requestHeaders.Authorization = `Bearer ${accessToken}`;
+  }
 
-  return response.data as T;
+  try {
+    const response = await axios({
+      url,
+      baseURL: BASE_URL,
+      method,
+      headers: requestHeaders,
+      data: body,
+    });
+
+    return response.data as T;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      clearStoredAuthSession();
+    }
+
+    throw error;
+  }
 };

@@ -138,8 +138,9 @@ export const useSyncClusterApiV1ClustersClusterIdSyncPost = <TError = void | HTT
       return useMutation(getSyncClusterApiV1ClustersClusterIdSyncPostMutationOptions(options), queryClient);
     }
     /**
- * 지정한 클러스터의 최신 Discovery Inventory 스냅샷을 읽어 자산 목록을 반환합니다.
- * @summary 클러스터 Discovery Inventory 조회
+ * 레거시 Discovery Inventory 스냅샷 기반 자산 목록 조회 API입니다. 새 구현은 /api/v1/clusters/{cluster_id}/inventory/assets 를 사용하세요.
+ * @deprecated
+ * @summary 레거시 클러스터 Discovery Inventory 조회
  */
 export type getClusterAssetsApiV1ClustersClusterIdAssetsGetResponse200 = AssetInventoryListResponse
 
@@ -227,7 +228,8 @@ export function useGetClusterAssetsApiV1ClustersClusterIdAssetsGet<TData = Await
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary 클러스터 Discovery Inventory 조회
+ * @deprecated
+ * @summary 레거시 클러스터 Discovery Inventory 조회
  */
 
 export function useGetClusterAssetsApiV1ClustersClusterIdAssetsGet<TData = Awaited<ReturnType<typeof getClusterAssetsApiV1ClustersClusterIdAssetsGet>>, TError = void | HTTPValidationError>(
@@ -355,7 +357,7 @@ export function useGetAssetDetailApiV1AssetsAssetIdGet<TData = Awaited<ReturnTyp
 
 /**
  * Summary Bar용. 전체 자산 수, K8s/AWS 타입별 집계, 스캐너 커버리지, 위험 요약을 반환합니다.
- * @summary [신규] Inventory Summary 조회
+ * @summary Inventory Summary 조회
  */
 export type getInventorySummaryApiV1ClustersClusterIdInventorySummaryGetResponse200 = InvSummaryResponse
 
@@ -441,7 +443,7 @@ export function useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet<
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Inventory Summary 조회
+ * @summary Inventory Summary 조회
  */
 
 export function useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet<TData = Awaited<ReturnType<typeof getInventorySummaryApiV1ClustersClusterIdInventorySummaryGet>>, TError = HTTPValidationError>(
@@ -461,7 +463,7 @@ export function useGetInventorySummaryApiV1ClustersClusterIdInventorySummaryGet<
 
 /**
  * Asset Grid용. 필터/페이지네이션을 지원하는 자산 목록을 반환합니다.
- * @summary [신규] Inventory 자산 목록 조회
+ * @summary Inventory 자산 목록 조회
  */
 export type getInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGetResponse200 = InvAssetListResponse
 
@@ -561,7 +563,7 @@ export function useGetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet<TD
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Inventory 자산 목록 조회
+ * @summary Inventory 자산 목록 조회
  */
 
 export function useGetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet<TData = Awaited<ReturnType<typeof getInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet>>, TError = HTTPValidationError>(
@@ -582,7 +584,7 @@ export function useGetInventoryAssetsApiV1ClustersClusterIdInventoryAssetsGet<TD
 
 /**
  * Risk Spotlight 패널용. Entry Point / Crown Jewel 목록을 반환합니다.
- * @summary [신규] Risk Spotlight 조회
+ * @summary Risk Spotlight 조회
  */
 export type getInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGetResponse200 = InvRiskSpotlightResponse
 
@@ -668,7 +670,7 @@ export function useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskS
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Risk Spotlight 조회
+ * @summary Risk Spotlight 조회
  */
 
 export function useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet<TData = Awaited<ReturnType<typeof getInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskSpotlightGet>>, TError = HTTPValidationError>(
@@ -688,7 +690,7 @@ export function useGetInventoryRiskSpotlightApiV1ClustersClusterIdInventoryRiskS
 
 /**
  * Scanner Status Bar용. 스캐너별 최신 스캔 상태 및 커버리지를 반환합니다.
- * @summary [신규] Scanner Status 조회
+ * @summary Scanner Status 조회
  */
 export type getInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGetResponse200 = InvScannerStatusResponse
 
@@ -774,7 +776,7 @@ export function useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScann
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary [신규] Scanner Status 조회
+ * @summary Scanner Status 조회
  */
 
 export function useGetInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet<TData = Awaited<ReturnType<typeof getInventoryScannerStatusApiV1ClustersClusterIdInventoryScannerStatusGet>>, TError = HTTPValidationError>(
