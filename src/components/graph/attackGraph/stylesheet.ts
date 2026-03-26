@@ -77,6 +77,21 @@ export const attackGraphStylesheet: any[] = [
   ...nodeTypeSelectors,
   ...severitySelectors,
   {
+    selector: 'node[isEntryPoint = true], node[isEntryPoint = "true"]',
+    style: {
+      'underlay-color': '#0dcaf0',
+      'underlay-opacity': 0.18,
+      'underlay-padding': 8,
+    },
+  },
+  {
+    selector: 'node[isCrownJewel = true], node[isCrownJewel = "true"]',
+    style: {
+      'border-color': '#f59f00',
+      'border-width': 5,
+    },
+  },
+  {
     // Runtime evidence is expressed as a glow so it does not override base fill or border.
     selector: 'node[hasRuntimeEvidence = true], node[hasRuntimeEvidence = "true"]',
     style: {

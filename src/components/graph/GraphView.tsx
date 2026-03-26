@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CytoscapeComponent from 'react-cytoscapejs';
 import type { ElementDefinition } from 'cytoscape';
 import type { NodeData } from './mockGraphData';
@@ -10,6 +10,8 @@ interface EdgeData {
   target: string;
   label?: string;
   relation?: string;
+  sourceLabel?: string;
+  targetLabel?: string;
 }
 
 interface GraphViewProps {
@@ -76,6 +78,29 @@ const GraphView: React.FC<GraphViewProps> = ({
   const pathNodeIds = normalizeSelectionSet(selectedPathNodeIds);
   const pathEdgeIds = normalizeSelectionSet(selectedPathEdgeIds);
   const cyRef = useRef<cytoscape.Core | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [hoveredEdge, setHoveredEdge] = useState<{
+    edge: EdgeData;
+    position: { x: number; y: number };
+  } | null>(null);
+  const nodeLookup = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }>();
+
+    for (const element of elements) {
+      const data = element.data as Record<string, unknown>;
+      if (typeof data.source === 'string') {
+        continue;
+      }
+
+      const id = String(data.id ?? '');
+      map.set(id, {
+        id,
+        label: String(data.label ?? id),
+      });
+    }
+
+    return map;
+  }, [elements]);
 
   const updateSelectionState = useCallback(
     (
@@ -162,19 +187,59 @@ const GraphView: React.FC<GraphViewProps> = ({
 
       cy.on('tap', 'edge', (evt) => {
         const raw = evt.target.data() as Record<string, unknown>;
+        const sourceId = String(raw.source ?? '');
+        const targetId = String(raw.target ?? '');
         onEdgeClick({
           id: String(raw.id ?? ''),
-          source: String(raw.source ?? ''),
-          target: String(raw.target ?? ''),
+          source: sourceId,
+          target: targetId,
           relation: typeof raw.relation === 'string' ? raw.relation : undefined,
           label: typeof raw.label === 'string' ? raw.label : undefined,
+          sourceLabel: nodeLookup.get(sourceId)?.label ?? sourceId,
+          targetLabel: nodeLookup.get(targetId)?.label ?? targetId,
         });
+      });
+
+      const updateHoveredEdge = (evt: cytoscape.EventObject) => {
+        const raw = evt.target.data() as Record<string, unknown>;
+        const sourceId = String(raw.source ?? '');
+        const targetId = String(raw.target ?? '');
+        const container = containerRef.current;
+        const renderedPosition = evt.renderedPosition ?? evt.target.renderedMidpoint();
+        const width = container?.clientWidth ?? 0;
+        const height = container?.clientHeight ?? 0;
+        const x = Math.max(12, Math.min(renderedPosition.x + 14, Math.max(12, width - 260)));
+        const y = Math.max(12, Math.min(renderedPosition.y + 14, Math.max(12, height - 120)));
+
+        setHoveredEdge({
+          edge: {
+            id: String(raw.id ?? ''),
+            source: sourceId,
+            target: targetId,
+            relation: typeof raw.relation === 'string' ? raw.relation : undefined,
+            label: typeof raw.label === 'string' ? raw.label : undefined,
+            sourceLabel: nodeLookup.get(sourceId)?.label ?? sourceId,
+            targetLabel: nodeLookup.get(targetId)?.label ?? targetId,
+          },
+          position: { x, y },
+        });
+      };
+
+      cy.on('mouseover', 'edge', updateHoveredEdge);
+      cy.on('mousemove', 'edge', updateHoveredEdge);
+      cy.on('mouseout', 'edge', () => {
+        setHoveredEdge(null);
+      });
+      cy.on('tap', (evt) => {
+        if (evt.target === cy) {
+          setHoveredEdge(null);
+        }
       });
 
       // keep classes in sync for first paint
       updateSelectionState(cy, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId);
     },
-    [onNodeClick, onEdgeClick, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId],
+    [nodeLookup, onNodeClick, onEdgeClick, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId, updateSelectionState],
   );
 
   useEffect(() => {
@@ -183,6 +248,10 @@ const GraphView: React.FC<GraphViewProps> = ({
 
     updateSelectionState(cy, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId);
   }, [updateSelectionState, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId]);
+
+  useEffect(() => {
+    setHoveredEdge(null);
+  }, [elements, selectedNodeId, selectedEdgeId, selectedPathNodeIds, selectedPathEdgeIds]);
 
   const graphLayout = useMemo<
     cytoscape.BreadthFirstLayoutOptions & {
@@ -202,13 +271,40 @@ const GraphView: React.FC<GraphViewProps> = ({
   );
 
   return (
-    <CytoscapeComponent
-      elements={elements}
-      stylesheet={graphStylesheet}
-      layout={graphLayout}
-      style={{ width: '100%', height: '100%' }}
-      cy={handleCy}
-    />
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <CytoscapeComponent
+        elements={elements}
+        stylesheet={graphStylesheet}
+        layout={graphLayout}
+        style={{ width: '100%', height: '100%' }}
+        cy={handleCy}
+      />
+      {hoveredEdge ? (
+        <div
+          className="card shadow-sm"
+          style={{
+            position: 'absolute',
+            left: hoveredEdge.position.x,
+            top: hoveredEdge.position.y,
+            width: 240,
+            zIndex: 20,
+            pointerEvents: 'none',
+          }}
+        >
+          <div className="card-body p-2 small">
+            <div className="fw-semibold mb-1">{hoveredEdge.edge.relation ?? hoveredEdge.edge.label ?? hoveredEdge.edge.id}</div>
+            <div className="text-muted">Source</div>
+            <div className="text-break mb-1">
+              {hoveredEdge.edge.sourceLabel ?? hoveredEdge.edge.source} ({hoveredEdge.edge.source})
+            </div>
+            <div className="text-muted">Target</div>
+            <div className="text-break">
+              {hoveredEdge.edge.targetLabel ?? hoveredEdge.edge.target} ({hoveredEdge.edge.target})
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 };
 

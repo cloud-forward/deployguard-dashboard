@@ -52,17 +52,19 @@ const ResourceIcon: Record<AttackGraphResourceType, string> = {
   Unknown: '❔',
 };
 
-const relationLabel: Record<AttackGraphEdgeRelation, string> = {
-  uses: 'uses',
-  bound_to: 'bound_to',
-  grants: 'grants',
-  escapes_to: 'escapes_to',
-  assumes: 'assumes',
-  accesses: 'accesses',
-  allows: 'allows',
-  runs: 'runs',
-  unknown: 'unknown',
-};
+const PRIORITY_EDGE_TYPES = [
+  'service_targets_pod',
+  'pod_uses_service_account',
+  'service_account_assumes_iam_role',
+  'secret_contains_credentials',
+  'iam_role_access_resource',
+] as const;
+const PRIORITY_EDGE_TYPE_SET = new Set<string>(PRIORITY_EDGE_TYPES);
+
+const formatRelationLabel = (relation: string) =>
+  relation
+    .replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 
 interface GraphFiltersProps {
   filters: AttackGraphFilters;
@@ -122,6 +124,11 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
     });
   };
 
+  const edgeRelationOptions = [
+    ...PRIORITY_EDGE_TYPES.filter((relation) => availableEdgeRelations.includes(relation)),
+    ...availableEdgeRelations.filter((relation) => !PRIORITY_EDGE_TYPE_SET.has(relation)),
+  ];
+
   const groupDividerStyle: React.CSSProperties = {
     paddingRight: '0.9rem',
     marginRight: '0.9rem',
@@ -176,7 +183,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
 
       <div className="d-flex align-items-center gap-1" style={groupDividerStyle}>
         <span className="text-muted fw-semibold">Edge:</span>
-        {availableEdgeRelations.map((relation) => (
+        {edgeRelationOptions.map((relation) => (
           <button
             key={relation}
             type="button"
@@ -186,7 +193,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
             }`}
             aria-pressed={filters.relationTypes?.includes(relation) ?? false}
           >
-            {relationLabel[relation]}
+            {formatRelationLabel(relation)}
           </button>
         ))}
       </div>

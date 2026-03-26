@@ -20,16 +20,7 @@ export type AttackGraphResourceType =
 
 export type AttackGraphRiskSeverity = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
 
-export type AttackGraphEdgeRelation =
-  | 'uses'
-  | 'bound_to'
-  | 'grants'
-  | 'escapes_to'
-  | 'assumes'
-  | 'accesses'
-  | 'allows'
-  | 'runs'
-  | 'unknown';
+export type AttackGraphEdgeRelation = string;
 
 export interface AttackGraphNodeMarkerFlags {
   isEntryPoint: boolean;

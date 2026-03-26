@@ -41,6 +41,8 @@ interface EdgeData {
   label?: string;
   relation?: string;
   reason?: string;
+  sourceLabel?: string;
+  targetLabel?: string;
 }
 
 const mapLegacyTypeToAttackGraphType = (nodeType: string): string => {
@@ -159,18 +161,6 @@ const mapAttackGraphNodeToPanelNode = (node: AttackGraphApiNode): NodeData => {
   };
 };
 
-const mapAttackGraphEdgeToPanelEdge = (edge: AttackGraphApiEdge): EdgeData => ({
-  id: edge.id,
-  source: edge.source,
-  target: edge.target,
-  relation: edge.relation ? String(edge.relation) : undefined,
-  label: edge.label ? String(edge.label) : undefined,
-  reason:
-    edge.metadata && typeof edge.metadata.reason === 'string' && edge.metadata.reason.trim()
-      ? edge.metadata.reason
-      : undefined,
-});
-
 interface AttackGraphContentProps {
   payload: AttackGraphApiResponse;
   filters: AttackGraphFilters;
@@ -233,6 +223,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const attackPaths = useMemo<AttackGraphPath[]>(() => filteredGraph.paths, [filteredGraph.paths]);
   const filteredElements = useMemo(() => toAttackGraphElements(filteredGraph), [filteredGraph]);
   const hasRenderableGraph = filteredGraph.nodes.length > 0 || filteredGraph.edges.length > 0;
+  const hasAttackPaths = attackPaths.length > 0;
   const visibleNodeIds = useMemo(() => new Set(filteredGraph.nodes.map((node) => node.id)), [filteredGraph.nodes]);
   const visibleEdgeIds = useMemo(() => new Set(filteredGraph.edges.map((edge) => edge.id)), [filteredGraph.edges]);
   const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
@@ -273,13 +264,41 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     }
     return map;
   }, [payload.nodes]);
+  const selectedNodeLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of payload.nodes ?? []) {
+      map.set(node.id, node.label ?? node.id);
+    }
+    return map;
+  }, [payload.nodes]);
   const selectedEdgeLookup = useMemo(() => {
     const map = new Map<string, EdgeData>();
     for (const edge of payload.edges ?? []) {
-      map.set(edge.id, mapAttackGraphEdgeToPanelEdge(edge));
+      map.set(edge.id, {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        relation: edge.relation ? String(edge.relation) : undefined,
+        label: edge.label ? String(edge.label) : undefined,
+        reason:
+          edge.metadata && typeof edge.metadata.reason === 'string' && edge.metadata.reason.trim()
+            ? edge.metadata.reason
+            : undefined,
+        sourceLabel: selectedNodeLabelLookup.get(edge.source) ?? edge.source,
+        targetLabel: selectedNodeLabelLookup.get(edge.target) ?? edge.target,
+      });
     }
     return map;
-  }, [payload.edges]);
+  }, [payload.edges, selectedNodeLabelLookup]);
+
+  useEffect(() => {
+    if (!hasAttackPaths) {
+      setSelectedPathId(null);
+      if (selectedMode === 'path') {
+        setSelectedMode('none');
+      }
+    }
+  }, [hasAttackPaths, selectedMode]);
 
   useEffect(() => {
     if (selectedNodeId) {
@@ -344,27 +363,31 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
               className="d-flex align-items-center gap-1 overflow-auto flex-nowrap"
               style={{ maxHeight: 28, whiteSpace: 'nowrap', width: '100%' }}
             >
-              {attackPaths.map((path) => (
-                <button
-                  key={path.id}
-                  type="button"
-                  className={`btn btn-sm py-0 px-2 ${
-                    selectedPathId === path.id ? 'btn-dark text-white' : 'btn-outline-secondary'
-                  }`}
-                  onClick={() => {
-                    const next = path.id === selectedPathId ? null : path.id;
-                    setSelectedPathId(next);
-                    setSelectedMode(next ? 'path' : 'none');
-                    setSelectedNodeId(null);
-                    setSelectedEdgeId(null);
-                    setSelectedNode(null);
-                    setSelectedEdge(null);
-                  }}
-                >
-                  {path.label || `경로 ${path.id}`}
-                </button>
-              ))}
-              {attackPaths.length === 0 ? <span className="text-muted">사용 가능한 경로 없음.</span> : null}
+              {hasAttackPaths
+                ? attackPaths.map((path) => (
+                    <button
+                      key={path.id}
+                      type="button"
+                      className={`btn btn-sm py-0 px-2 ${
+                        selectedPathId === path.id ? 'btn-dark text-white' : 'btn-outline-secondary'
+                      }`}
+                      onClick={() => {
+                        const next = path.id === selectedPathId ? null : path.id;
+                        setSelectedPathId(next);
+                        setSelectedMode(next ? 'path' : 'none');
+                        setSelectedNodeId(null);
+                        setSelectedEdgeId(null);
+                        setSelectedNode(null);
+                        setSelectedEdge(null);
+                      }}
+                    >
+                      {path.label || `경로 ${path.id}`}
+                    </button>
+                  ))
+                : null}
+              {!hasAttackPaths && hasRenderableGraph ? (
+                <span className="text-muted">No attack paths found. Showing full graph instead.</span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -464,11 +487,11 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
                   </tr>
                   <tr>
                     <td className="text-muted fw-semibold">출발지</td>
-                    <td>{selectedEdge?.source}</td>
+                    <td>{selectedEdge ? `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})` : '-'}</td>
                   </tr>
                   <tr>
                     <td className="text-muted fw-semibold">도착지</td>
-                    <td>{selectedEdge?.target}</td>
+                    <td>{selectedEdge ? `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})` : '-'}</td>
                   </tr>
                   <tr>
                     <td className="text-muted fw-semibold">레이블</td>
