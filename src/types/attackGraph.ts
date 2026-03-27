@@ -136,6 +136,5 @@ export interface AttackGraphFilters {
   nodeTypes?: AttackGraphResourceType[];
   relationTypes?: AttackGraphEdgeRelation[];
   severities?: AttackGraphRiskSeverity[];
-  runtimeEvidenceOnly?: boolean;
   search?: string;
 }

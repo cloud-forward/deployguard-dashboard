@@ -117,13 +117,6 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
     });
   };
 
-  const toggleRuntimeOnly = (checked: boolean) => {
-    onFiltersChange({
-      ...filters,
-      runtimeEvidenceOnly: checked,
-    });
-  };
-
   const edgeRelationOptions = [
     ...PRIORITY_EDGE_TYPES.filter((relation) => availableEdgeRelations.includes(relation)),
     ...availableEdgeRelations.filter((relation) => !PRIORITY_EDGE_TYPE_SET.has(relation)),
@@ -136,84 +129,75 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
   };
 
   return (
-    <div className="d-flex align-items-center gap-3 small flex-wrap">
-      <div className="d-flex align-items-center gap-1" style={groupDividerStyle}>
-        <span className="text-muted fw-semibold">Resource:</span>
-        {availableResourceTypes.map((type) => {
-          const active = filters.nodeTypes?.includes(type) ?? false;
-          return (
+    <div className="d-flex align-items-start justify-content-between gap-3 small flex-wrap">
+      <div className="d-flex align-items-center gap-3 flex-wrap flex-grow-1">
+        <div className="d-flex align-items-center gap-1 flex-wrap" style={groupDividerStyle}>
+          <span className="text-muted fw-semibold">Resource:</span>
+          {availableResourceTypes.map((type) => {
+            const active = filters.nodeTypes?.includes(type) ?? false;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => toggle(type, filters.nodeTypes ?? [], updateNodeTypes)}
+                className={`btn btn-sm py-0 px-2 ${active ? 'btn-primary' : 'btn-outline-primary'}`}
+                aria-pressed={active}
+              >
+                <span className="me-1" aria-hidden="true">
+                  {ResourceIcon[type] ?? '◉'}
+                </span>
+                {ResourceLabel[type]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="d-flex align-items-center gap-1 flex-wrap" style={groupDividerStyle}>
+          <span className="text-muted fw-semibold">Risk:</span>
+          {availableSeverities.map((severity) => {
+            const active = filters.severities?.includes(severity) ?? false;
+            const color = SeverityColor[severity];
+            return (
+              <button
+                key={severity}
+                type="button"
+                onClick={() => toggle(severity, filters.severities ?? [], updateSeverities)}
+                className="btn btn-sm py-0 px-2"
+                style={{
+                  backgroundColor: active ? color : 'transparent',
+                  color: active ? '#fff' : color,
+                  border: `1px solid ${color}`,
+                }}
+              >
+                {severity}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="d-flex align-items-center gap-1 flex-wrap" style={groupDividerStyle}>
+          <span className="text-muted fw-semibold">Edge:</span>
+          {edgeRelationOptions.map((relation) => (
             <button
-              key={type}
+              key={relation}
               type="button"
-              onClick={() => toggle(type, filters.nodeTypes ?? [], updateNodeTypes)}
-              className={`btn btn-sm py-0 px-2 ${active ? 'btn-primary' : 'btn-outline-primary'}`}
-              aria-pressed={active}
+              onClick={() => toggle(relation, filters.relationTypes ?? [], updateRelations)}
+              className={`btn btn-sm py-0 px-2 ${
+                filters.relationTypes?.includes(relation) ? 'btn-secondary' : 'btn-outline-secondary'
+              }`}
+              aria-pressed={filters.relationTypes?.includes(relation) ?? false}
             >
-              <span className="me-1" aria-hidden="true">
-                {ResourceIcon[type] ?? '◉'}
-              </span>
-              {ResourceLabel[type]}
+              {formatRelationLabel(relation)}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      <div className="d-flex align-items-center gap-1" style={groupDividerStyle}>
-        <span className="text-muted fw-semibold">Risk:</span>
-        {availableSeverities.map((severity) => {
-          const active = filters.severities?.includes(severity) ?? false;
-          const color = SeverityColor[severity];
-          return (
-            <button
-              key={severity}
-              type="button"
-              onClick={() => toggle(severity, filters.severities ?? [], updateSeverities)}
-              className="btn btn-sm py-0 px-2"
-              style={{
-                backgroundColor: active ? color : 'transparent',
-                color: active ? '#fff' : color,
-                border: `1px solid ${color}`,
-              }}
-            >
-              {severity}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="d-flex align-items-center gap-1" style={groupDividerStyle}>
-        <span className="text-muted fw-semibold">Edge:</span>
-        {edgeRelationOptions.map((relation) => (
-          <button
-            key={relation}
-            type="button"
-            onClick={() => toggle(relation, filters.relationTypes ?? [], updateRelations)}
-            className={`btn btn-sm py-0 px-2 ${
-              filters.relationTypes?.includes(relation) ? 'btn-secondary' : 'btn-outline-secondary'
-            }`}
-            aria-pressed={filters.relationTypes?.includes(relation) ?? false}
-          >
-            {formatRelationLabel(relation)}
-          </button>
-        ))}
-      </div>
-
-      <div className="d-flex align-items-center gap-2" style={groupDividerStyle}>
-        <label className="form-check d-flex align-items-center gap-1 text-muted mb-0">
-          <input
-            type="checkbox"
-            className="form-check-input m-0"
-            checked={filters.runtimeEvidenceOnly ?? false}
-            onChange={(evt) => toggleRuntimeOnly(evt.target.checked)}
-          />
-          <span className="small">Runtime evidence only</span>
-        </label>
-      </div>
-      <div className="d-flex align-items-center gap-2">
+      <div className="d-flex align-items-center justify-content-end gap-2 ms-auto">
         <input
           type="search"
           className="form-control form-control-sm py-0"
-          style={{ maxWidth: 220, minWidth: 180 }}
+          style={{ width: 240, maxWidth: '100%', minWidth: 180 }}
           value={filters.search ?? ''}
           placeholder="Search nodes, edges, paths"
           onChange={(evt) => updateSearch(evt.target.value)}

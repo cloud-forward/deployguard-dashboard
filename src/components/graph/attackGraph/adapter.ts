@@ -238,8 +238,7 @@ export const filterAttackGraphElements = (
   const includeNode = (node: AttackGraphNode): boolean => {
     const passesType = nodeTypeFilter.size === 0 || nodeTypeFilter.has(node.resourceType);
     const passesRisk = severityFilter.size === 0 || severityFilter.has(node.severity);
-    const passesEvidence = !filters.runtimeEvidenceOnly || node.runtime.hasEvidence;
-    if (!passesType || !passesRisk || !passesEvidence) return false;
+    if (!passesType || !passesRisk) return false;
     if (searchTokens.length === 0) return true;
 
     const searchable = `${node.id} ${node.label}`.toLowerCase();
@@ -248,7 +247,6 @@ export const filterAttackGraphElements = (
 
   const filteredNodes = graph.nodes.filter(includeNode);
   const visibleNodeIds = new Set(filteredNodes.map((node) => node.id));
-  const evidenceNodeIds = new Set(filteredNodes.filter((node) => node.runtime.hasEvidence).map((node) => node.id));
 
   const includeEdge = (edge: AttackGraphEdge): boolean => {
     if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) return false;
@@ -268,11 +266,6 @@ export const filterAttackGraphElements = (
       if (!path.edgeIds.every((id) => visibleEdgeIds.has(id))) return false;
 
       if (severityFilter.size > 0 && path.severity && !severityFilter.has(path.severity)) return false;
-
-      if (filters.runtimeEvidenceOnly) {
-        const hasEvidenceInPath = path.nodeIds.some((id) => evidenceNodeIds.has(id));
-        if (!hasEvidenceInPath) return false;
-      }
 
       if (searchTokens.length === 0) return true;
       const searchable = `${path.id} ${path.label ?? ''}`.toLowerCase();
