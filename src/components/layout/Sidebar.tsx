@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import { useListClustersApiV1ClustersGet } from '../../api/generated/clusters/clusters';
+import LlmSettingsModal from './LlmSettingsModal';
 
 const Sidebar: React.FC = () => {
   const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
@@ -17,6 +19,7 @@ const Sidebar: React.FC = () => {
     : firstClusterId
       ? `/clusters/${firstClusterId}/inventory`
       : '/clusters';
+  const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
 
   const navItems = [
     { badge: 'OV', label: '개요',            path: '/dashboard',    exact: true },
@@ -58,6 +61,9 @@ const Sidebar: React.FC = () => {
         }
         .dg-sidebar-shell {
           padding: 0.75rem 0;
+          min-height: calc(100vh - 54px);
+          display: flex;
+          flex-direction: column;
         }
         .dg-sidebar-list {
           list-style: none;
@@ -66,6 +72,9 @@ const Sidebar: React.FC = () => {
           display: flex;
           flex-direction: column;
           gap: 1px;
+        }
+        .dg-sidebar-list--main {
+          flex: 1;
         }
         .dg-sidebar-link {
           display: flex;
@@ -133,9 +142,15 @@ const Sidebar: React.FC = () => {
           margin: 0.5rem 0.9rem;
           opacity: 0.6;
         }
+        .dg-sidebar-action {
+          width: 100%;
+          background: transparent;
+          border: 0;
+          text-align: left;
+        }
       `}</style>
       <div className="dg-sidebar-shell">
-        <ul className="dg-sidebar-list">
+        <ul className="dg-sidebar-list dg-sidebar-list--main">
           {navItems.map((item) => (
             <li key={item.badge}>
               <NavLink
@@ -153,7 +168,23 @@ const Sidebar: React.FC = () => {
             </li>
           ))}
         </ul>
+        <div className="dg-sidebar-divider" />
+        <ul className="dg-sidebar-list">
+          <li>
+            <button
+              type="button"
+              className="dg-sidebar-link dg-sidebar-action"
+              onClick={() => setIsLlmSettingsOpen(true)}
+            >
+              <span className="dg-sidebar-badge" aria-hidden="true">
+                <Settings size={15} />
+              </span>
+              <span className="dg-sidebar-label">LLM 설정</span>
+            </button>
+          </li>
+        </ul>
       </div>
+      <LlmSettingsModal isOpen={isLlmSettingsOpen} onClose={() => setIsLlmSettingsOpen(false)} />
     </nav>
   );
 };
