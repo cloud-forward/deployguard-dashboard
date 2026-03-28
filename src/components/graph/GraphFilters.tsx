@@ -7,6 +7,7 @@ const SeverityColor: Record<string, string> = {
   high: '#f97316',
   medium: '#eab308',
   low: '#16a34a',
+  none: '#64748b',
   unknown: '#6c757d',
 };
 

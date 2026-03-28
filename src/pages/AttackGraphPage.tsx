@@ -25,6 +25,7 @@ import {
   type AttackGraphApiResponse,
   type AttackGraphEdgeRelation,
   type AttackGraphFilters,
+  type AttackGraphNode,
   type AttackGraphPath,
   type AttackGraphResourceType,
   type AttackGraphRiskSeverity,
@@ -106,7 +107,7 @@ const buildAttackGraphApiPayload = (elements: ElementDefinition[]): AttackGraphA
   };
 };
 
-const toAttackGraphPayload = buildAttackGraphApiPayload(mockElements);
+const MOCK_ATTACK_GRAPH_PAYLOAD = buildAttackGraphApiPayload(mockElements);
 
 const sortAndNormalize = <T,>(values: T[]): T[] =>
   [...values]
@@ -135,11 +136,31 @@ const toDisplayLabel = (key: string) =>
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-const isAttackGraphApiResponse = (value: unknown): value is AttackGraphApiResponse =>
-  Boolean(value && typeof value === 'object' && 'nodes' in value && 'edges' in value);
+const coerceAttackGraphApiResponse = (value: unknown): AttackGraphApiResponse => {
+  if (!value || typeof value !== 'object') {
+    return EMPTY_ATTACK_GRAPH;
+  }
 
-const mapAttackGraphNodeToPanelNode = (node: AttackGraphApiNode): NodeData => {
-  const normalizedType = mapLegacyTypeToAttackGraphType(node.resource_type ?? 'Unknown');
+  const record = value as Record<string, unknown>;
+
+  return {
+    cluster_id: typeof record.cluster_id === 'string' ? record.cluster_id : undefined,
+    analysis_run_id: typeof record.analysis_run_id === 'string' ? record.analysis_run_id : null,
+    generated_at: typeof record.generated_at === 'string' ? record.generated_at : null,
+    summary: typeof record.summary === 'string' ? record.summary : null,
+    evidence_count: typeof record.evidence_count === 'number' ? record.evidence_count : null,
+    metadata:
+      typeof record.metadata === 'object' && record.metadata !== null
+        ? (record.metadata as AttackGraphApiResponse['metadata'])
+        : undefined,
+    nodes: Array.isArray(record.nodes) ? (record.nodes as AttackGraphApiResponse['nodes']) : [],
+    edges: Array.isArray(record.edges) ? (record.edges as AttackGraphApiResponse['edges']) : [],
+    paths: Array.isArray(record.paths) ? (record.paths as AttackGraphApiResponse['paths']) : [],
+  };
+};
+
+const mapAttackGraphNodeToPanelNode = (node: AttackGraphNode): NodeData => {
+  const normalizedType = mapLegacyTypeToAttackGraphType(node.resourceType ?? 'Unknown');
   let panelType: NodeType = 'Pod';
 
   if (normalizedType === 'ServiceAccount') panelType = 'ServiceAccount';
@@ -148,15 +169,11 @@ const mapAttackGraphNodeToPanelNode = (node: AttackGraphApiNode): NodeData => {
 
   return {
     id: node.id,
-    label: node.label ?? node.id,
+    label: node.label,
     type: panelType,
     namespace: node.namespace ?? undefined,
-    details: Object.entries({
-      ...(node.details ?? {}),
-      ...(node.metadata ?? {}),
-      ...(typeof node.evidence_count === 'number' ? { evidence_count: node.evidence_count } : {}),
-    }).reduce<Record<string, string>>((acc, [key, value]) => {
-      acc[toDisplayLabel(key)] = value == null ? '' : String(value);
+    details: Object.entries(node.details ?? {}).reduce<Record<string, string>>((acc, [key, value]) => {
+      acc[toDisplayLabel(key)] = value ?? '';
       return acc;
     }, {}),
     blastRadius: {
@@ -664,37 +681,39 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const selectedPathEdgeIds = selectedMode === 'path' && selectedPath ? selectedPath.edgeIds : [];
   const selectedNodeLookup = useMemo(() => {
     const map = new Map<string, NodeData>();
-    for (const node of payload.nodes ?? []) {
+    for (const node of attackGraph.nodes) {
       map.set(node.id, mapAttackGraphNodeToPanelNode(node));
     }
     return map;
-  }, [payload.nodes]);
+  }, [attackGraph.nodes]);
   const selectedNodeLabelLookup = useMemo(() => {
     const map = new Map<string, string>();
-    for (const node of payload.nodes ?? []) {
-      map.set(node.id, node.label ?? node.id);
+    for (const node of attackGraph.nodes) {
+      map.set(node.id, node.label);
     }
     return map;
-  }, [payload.nodes]);
+  }, [attackGraph.nodes]);
   const selectedEdgeLookup = useMemo(() => {
     const map = new Map<string, EdgeData>();
-    for (const edge of payload.edges ?? []) {
+    for (const edge of attackGraph.edges) {
+      const rawMetadata =
+        typeof edge.raw.metadata === 'object' && edge.raw.metadata !== null
+          ? (edge.raw.metadata as Record<string, unknown>)
+          : undefined;
+
       map.set(edge.id, {
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        relation: edge.relation ? String(edge.relation) : undefined,
-        label: edge.label ? String(edge.label) : undefined,
-        reason:
-          edge.metadata && typeof edge.metadata.reason === 'string' && edge.metadata.reason.trim()
-            ? edge.metadata.reason
-            : undefined,
+        relation: edge.relationType,
+        label: edge.label ?? edge.relationType,
+        reason: typeof rawMetadata?.reason === 'string' && rawMetadata.reason.trim() ? rawMetadata.reason : undefined,
         sourceLabel: selectedNodeLabelLookup.get(edge.source) ?? edge.source,
         targetLabel: selectedNodeLabelLookup.get(edge.target) ?? edge.target,
       });
     }
     return map;
-  }, [payload.edges, selectedNodeLabelLookup]);
+  }, [attackGraph.edges, selectedNodeLabelLookup]);
 
   useEffect(() => {
     if (!hasAttackPaths) {
@@ -971,7 +990,7 @@ const AttackGraphPage: React.FC = () => {
     },
   });
 
-  const livePayload = isAttackGraphApiResponse(liveAttackGraphResponse) ? liveAttackGraphResponse : EMPTY_ATTACK_GRAPH;
+  const livePayload = coerceAttackGraphApiResponse(liveAttackGraphResponse);
   const shouldLoadAttackPaths = activeSource === 'live' && activeTab === 'attack-paths' && Boolean(activeClusterId);
   const shouldLoadRemediation = activeSource === 'live' && activeTab === 'remediation' && Boolean(activeClusterId);
 
@@ -1049,7 +1068,7 @@ const AttackGraphPage: React.FC = () => {
       </div>
 
       {activeSource === 'mock' ? (
-        <AttackGraphContent payload={toAttackGraphPayload} filters={mockFilters} onFiltersChange={setMockFilters} />
+        <AttackGraphContent payload={MOCK_ATTACK_GRAPH_PAYLOAD} filters={mockFilters} onFiltersChange={setMockFilters} />
       ) : (
         <>
           <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
