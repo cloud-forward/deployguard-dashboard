@@ -18,7 +18,7 @@ export type AttackGraphResourceType =
   | 'RDS'
   | 'Unknown';
 
-export type AttackGraphRiskSeverity = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
+export type AttackGraphRiskSeverity = 'critical' | 'high' | 'medium' | 'low' | 'none' | 'unknown';
 
 export type AttackGraphEdgeRelation = string;
 
@@ -95,6 +95,7 @@ export interface AttackGraphGraphViewModel {
 export interface AttackGraphApiNode {
   id: string;
   label?: string;
+  type?: string;
   resource_type?: string;
   namespace?: string | null;
   severity?: string | null;
@@ -110,6 +111,7 @@ export interface AttackGraphApiEdge {
   id: string;
   source: string;
   target: string;
+  type?: string;
   relation?: string;
   label?: string;
   metadata?: Record<string, unknown>;
@@ -118,14 +120,20 @@ export interface AttackGraphApiEdge {
 export interface AttackGraphApiPath {
   id: string;
   label?: string;
+  title?: string;
+  summary?: string;
   node_ids?: string[];
   edge_ids?: string[];
   severity?: string | null;
+  evidence_count?: number | null;
 }
 
 export interface AttackGraphApiResponse {
-  nodes: AttackGraphApiNode[];
-  edges: AttackGraphApiEdge[];
+  cluster_id?: string;
+  analysis_run_id?: string | null;
+  generated_at?: string | null;
+  nodes?: AttackGraphApiNode[];
+  edges?: AttackGraphApiEdge[];
   paths?: AttackGraphApiPath[];
   metadata?: AttackGraphMetadata;
   summary?: string | null;
