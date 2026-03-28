@@ -204,6 +204,29 @@ export const toAttackGraphElements = (graph: AttackGraphGraphData): ElementDefin
   return [...graph.nodes.map(toCytoscapeNode), ...graph.edges.map(toCytoscapeEdge)];
 };
 
+export const filterIsolatedAttackGraphNodes = (
+  graph: AttackGraphGraphData,
+  options?: {
+    includeIsolatedNodes?: boolean;
+  },
+): AttackGraphGraphData => {
+  if (options?.includeIsolatedNodes) {
+    return graph;
+  }
+
+  const connectedNodeIds = new Set<string>();
+
+  for (const edge of graph.edges) {
+    connectedNodeIds.add(edge.source);
+    connectedNodeIds.add(edge.target);
+  }
+
+  return {
+    ...graph,
+    nodes: graph.nodes.filter((node) => connectedNodeIds.has(node.id)),
+  };
+};
+
 export const isKnownEdgeRelation = (relation: string): relation is AttackGraphEdgeRelation => {
   const normalized = normalizeRelationType(relation);
   return normalized !== 'unknown';

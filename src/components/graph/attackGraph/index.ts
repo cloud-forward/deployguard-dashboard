@@ -8,4 +8,5 @@
 
 export * from './adapter';
 export * from '../../../types/attackGraph';
+export { attackGraphDefaultLayout } from './layout';
 export { attackGraphStylesheet } from './stylesheet';

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ElementDefinition } from 'cytoscape';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import BlastRadiusPanel from '../components/graph/BlastRadiusPanel';
@@ -16,7 +16,9 @@ import {
 import type { AttackPathListItemResponse, RemediationRecommendationListItemResponse } from '../api/model';
 import { useGetClusterAttackGraph } from '../api/attackGraph';
 import {
+  attackGraphDefaultLayout,
   filterAttackGraphElements,
+  filterIsolatedAttackGraphNodes,
   toAttackGraphElements,
   toAttackGraphViewModel,
   type AttackGraphApiEdge,
@@ -413,6 +415,7 @@ const AttackPathsPanel: React.FC<{
                   <th>Length</th>
                   <th>Entry</th>
                   <th>Target</th>
+                  <th>Open</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,6 +437,15 @@ const AttackPathsPanel: React.FC<{
                       <td>{formatNumber(item.hop_count ?? item.node_ids?.length ?? null)}</td>
                       <td className="text-break">{item.entry_node_id ?? '-'}</td>
                       <td className="text-break">{item.target_node_id ?? '-'}</td>
+                      <td>
+                        <Link
+                          to={`/clusters/${clusterId}/attack-paths/${item.path_id}`}
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Open
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}
@@ -532,6 +544,7 @@ const RemediationPanel: React.FC<{
                 <th>Edge Source</th>
                 <th>Edge Target</th>
                 <th>Edge Type</th>
+                <th>Open</th>
               </tr>
             </thead>
             <tbody>
@@ -545,6 +558,14 @@ const RemediationPanel: React.FC<{
                   <td className="text-break">{item.edge_source ?? '-'}</td>
                   <td className="text-break">{item.edge_target ?? '-'}</td>
                   <td>{item.edge_type ?? '-'}</td>
+                  <td>
+                    <Link
+                      to={`/clusters/${clusterId}/recommendations/${item.recommendation_id}`}
+                      className="btn btn-outline-secondary btn-sm"
+                    >
+                      Open
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -603,13 +624,14 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     [attackGraph.nodes, attackGraph.paths],
   );
   const filteredGraph = useMemo(() => filterAttackGraphElements(attackGraph, filters), [attackGraph, filters]);
+  const renderedGraph = useMemo(() => filterIsolatedAttackGraphNodes(filteredGraph), [filteredGraph]);
 
-  const attackPaths = useMemo<AttackGraphPath[]>(() => filteredGraph.paths, [filteredGraph.paths]);
-  const filteredElements = useMemo(() => toAttackGraphElements(filteredGraph), [filteredGraph]);
-  const hasRenderableGraph = filteredGraph.nodes.length > 0 || filteredGraph.edges.length > 0;
+  const attackPaths = useMemo<AttackGraphPath[]>(() => renderedGraph.paths, [renderedGraph.paths]);
+  const filteredElements = useMemo(() => toAttackGraphElements(renderedGraph), [renderedGraph]);
+  const hasRenderableGraph = renderedGraph.nodes.length > 0 || renderedGraph.edges.length > 0;
   const hasAttackPaths = attackPaths.length > 0;
-  const visibleNodeIds = useMemo(() => new Set(filteredGraph.nodes.map((node) => node.id)), [filteredGraph.nodes]);
-  const visibleEdgeIds = useMemo(() => new Set(filteredGraph.edges.map((edge) => edge.id)), [filteredGraph.edges]);
+  const visibleNodeIds = useMemo(() => new Set(renderedGraph.nodes.map((node) => node.id)), [renderedGraph.nodes]);
+  const visibleEdgeIds = useMemo(() => new Set(renderedGraph.edges.map((edge) => edge.id)), [renderedGraph.edges]);
   const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
 
   useEffect(() => {
@@ -780,8 +802,9 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         </div>
         {hasRenderableGraph ? (
           <GraphView
-            showLabels={filteredGraph.nodes.length + filteredGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
+            showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
             elements={filteredElements}
+            layout={attackGraphDefaultLayout}
             selectedPathNodeIds={selectedPathNodeIds}
             selectedPathEdgeIds={selectedPathEdgeIds}
             selectedNodeId={selectedNodeId}
