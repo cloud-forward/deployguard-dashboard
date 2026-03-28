@@ -22,6 +22,7 @@ interface GraphViewProps {
   layout?: LayoutOptions;
   stylesheet?: Array<Record<string, unknown>>;
   viewportRefreshKey?: string;
+  onLayoutComplete?: (cy: cytoscape.Core) => void;
   selectedPathNodeIds: string[];
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
@@ -51,6 +52,7 @@ const GraphView: React.FC<GraphViewProps> = ({
   layout = attackGraphDefaultLayout,
   stylesheet = attackGraphStylesheet,
   viewportRefreshKey,
+  onLayoutComplete,
   selectedPathNodeIds,
   selectedPathEdgeIds,
   selectedNodeId,
@@ -293,8 +295,12 @@ const GraphView: React.FC<GraphViewProps> = ({
       }
 
       cy.resize();
-      cy.layout(layout).run();
-      cy.fit(undefined, getLayoutPadding(layout));
+      const layoutInstance = cy.layout(layout);
+      layoutInstance.one('layoutstop', () => {
+        onLayoutComplete?.(cy);
+        cy.fit(undefined, getLayoutPadding(layout));
+      });
+      layoutInstance.run();
     };
 
     const queueRefresh = () => {
@@ -322,7 +328,7 @@ const GraphView: React.FC<GraphViewProps> = ({
         resizeFrameRef.current = null;
       }
     };
-  }, [elements, layout, viewportRefreshKey]);
+  }, [elements, layout, onLayoutComplete, viewportRefreshKey]);
 
   useEffect(() => {
     setHoveredEdge(null);
