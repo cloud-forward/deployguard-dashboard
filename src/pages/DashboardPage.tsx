@@ -1,6 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { ElementDefinition } from 'cytoscape';
 import { useGetMyAssetsApiV1MeAssetsGet, useGetMyOverviewApiV1MeOverviewGet } from '../api/generated/auth/auth';
-import type { MeAssetInventoryItemResponse, MeAssetInventoryListResponse, UserOverviewResponse } from '../api/model';
+import {
+  useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
+  useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
+  useListClustersApiV1ClustersGet,
+} from '../api/generated/clusters/clusters';
+import GraphView from '../components/graph/GraphView';
+import { attackGraphStylesheet } from '../components/graph/attackGraph';
+import type {
+  AttackPathDetailEnvelopeResponse,
+  AttackPathDetailResponse,
+  AttackPathListItemResponse,
+  ClusterResponse,
+  MeAssetInventoryItemResponse,
+  MeAssetInventoryListResponse,
+  UserOverviewResponse,
+} from '../api/model';
 import StatCard from '../components/dashboard/StatCard';
 
 const getRiskBadge = (baseRisk?: number | null) => {
@@ -41,6 +57,9 @@ const isUserOverviewResponse = (value: unknown): value is UserOverviewResponse =
 const isMeAssetInventoryListResponse = (value: unknown): value is MeAssetInventoryListResponse =>
   Boolean(value && typeof value === 'object' && 'items' in value);
 
+const isAttackPathDetailEnvelope = (value: unknown): value is AttackPathDetailEnvelopeResponse =>
+  Boolean(value && typeof value === 'object' && 'cluster_id' in value);
+
 const buildCountMap = (
   assets: MeAssetInventoryItemResponse[],
   getKey: (asset: MeAssetInventoryItemResponse) => string | null | undefined,
@@ -59,6 +78,362 @@ const buildCountMap = (
   return Array.from(counts.entries())
     .sort((left, right) => right[1] - left[1])
     .map(([label, count]) => ({ label, count }));
+};
+
+const getAttackPathLength = (path: Pick<AttackPathListItemResponse, 'hop_count' | 'node_ids'>) =>
+  typeof path.hop_count === 'number' ? path.hop_count : Math.max(0, (path.node_ids?.length ?? 0) - 1);
+
+const toCompactNodeLabel = (value: string): string => {
+  const normalized = value.trim();
+  if (normalized.length <= 10) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 10)}...`;
+};
+
+const toCompactWidgetLabel = (value: string, maxLength = 15): string => {
+  const normalized = value.trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength)}...`;
+};
+
+const inferNodeType = (nodeId: string) => {
+  const normalized = nodeId.toLowerCase();
+  if (normalized.includes('serviceaccount') || normalized.startsWith('sa-')) return 'ServiceAccount';
+  if (normalized.includes('iam')) return 'IAMRole';
+  if (normalized.includes('s3')) return 'S3Bucket';
+  return 'Pod';
+};
+
+const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): ElementDefinition[] => {
+  const orderedEdges = Array.isArray(path.edges)
+    ? [...path.edges].sort((left, right) => left.edge_index - right.edge_index)
+    : [];
+
+  const steps =
+    orderedEdges.length > 0
+      ? orderedEdges
+          .map((edge, index) => ({
+            index,
+            edge,
+            sourceNodeId: path.node_ids?.[index] ?? edge.source_node_id,
+            targetNodeId: path.node_ids?.[index + 1] ?? edge.target_node_id,
+          }))
+          .filter((step) => step.sourceNodeId && step.targetNodeId)
+      : (path.node_ids ?? [])
+          .slice(0, -1)
+          .map((nodeId, index) => ({
+            index,
+            edge: null,
+            sourceNodeId: nodeId,
+            targetNodeId: path.node_ids?.[index + 1] ?? '',
+          }))
+          .filter((step) => step.sourceNodeId && step.targetNodeId);
+
+  const connectedNodeIds = new Set<string>();
+  for (const step of steps) {
+    connectedNodeIds.add(step.sourceNodeId);
+    connectedNodeIds.add(step.targetNodeId);
+  }
+
+  const orderedNodeIds = (path.node_ids ?? []).filter((nodeId) => connectedNodeIds.has(nodeId));
+  const fallbackNodeIds = Array.from(connectedNodeIds).filter((nodeId) => !orderedNodeIds.includes(nodeId));
+
+  const nodeElements: ElementDefinition[] = [...orderedNodeIds, ...fallbackNodeIds].map((nodeId) => ({
+    data: {
+      id: nodeId,
+      label: toCompactNodeLabel(nodeId),
+      fullLabel: nodeId,
+      type: inferNodeType(nodeId),
+      severity: path.risk_level ?? 'unknown',
+      isEntryPoint: nodeId === path.entry_node_id,
+      isCrownJewel: nodeId === path.target_node_id,
+      hasRuntimeEvidence: false,
+      pathIndex: orderedNodeIds.indexOf(nodeId),
+      details: {
+        'Full Node ID': nodeId,
+      },
+      blastRadius: {
+        pods: 0,
+        secrets: 0,
+        databases: 0,
+        adminPrivilege: false,
+      },
+    },
+  }));
+
+  const edgeElements: ElementDefinition[] = steps.map((step) => ({
+    data: {
+      id: step.edge?.edge_id ?? `dashboard-path-edge-${step.index}`,
+      source: step.sourceNodeId,
+      target: step.targetNodeId,
+      relation: step.edge?.edge_type ?? 'path_step',
+      label: step.edge?.edge_type ?? `step ${step.index + 1}`,
+    },
+  }));
+
+  return [...nodeElements, ...edgeElements];
+};
+
+const dashboardAttackPathStylesheet = [
+  ...attackGraphStylesheet,
+  {
+    selector: 'node',
+    style: {
+      width: 24,
+      height: 24,
+      'font-size': 8,
+      'text-wrap': 'wrap',
+      'text-max-width': 64,
+      'text-margin-y': 10,
+    },
+  },
+  {
+    selector: 'edge',
+    style: {
+      'font-size': 8,
+      'text-background-color': 'transparent',
+      'text-background-opacity': 0,
+      'text-background-padding': '0px',
+      'text-margin-y': -8,
+      'text-rotation': 'autorotate',
+      'control-point-step-size': 34,
+    },
+  },
+];
+
+const DashboardAttackPathSection: React.FC<{
+  clusterCounts: Array<{ label: string; count: number }>;
+}> = ({ clusterCounts }) => {
+  const [selectedClusterId, setSelectedClusterId] = useState('');
+  const [selectedPathId, setSelectedPathId] = useState('');
+  const clustersQuery = useListClustersApiV1ClustersGet({
+    query: {
+      retry: false,
+    },
+  });
+
+  const clusters = Array.isArray(clustersQuery.data) ? (clustersQuery.data as ClusterResponse[]) : [];
+  const sortedClusters = useMemo(() => {
+    const clusterCountMap = new Map(clusterCounts.map((item) => [item.label, item.count]));
+
+    return [...clusters].sort((left, right) => {
+      const countDelta = (clusterCountMap.get(right.name) ?? -1) - (clusterCountMap.get(left.name) ?? -1);
+      if (countDelta !== 0) {
+        return countDelta;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+  }, [clusterCounts, clusters]);
+
+  useEffect(() => {
+    if (sortedClusters.length === 0) {
+      setSelectedClusterId('');
+      return;
+    }
+
+    if (selectedClusterId && sortedClusters.some((cluster) => cluster.id === selectedClusterId)) {
+      return;
+    }
+
+    const firstEksCluster = sortedClusters.find((cluster) => cluster.cluster_type === 'eks');
+    setSelectedClusterId(firstEksCluster?.id ?? sortedClusters[0].id);
+  }, [selectedClusterId, sortedClusters]);
+
+  const attackPathsQuery = useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet(selectedClusterId, {
+    query: {
+      enabled: Boolean(selectedClusterId),
+      retry: false,
+    },
+  });
+
+  const pathItems = Array.isArray((attackPathsQuery.data as { items?: AttackPathListItemResponse[] } | undefined)?.items)
+    ? (((attackPathsQuery.data as { items?: AttackPathListItemResponse[] }).items ?? []) as AttackPathListItemResponse[])
+    : [];
+
+  const sortedPaths = useMemo(
+    () =>
+      [...pathItems].sort((left, right) => {
+        const lengthDelta = getAttackPathLength(right) - getAttackPathLength(left);
+        if (lengthDelta !== 0) {
+          return lengthDelta;
+        }
+
+        return (right.risk_score ?? 0) - (left.risk_score ?? 0);
+      }),
+    [pathItems],
+  );
+
+  useEffect(() => {
+    if (sortedPaths.length === 0) {
+      setSelectedPathId('');
+      return;
+    }
+
+    if (selectedPathId && sortedPaths.some((item) => item.path_id === selectedPathId)) {
+      return;
+    }
+
+    setSelectedPathId(sortedPaths[0].path_id);
+  }, [selectedPathId, sortedPaths]);
+
+  const attackPathDetailQuery = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(
+    selectedClusterId,
+    selectedPathId,
+    {
+      query: {
+        enabled: Boolean(selectedClusterId && selectedPathId),
+        retry: false,
+      },
+    },
+  );
+
+  const detailEnvelope = isAttackPathDetailEnvelope(attackPathDetailQuery.data) ? attackPathDetailQuery.data : null;
+  const detailPath = detailEnvelope?.path ?? null;
+  const graphElements = useMemo(() => (detailPath ? buildDashboardAttackPathElements(detailPath) : []), [detailPath]);
+  const attackPathLayout = useMemo(
+    () => ({
+      name: 'breadthfirst',
+      directed: true,
+      animate: false,
+      fit: true,
+      padding: 48,
+      spacingFactor: 2.3,
+      avoidOverlap: true,
+      avoidOverlapPadding: 20,
+      roots: detailPath?.entry_node_id ? [detailPath.entry_node_id] : undefined,
+      transform: (node: { data: (key: string) => unknown }, position: { x: number; y: number }) => {
+        const rawIndex = Number(node.data('pathIndex') ?? 0);
+        const staggerOffset = rawIndex % 2 === 0 ? -22 : 22;
+
+        return {
+          x: position.y,
+          y: position.x + staggerOffset,
+        };
+      },
+    }),
+    [detailPath?.entry_node_id],
+  );
+
+  const buildOptionLabel = (path: AttackPathListItemResponse) => {
+    const length = getAttackPathLength(path);
+    const summary =
+      path.entry_node_id && path.target_node_id
+        ? `${toCompactNodeLabel(path.entry_node_id)} -> ${toCompactNodeLabel(path.target_node_id)}`
+        : path.title || path.path_id;
+
+    return toCompactWidgetLabel(`${length} hops · ${summary}`);
+  };
+
+  return (
+    <div className="card border-0 shadow-sm h-100 dg-dashboard-graph-card">
+      <div className="card-body">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <div className="d-flex align-items-center gap-2">
+            <h6 className="mb-0 fw-bold">공격경로</h6>
+            <div className="d-flex align-items-center gap-1">
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: '#22c55e',
+                  display: 'inline-block',
+                  boxShadow: '0 0 6px #22c55e',
+                  animation: 'live-pulse 1.5s ease-in-out infinite',
+                }}
+              />
+              <span className="small fw-semibold" style={{ color: '#22c55e' }}>Live</span>
+            </div>
+          </div>
+          <div className="d-flex flex-column flex-sm-row gap-2" style={{ minWidth: 280 }}>
+            <div style={{ minWidth: 160 }}>
+              <select
+                id="dashboard-cluster-select"
+                className="form-select form-select-sm"
+                value={selectedClusterId}
+                onChange={(event) => setSelectedClusterId(event.target.value)}
+                disabled={sortedClusters.length === 0 || clustersQuery.isLoading}
+                aria-label="Cluster selection"
+              >
+                {sortedClusters.length === 0 ? <option value="">No clusters available</option> : null}
+                {sortedClusters.map((cluster) => (
+                  <option
+                    key={cluster.id}
+                    value={cluster.id}
+                    title={`${cluster.name}${cluster.cluster_type === 'eks' ? ' (EKS)' : ''}`}
+                  >
+                    {toCompactWidgetLabel(`${cluster.name}${cluster.cluster_type === 'eks' ? ' (EKS)' : ''}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ minWidth: 220 }}>
+              <select
+                id="dashboard-attack-path-select"
+                className="form-select form-select-sm"
+                value={selectedPathId}
+                onChange={(event) => setSelectedPathId(event.target.value)}
+                disabled={sortedPaths.length === 0 || attackPathsQuery.isLoading}
+                aria-label="Attack path selection"
+              >
+                {sortedPaths.length === 0 ? <option value="">No paths available</option> : null}
+                {sortedPaths.map((path) => (
+                  <option key={path.path_id} value={path.path_id} title={buildOptionLabel(path)}>
+                    {buildOptionLabel(path)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="dg-dashboard-graph-preview">
+          {clustersQuery.isLoading || attackPathsQuery.isLoading ? (
+            <span className="text-muted small">공격 경로 데이터를 불러오는 중…</span>
+          ) : clustersQuery.isError || attackPathsQuery.isError ? (
+            <div className="alert alert-danger mb-0 small" role="alert">
+              공격 경로 데이터를 불러오지 못했습니다.
+            </div>
+          ) : !selectedClusterId ? (
+            <span className="text-muted small">사용 가능한 클러스터가 없습니다.</span>
+          ) : sortedPaths.length === 0 ? (
+            <span className="text-muted small">표시할 공격 경로가 없습니다.</span>
+          ) : attackPathDetailQuery.isLoading ? (
+            <span className="text-muted small">선택한 경로를 불러오는 중…</span>
+          ) : attackPathDetailQuery.isError ? (
+            <div className="alert alert-danger mb-0 small" role="alert">
+              선택한 공격 경로 상세를 불러오지 못했습니다.
+            </div>
+          ) : !detailPath || graphElements.length === 0 ? (
+            <span className="text-muted small">선택한 공격 경로를 그래프로 표시할 수 없습니다.</span>
+          ) : (
+            <div style={{ width: '100%', height: '100%' }}>
+              <GraphView
+                elements={graphElements}
+                layout={attackPathLayout}
+                stylesheet={dashboardAttackPathStylesheet}
+                viewportRefreshKey={`${selectedClusterId}:${selectedPathId}:${graphElements.length}`}
+                selectedPathNodeIds={[]}
+                selectedPathEdgeIds={[]}
+                selectedNodeId={null}
+                selectedEdgeId={null}
+                showLabels
+                onNodeClick={() => {}}
+                onEdgeClick={() => {}}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const DashboardPage: React.FC = () => {
@@ -135,7 +510,9 @@ const DashboardPage: React.FC = () => {
           min-height: 220px;
           border-radius: 0.75rem;
           border: 1px dashed rgba(148, 163, 184, 0.28);
-          background: rgba(10, 16, 33, 0.5);
+          background: #eef2f6;
+          overflow: hidden;
+          padding: 0.5rem;
         }
         .dg-dashboard-bottom-card .card-body {
           padding-top: 1rem;
@@ -193,47 +570,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="col-12 col-xl-8">
-          <div className="card border-0 shadow-sm h-100 dg-dashboard-graph-card">
-            <div className="card-body">
-              {(() => {
-                const liveStatus = (overview?.entry_point_assets ?? 0) > 0 || (overview?.crown_jewel_assets ?? 0) > 0
-                  ? 'warning'
-                  : (overview?.public_assets ?? 0) > 0
-                    ? 'threat'
-                    : 'safe';
-                const liveConfig = {
-                  safe: { color: '#22c55e' },
-                  warning: { color: '#f59e0b' },
-                  threat: { color: '#ef4444' },
-                };
-                const { color } = liveConfig[liveStatus];
-
-                return (
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <h6 className="mb-0 fw-bold">공격경로</h6>
-                    <div className="d-flex align-items-center gap-1">
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: color,
-                          display: 'inline-block',
-                          boxShadow: `0 0 6px ${color}`,
-                          animation: 'live-pulse 1.5s ease-in-out infinite',
-                        }}
-                      />
-                      <span className="small fw-semibold" style={{ color }}>Live</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              <div className="dg-dashboard-graph-preview">
-                <span className="text-muted small">그래프 데이터를 불러오는 중…</span>
-              </div>
-            </div>
-          </div>
+          <DashboardAttackPathSection clusterCounts={clusterCounts} />
         </div>
       </div>
 
