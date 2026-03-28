@@ -1,11 +1,16 @@
 import React, { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import type { ElementDefinition } from 'cytoscape';
 import { useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet } from '../api/generated/clusters/clusters';
+import GraphView from '../components/graph/GraphView';
+import NodeDetailPanel from '../components/graph/NodeDetailPanel';
+import { attackGraphStylesheet } from '../components/graph/attackGraph';
 import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
   AttackPathEdgeSequenceResponse,
 } from '../api/model';
+import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 
 const formatNumber = (value?: number | null) => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -41,6 +46,151 @@ const toErrorMessage = (error: unknown, fallback: string) => {
 
 const isAttackPathDetailEnvelope = (value: unknown): value is AttackPathDetailEnvelopeResponse =>
   Boolean(value && typeof value === 'object' && 'cluster_id' in value);
+
+type PathSequenceStep = {
+  id: string;
+  index: number;
+  sourceNodeId: string;
+  targetNodeId: string;
+  edge: AttackPathEdgeSequenceResponse | null;
+};
+
+interface EdgeDetailData {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  relation?: string;
+  reason?: string;
+  sourceLabel?: string;
+  targetLabel?: string;
+}
+
+const inferNodeType = (nodeId: string): NodeType => {
+  const normalized = nodeId.toLowerCase();
+  if (normalized.includes('serviceaccount') || normalized.startsWith('sa-')) return 'ServiceAccount';
+  if (normalized.includes('iam')) return 'IAMRole';
+  if (normalized.includes('s3')) return 'S3Bucket';
+  return 'Pod';
+};
+
+const toCompactNodeLabel = (value: string): string => {
+  const normalized = value.trim();
+  if (normalized.length <= 10) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 10)}...`;
+};
+
+const getOrderedPathSteps = (path: AttackPathDetailResponse): PathSequenceStep[] => {
+  const orderedEdges = Array.isArray(path.edges)
+    ? [...path.edges].sort((left, right) => left.edge_index - right.edge_index)
+    : [];
+
+  if (orderedEdges.length > 0) {
+    return orderedEdges.map((edge, index) => ({
+      id: edge.edge_id,
+      index,
+      sourceNodeId: path.node_ids?.[index] ?? edge.source_node_id,
+      targetNodeId: path.node_ids?.[index + 1] ?? edge.target_node_id,
+      edge,
+    }));
+  }
+
+  const orderedNodes = Array.isArray(path.node_ids) ? path.node_ids.filter(Boolean) : [];
+  return orderedNodes.slice(0, -1).map((nodeId, index) => ({
+    id: path.edge_ids?.[index] ?? `${nodeId}-${orderedNodes[index + 1] ?? index}`,
+    index,
+    sourceNodeId: nodeId,
+    targetNodeId: orderedNodes[index + 1] ?? '',
+    edge: null,
+  }));
+};
+
+const buildAttackPathGraphElements = (path: AttackPathDetailResponse): ElementDefinition[] => {
+  const steps = getOrderedPathSteps(path).filter((step) => step.sourceNodeId && step.targetNodeId);
+  const connectedNodeIds = new Set<string>();
+
+  for (const step of steps) {
+    connectedNodeIds.add(step.sourceNodeId);
+    connectedNodeIds.add(step.targetNodeId);
+  }
+
+  const orderedNodeIds = (Array.isArray(path.node_ids) ? path.node_ids : []).filter((nodeId) => connectedNodeIds.has(nodeId));
+  const fallbackNodeIds = Array.from(connectedNodeIds).filter((nodeId) => !orderedNodeIds.includes(nodeId));
+  const nodeElements: ElementDefinition[] = [...orderedNodeIds, ...fallbackNodeIds].map((nodeId) => ({
+    data: {
+      id: nodeId,
+      label: toCompactNodeLabel(nodeId),
+      fullLabel: nodeId,
+      type: inferNodeType(nodeId),
+      severity: path.risk_level ?? 'unknown',
+      isEntryPoint: nodeId === path.entry_node_id,
+      isCrownJewel: nodeId === path.target_node_id,
+      hasRuntimeEvidence: false,
+      pathIndex: orderedNodeIds.indexOf(nodeId),
+      details: {
+        'Full Node ID': nodeId,
+        'Display Label': toCompactNodeLabel(nodeId),
+        'Path Position':
+          nodeId === path.entry_node_id
+            ? 'Entry Point'
+            : nodeId === path.target_node_id
+              ? 'Target'
+              : 'Intermediate',
+        'Risk Level': path.risk_level,
+      },
+      blastRadius: {
+        pods: 0,
+        secrets: 0,
+        databases: 0,
+        adminPrivilege: false,
+      },
+    },
+  }));
+
+  const edgeElements: ElementDefinition[] = steps.map((step) => ({
+    data: {
+      id: step.edge?.edge_id ?? `path-edge-${step.index}`,
+      source: step.sourceNodeId,
+      target: step.targetNodeId,
+      relation: step.edge?.edge_type ?? 'path_step',
+      label: step.edge?.edge_type ?? `step ${step.index + 1}`,
+      reason:
+        step.edge?.metadata && Object.keys(step.edge.metadata).length > 0
+          ? renderValue(step.edge.metadata)
+          : undefined,
+    },
+  }));
+
+  return [...nodeElements, ...edgeElements];
+};
+
+const attackPathGraphStylesheet = [
+  ...attackGraphStylesheet,
+  {
+    selector: 'node',
+    style: {
+      width: 30,
+      height: 30,
+      'font-size': 9,
+      'text-wrap': 'wrap',
+      'text-max-width': 72,
+      'text-margin-y': 12,
+    },
+  },
+  {
+    selector: 'edge',
+    style: {
+      'font-size': 9,
+      'text-background-padding': '2px',
+      'text-margin-y': -8,
+      'text-rotation': 'autorotate',
+      'control-point-step-size': 36,
+    },
+  },
+];
 
 const renderValue = (value: unknown): string => {
   if (value == null) return '-';
@@ -97,31 +247,7 @@ const MetadataBlock: React.FC<{
 const StepList: React.FC<{
   path: AttackPathDetailResponse;
 }> = ({ path }) => {
-  const steps = useMemo(() => {
-    const edges = Array.isArray(path.edges) ? [...path.edges].sort((left, right) => left.edge_index - right.edge_index) : [];
-
-    if (edges.length > 0) {
-      return edges.map((edge, index) => {
-        const nextNodeId = path.node_ids?.[index + 1] ?? edge.target_node_id;
-        return {
-          id: edge.edge_id,
-          index,
-          sourceNodeId: path.node_ids?.[index] ?? edge.source_node_id,
-          targetNodeId: nextNodeId,
-          edge,
-        };
-      });
-    }
-
-    const nodes = Array.isArray(path.node_ids) ? path.node_ids : [];
-    return nodes.slice(0, -1).map((nodeId, index) => ({
-      id: `${nodeId}-${nodes[index + 1] ?? index}`,
-      index,
-      sourceNodeId: nodeId,
-      targetNodeId: nodes[index + 1] ?? '-',
-      edge: null,
-    }));
-  }, [path]);
+  const steps = useMemo(() => getOrderedPathSteps(path), [path]);
 
   if (steps.length === 0) {
     return (
@@ -199,6 +325,10 @@ const EdgeList: React.FC<{
 
 const AttackPathDetailPage: React.FC = () => {
   const { clusterId = '', pathId = '' } = useParams();
+  const [selectedNode, setSelectedNode] = React.useState<NodeData | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = React.useState<EdgeDetailData | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null);
   const query = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId, {
     query: {
       enabled: Boolean(clusterId && pathId),
@@ -213,6 +343,99 @@ const AttackPathDetailPage: React.FC = () => {
     : [];
   const nodeIds = Array.isArray(path?.node_ids) ? path.node_ids : [];
   const edgeIds = Array.isArray(path?.edge_ids) ? path.edge_ids : [];
+  const selectedNodeLookup = useMemo(() => {
+    const map = new Map<string, NodeData>();
+
+    if (!path) {
+      return map;
+    }
+
+    for (const element of buildAttackPathGraphElements(path)) {
+      const data = element.data as Record<string, unknown>;
+      if (typeof data.source === 'string') {
+        continue;
+      }
+
+      const id = String(data.id ?? '');
+      map.set(id, {
+        id,
+        label: String(data.fullLabel ?? data.label ?? id),
+        type: inferNodeType(id),
+        namespace: typeof data.namespace === 'string' ? data.namespace : undefined,
+        details:
+          typeof data.details === 'object' && data.details !== null
+            ? Object.entries(data.details as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
+                acc[key] = value == null ? '' : String(value);
+                return acc;
+              }, {})
+            : {},
+        blastRadius: {
+          pods: 0,
+          secrets: 0,
+          databases: 0,
+          adminPrivilege: false,
+        },
+      });
+    }
+
+    return map;
+  }, [path]);
+  const pathGraphElements = useMemo(() => (path ? buildAttackPathGraphElements(path) : []), [path]);
+  const selectedEdgeLookup = useMemo(() => {
+    const map = new Map<string, EdgeDetailData>();
+
+    for (const element of pathGraphElements) {
+      const data = element.data as Record<string, unknown>;
+      if (typeof data.source !== 'string') {
+        continue;
+      }
+
+      const sourceId = String(data.source ?? '');
+      const targetId = String(data.target ?? '');
+      map.set(String(data.id ?? ''), {
+        id: String(data.id ?? ''),
+        source: sourceId,
+        target: targetId,
+        relation: typeof data.relation === 'string' ? data.relation : undefined,
+        label: typeof data.label === 'string' ? data.label : undefined,
+        reason: typeof data.reason === 'string' ? data.reason : undefined,
+        sourceLabel: sourceId,
+        targetLabel: targetId,
+      });
+    }
+
+    return map;
+  }, [pathGraphElements]);
+  const attackPathLayout = useMemo(
+    () => ({
+      name: 'breadthfirst',
+      directed: true,
+      animate: false,
+      fit: true,
+      padding: 72,
+      spacingFactor: 2.8,
+      avoidOverlap: true,
+      avoidOverlapPadding: 24,
+      roots: path?.entry_node_id ? [path.entry_node_id] : undefined,
+      transform: (node: { data: (key: string) => unknown }, position: { x: number; y: number }) => {
+        const rawIndex = Number(node.data('pathIndex') ?? 0);
+        const staggerOffset = rawIndex % 2 === 0 ? -28 : 28;
+
+        return {
+          x: position.y,
+          y: position.x + staggerOffset,
+        };
+      },
+    }),
+    [path?.entry_node_id],
+  );
+
+  React.useEffect(() => {
+    setSelectedNode(null);
+    setSelectedNodeId(null);
+    setSelectedEdge(null);
+    setSelectedEdgeId(null);
+  }, [pathId, path]);
 
   if (query.isLoading) {
     return (
@@ -288,6 +511,102 @@ const AttackPathDetailPage: React.FC = () => {
         <SummaryField label="Analysis Run ID" value={envelope.analysis_run_id ?? '-'} />
         <SummaryField label="Generated At" value={formatDateTime(envelope.generated_at)} />
       </div>
+
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body">
+          <h2 className="h6 mb-3">Attack Path Graph</h2>
+          {pathGraphElements.length === 0 ? (
+            <div className="text-muted small">This path does not contain enough ordered graph data to render a path-only graph.</div>
+          ) : (
+            <div style={{ height: 320 }}>
+              <GraphView
+                elements={pathGraphElements}
+                layout={attackPathLayout}
+                stylesheet={attackPathGraphStylesheet}
+                selectedPathNodeIds={[]}
+                selectedPathEdgeIds={[]}
+                selectedNodeId={selectedNodeId}
+                selectedEdgeId={selectedEdgeId}
+                showLabels
+                onNodeClick={(node) => {
+                  const clicked = selectedNodeLookup.get(node.id) ?? node;
+                  setSelectedNode(clicked);
+                  setSelectedNodeId(clicked.id);
+                  setSelectedEdge(null);
+                  setSelectedEdgeId(null);
+                }}
+                onEdgeClick={(edge) => {
+                  const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+                  setSelectedEdge(clicked);
+                  setSelectedEdgeId(clicked.id);
+                  setSelectedNode(null);
+                  setSelectedNodeId(null);
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      {selectedNode ? (
+        <div className="mb-4">
+          <NodeDetailPanel
+            node={selectedNode}
+            onClose={() => {
+              setSelectedNode(null);
+              setSelectedNodeId(null);
+            }}
+            style={{
+              position: 'relative',
+              top: 0,
+              right: 0,
+              width: 320,
+            }}
+          />
+        </div>
+      ) : null}
+      {selectedEdge ? (
+        <div className="card shadow mb-4">
+          <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <strong>엣지 상세</strong>
+            <button
+              type="button"
+              className="btn-close btn-close-white"
+              aria-label="닫기"
+              onClick={() => {
+                setSelectedEdge(null);
+                setSelectedEdgeId(null);
+              }}
+            />
+          </div>
+          <div className="card-body">
+            <p className="small text-muted mb-3">선택된 엣지 상세 정보</p>
+            <table className="table table-sm table-borderless mb-0">
+              <tbody>
+                <tr>
+                  <td className="text-muted fw-semibold">관계</td>
+                  <td>{selectedEdge.relation || 'n/a'}</td>
+                </tr>
+                <tr>
+                  <td className="text-muted fw-semibold">출발지</td>
+                  <td>{`${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`}</td>
+                </tr>
+                <tr>
+                  <td className="text-muted fw-semibold">도착지</td>
+                  <td>{`${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`}</td>
+                </tr>
+                <tr>
+                  <td className="text-muted fw-semibold">레이블</td>
+                  <td>{selectedEdge.label || selectedEdge.id}</td>
+                </tr>
+                <tr>
+                  <td className="text-muted fw-semibold">이유</td>
+                  <td style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{selectedEdge.reason || 'n/a'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="row g-4 mb-4">
         <div className="col-12 col-xl-7">
