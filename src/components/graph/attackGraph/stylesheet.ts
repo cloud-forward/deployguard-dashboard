@@ -138,6 +138,7 @@ export const attackGraphStylesheet: any[] = [
     selector: 'edge.selected-edge',
     style: {
       width: 3.5,
+      opacity: 1,
       'line-color': '#212529',
       'target-arrow-color': '#212529',
       'line-style': 'solid',
@@ -167,6 +168,7 @@ export const attackGraphStylesheet: any[] = [
       'text-background-color': '#fff',
       'text-background-opacity': 1,
       'text-background-padding': '2px',
+      opacity: 0.72,
       width: 2,
     },
   },
