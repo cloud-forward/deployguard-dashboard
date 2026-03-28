@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CytoscapeComponent from 'react-cytoscapejs';
-import type { ElementDefinition } from 'cytoscape';
+import cytoscape, { type ElementDefinition, type LayoutOptions } from 'cytoscape';
+import fcose from 'cytoscape-fcose';
 import type { NodeData } from './mockGraphData';
-import { attackGraphStylesheet } from './attackGraph';
+import { attackGraphDefaultLayout, attackGraphStylesheet } from './attackGraph';
+
+cytoscape.use(fcose);
 
 interface EdgeData {
   id: string;
@@ -16,6 +19,7 @@ interface EdgeData {
 
 interface GraphViewProps {
   elements: ElementDefinition[];
+  layout?: LayoutOptions;
   selectedPathNodeIds: string[];
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
@@ -37,6 +41,7 @@ const toNodeType = (value: unknown): NodeData['type'] => {
 
 const GraphView: React.FC<GraphViewProps> = ({
   elements,
+  layout = attackGraphDefaultLayout,
   selectedPathNodeIds,
   selectedPathEdgeIds,
   selectedNodeId,
@@ -253,29 +258,12 @@ const GraphView: React.FC<GraphViewProps> = ({
     setHoveredEdge(null);
   }, [elements, selectedNodeId, selectedEdgeId, selectedPathNodeIds, selectedPathEdgeIds]);
 
-  const graphLayout = useMemo<
-    cytoscape.BreadthFirstLayoutOptions & {
-      transform: (node: cytoscape.NodeSingular, position: { x: number; y: number }) => { x: number; y: number };
-    }
-  >(
-    () => ({
-      name: 'breadthfirst',
-      directed: true,
-      padding: 40,
-      transform: (_node, position) => ({
-        x: position.y,
-        y: -position.x,
-      }),
-    }),
-    [],
-  );
-
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <CytoscapeComponent
         elements={elements}
         stylesheet={graphStylesheet}
-        layout={graphLayout}
+        layout={layout}
         style={{ width: '100%', height: '100%' }}
         cy={handleCy}
       />

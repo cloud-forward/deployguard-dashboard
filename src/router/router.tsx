@@ -5,7 +5,9 @@ import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import DashboardPage from '../pages/DashboardPage';
 import AttackGraphPage from '../pages/AttackGraphPage';
+import AttackPathDetailPage from '../pages/AttackPathDetailPage';
 import ClustersPage from '../pages/ClustersPage';
+import RemediationRecommendationDetailPage from '../pages/RemediationRecommendationDetailPage';
 import ScansPage from '../pages/ScansPage';
 import RiskPage from '../pages/RiskPage';
 import InventoryPage from '../pages/InventoryPage';
@@ -50,6 +52,14 @@ export const router = createBrowserRouter([
       {
         path: 'clusters/:clusterId/graph',
         element: <AttackGraphPage />,
+      },
+      {
+        path: 'clusters/:clusterId/attack-paths/:pathId',
+        element: <AttackPathDetailPage />,
+      },
+      {
+        path: 'clusters/:clusterId/recommendations/:recommendationId',
+        element: <RemediationRecommendationDetailPage />,
       },
       {
         path: 'clusters',
