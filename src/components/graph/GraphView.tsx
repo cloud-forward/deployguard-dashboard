@@ -21,6 +21,7 @@ interface GraphViewProps {
   elements: ElementDefinition[];
   layout?: LayoutOptions;
   stylesheet?: Array<Record<string, unknown>>;
+  viewportRefreshKey?: string;
   selectedPathNodeIds: string[];
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
@@ -29,6 +30,11 @@ interface GraphViewProps {
   onNodeClick: (node: NodeData) => void;
   onEdgeClick: (edge: EdgeData) => void;
 }
+
+const getLayoutPadding = (layout: LayoutOptions): number => {
+  const rawPadding = (layout as LayoutOptions & { padding?: unknown }).padding;
+  return typeof rawPadding === 'number' ? rawPadding : 24;
+};
 
 const normalizeSelectionSet = (ids: string[] | null | undefined): Set<string> => {
   return new Set(Array.isArray(ids) ? ids : []);
@@ -44,6 +50,7 @@ const GraphView: React.FC<GraphViewProps> = ({
   elements,
   layout = attackGraphDefaultLayout,
   stylesheet = attackGraphStylesheet,
+  viewportRefreshKey,
   selectedPathNodeIds,
   selectedPathEdgeIds,
   selectedNodeId,
@@ -86,6 +93,7 @@ const GraphView: React.FC<GraphViewProps> = ({
   const pathEdgeIds = normalizeSelectionSet(selectedPathEdgeIds);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<{
     edge: EdgeData;
     position: { x: number; y: number };
@@ -269,6 +277,52 @@ const GraphView: React.FC<GraphViewProps> = ({
 
     updateSelectionState(cy, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId);
   }, [updateSelectionState, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    const container = containerRef.current;
+    if (!cy || !container || elements.length === 0) {
+      return;
+    }
+
+    const refreshViewport = () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (width === 0 || height === 0) {
+        return;
+      }
+
+      cy.resize();
+      cy.layout(layout).run();
+      cy.fit(undefined, getLayoutPadding(layout));
+    };
+
+    const queueRefresh = () => {
+      if (resizeFrameRef.current != null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+      }
+
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = window.requestAnimationFrame(refreshViewport);
+      });
+    };
+
+    queueRefresh();
+
+    const observer = new ResizeObserver(() => {
+      queueRefresh();
+    });
+
+    observer.observe(container);
+
+    return () => {
+      observer.disconnect();
+      if (resizeFrameRef.current != null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+    };
+  }, [elements, layout, viewportRefreshKey]);
 
   useEffect(() => {
     setHoveredEdge(null);
