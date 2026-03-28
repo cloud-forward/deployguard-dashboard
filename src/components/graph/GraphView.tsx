@@ -20,6 +20,7 @@ interface EdgeData {
 interface GraphViewProps {
   elements: ElementDefinition[];
   layout?: LayoutOptions;
+  stylesheet?: Array<Record<string, unknown>>;
   selectedPathNodeIds: string[];
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
@@ -42,6 +43,7 @@ const toNodeType = (value: unknown): NodeData['type'] => {
 const GraphView: React.FC<GraphViewProps> = ({
   elements,
   layout = attackGraphDefaultLayout,
+  stylesheet = attackGraphStylesheet,
   selectedPathNodeIds,
   selectedPathEdgeIds,
   selectedNodeId,
@@ -52,11 +54,11 @@ const GraphView: React.FC<GraphViewProps> = ({
 }) => {
   const graphStylesheet = useMemo(() => {
     if (showLabels) {
-      return attackGraphStylesheet;
+      return stylesheet;
     }
 
     return [
-      ...attackGraphStylesheet,
+      ...stylesheet,
       {
         selector: 'node',
         style: {
@@ -78,7 +80,7 @@ const GraphView: React.FC<GraphViewProps> = ({
         },
       },
     ];
-  }, [showLabels]);
+  }, [showLabels, stylesheet]);
 
   const pathNodeIds = normalizeSelectionSet(selectedPathNodeIds);
   const pathEdgeIds = normalizeSelectionSet(selectedPathEdgeIds);
@@ -100,7 +102,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       const id = String(data.id ?? '');
       map.set(id, {
         id,
-        label: String(data.label ?? id),
+        label: String(data.fullLabel ?? data.label ?? id),
       });
     }
 
@@ -176,16 +178,30 @@ const GraphView: React.FC<GraphViewProps> = ({
         // TODO Step4: move full payload mapping out of this component when detail contract is migrated.
         const legacyNode: NodeData = {
           id: rawId,
-          label: String(raw.label ?? ''),
+          label: String(raw.fullLabel ?? raw.label ?? ''),
           type: toNodeType(raw.type),
           namespace: typeof raw.namespace === 'string' ? raw.namespace : undefined,
-          details: {},
-          blastRadius: {
-            pods: 0,
-            secrets: 0,
-            databases: 0,
-            adminPrivilege: false,
-          },
+          details:
+            typeof raw.details === 'object' && raw.details !== null
+              ? Object.entries(raw.details as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
+                  acc[key] = value == null ? '' : String(value);
+                  return acc;
+                }, {})
+              : {},
+          blastRadius:
+            typeof raw.blastRadius === 'object' && raw.blastRadius !== null
+              ? {
+                  pods: Number((raw.blastRadius as Record<string, unknown>).pods ?? 0),
+                  secrets: Number((raw.blastRadius as Record<string, unknown>).secrets ?? 0),
+                  databases: Number((raw.blastRadius as Record<string, unknown>).databases ?? 0),
+                  adminPrivilege: Boolean((raw.blastRadius as Record<string, unknown>).adminPrivilege),
+                }
+              : {
+                  pods: 0,
+                  secrets: 0,
+                  databases: 0,
+                  adminPrivilege: false,
+                },
         };
         onNodeClick(legacyNode);
       });

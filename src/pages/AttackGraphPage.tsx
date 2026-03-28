@@ -3,7 +3,6 @@ import type { ElementDefinition } from 'cytoscape';
 import { Link, useParams } from 'react-router-dom';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
-import BlastRadiusPanel from '../components/graph/BlastRadiusPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import { mockElements } from '../components/graph/mockGraphData';
@@ -836,10 +835,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
           </div>
         )}
         {shouldShowNodeDetails ? (
-          <div
-            className="d-flex flex-column"
-            style={{ position: 'absolute', top: 12, right: 16, width: 300, zIndex: 10, gap: '8px' }}
-          >
+          <div style={{ position: 'absolute', top: 12, right: 16, width: 300, zIndex: 10 }}>
             <NodeDetailPanel
               node={selectedNode}
               onClose={() => {
@@ -847,14 +843,6 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
                 setSelectedNode(null);
                 setSelectedNodeId(null);
               }}
-              style={{
-                position: 'relative',
-                top: 0,
-                right: 0,
-              }}
-            />
-            <BlastRadiusPanel
-              node={selectedNode}
               style={{
                 position: 'relative',
                 top: 0,
@@ -1139,7 +1127,7 @@ const AttackGraphPage: React.FC = () => {
       )}
 
       {/* TODO Step5: advanced filters (critical paths only, escape-only, AWS pivot-only) are not supported by the current mock model */}
-      {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData/BlastRadius panel contracts remain in place) */}
+      {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData contracts remain in place) */}
       {/* TODO Step5: remove the mock payload once the live graph becomes the default source */}
       </div>
     </div>
