@@ -109,6 +109,14 @@ const inferNodeType = (nodeId: string) => {
   return 'Pod';
 };
 
+const DASHBOARD_PATH_X_STEP = 150;
+const DASHBOARD_PATH_Y_PATTERN = [0, 60, -30, 55, -20];
+
+const getDashboardPathPosition = (index: number) => ({
+  x: index * DASHBOARD_PATH_X_STEP,
+  y: DASHBOARD_PATH_Y_PATTERN[index % DASHBOARD_PATH_Y_PATTERN.length] ?? 0,
+});
+
 const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): ElementDefinition[] => {
   const orderedEdges = Array.isArray(path.edges)
     ? [...path.edges].sort((left, right) => left.edge_index - right.edge_index)
@@ -143,7 +151,9 @@ const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): Eleme
   const orderedNodeIds = (path.node_ids ?? []).filter((nodeId) => connectedNodeIds.has(nodeId));
   const fallbackNodeIds = Array.from(connectedNodeIds).filter((nodeId) => !orderedNodeIds.includes(nodeId));
 
-  const nodeElements: ElementDefinition[] = [...orderedNodeIds, ...fallbackNodeIds].map((nodeId) => ({
+  const nodeSequence = [...orderedNodeIds, ...fallbackNodeIds];
+
+  const nodeElements: ElementDefinition[] = nodeSequence.map((nodeId, index) => ({
     data: {
       id: nodeId,
       label: toCompactNodeLabel(nodeId),
@@ -153,7 +163,7 @@ const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): Eleme
       isEntryPoint: nodeId === path.entry_node_id,
       isCrownJewel: nodeId === path.target_node_id,
       hasRuntimeEvidence: false,
-      pathIndex: orderedNodeIds.indexOf(nodeId),
+      pathIndex: index,
       details: {
         'Full Node ID': nodeId,
       },
@@ -164,6 +174,7 @@ const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): Eleme
         adminPrivilege: false,
       },
     },
+    position: getDashboardPathPosition(index),
   }));
 
   const edgeElements: ElementDefinition[] = steps.map((step) => ({
@@ -298,26 +309,12 @@ const DashboardAttackPathSection: React.FC<{
   const graphElements = useMemo(() => (detailPath ? buildDashboardAttackPathElements(detailPath) : []), [detailPath]);
   const attackPathLayout = useMemo(
     () => ({
-      name: 'breadthfirst',
-      directed: true,
+      name: 'preset',
       animate: false,
       fit: true,
       padding: 48,
-      spacingFactor: 2.3,
-      avoidOverlap: true,
-      avoidOverlapPadding: 20,
-      roots: detailPath?.entry_node_id ? [detailPath.entry_node_id] : undefined,
-      transform: (node: { data: (key: string) => unknown }, position: { x: number; y: number }) => {
-        const rawIndex = Number(node.data('pathIndex') ?? 0);
-        const staggerOffset = rawIndex % 2 === 0 ? -22 : 22;
-
-        return {
-          x: position.y,
-          y: position.x + staggerOffset,
-        };
-      },
     }),
-    [detailPath?.entry_node_id],
+    [],
   );
 
   const buildOptionLabel = (path: AttackPathListItemResponse) => {
