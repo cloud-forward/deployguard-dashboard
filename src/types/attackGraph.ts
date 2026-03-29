@@ -95,6 +95,9 @@ export interface AttackGraphGraphViewModel {
 export interface AttackGraphApiNode {
   id: string;
   label?: string;
+  /** Actual field name from backend API (preferred). */
+  type?: string;
+  /** Legacy alternative field name kept for compatibility. */
   resource_type?: string;
   namespace?: string | null;
   severity?: string | null;
@@ -110,6 +113,9 @@ export interface AttackGraphApiEdge {
   id: string;
   source: string;
   target: string;
+  /** Actual field name from backend API (preferred). */
+  type?: string;
+  /** Legacy alternative field name kept for compatibility. */
   relation?: string;
   label?: string;
   metadata?: Record<string, unknown>;

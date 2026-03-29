@@ -28,14 +28,18 @@ const normalizeResourceType = (value?: string | null): AttackGraphResourceType =
     case 'pod':
       return 'Pod';
     case 'serviceaccount':
+    case 'service_account':
       return 'ServiceAccount';
     case 'role':
       return 'Role';
     case 'clusterrole':
+    case 'cluster_role':
       return 'ClusterRole';
     case 'rolebinding':
+    case 'role_binding':
       return 'RoleBinding';
     case 'clusterrolebinding':
+    case 'cluster_role_binding':
       return 'ClusterRoleBinding';
     case 'secret':
       return 'Secret';
@@ -60,6 +64,7 @@ const normalizeResourceType = (value?: string | null): AttackGraphResourceType =
     case 'security_group':
       return 'SecurityGroup';
     case 's3':
+    case 's3_bucket':
       return 'S3';
     case 'rds':
       return 'RDS';
@@ -143,7 +148,7 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
   const nodes = (payload.nodes ?? []).map((node) => ({
     id: node.id,
     label: node.label ?? node.id,
-    resourceType: normalizeResourceType(node.resource_type),
+    resourceType: normalizeResourceType(node.type ?? node.resource_type),
     namespace: node.namespace ?? null,
     severity: normalizeSeverity(node.severity),
     markerFlags: {
@@ -165,7 +170,7 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    relationType: normalizeRelationType(edge.relation),
+    relationType: normalizeRelationType(edge.type ?? edge.relation),
     label: edge.label,
     raw: edge as unknown as Record<string, unknown>,
   }));
