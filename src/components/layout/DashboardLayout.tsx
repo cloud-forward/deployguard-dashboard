@@ -19,6 +19,7 @@ const DashboardLayout: React.FC = () => {
           display: flex;
           align-items: stretch;
           min-height: calc(100vh - 54px);
+          overflow: visible;
         }
         .dg-dashboard-main {
           flex: 1;
@@ -33,11 +34,50 @@ const DashboardLayout: React.FC = () => {
           border-radius: 14px;
           width: min(100%, var(--dg-content-max-width));
           margin: 0 auto;
-          padding: clamp(1.15rem, 1.6vw, 1.55rem) clamp(1.15rem, 1.9vw, 1.9rem) clamp(1.4rem, 2vw, 1.9rem);
+          padding: clamp(1rem, 1.45vw, 1.35rem) clamp(1rem, 1.7vw, 1.7rem) clamp(1.15rem, 1.75vw, 1.55rem);
           min-height: calc(100vh - 54px - 2.5rem);
           max-height: calc(100vh - 54px - 2.5rem);
           overflow-y: auto;
           box-shadow: 0 18px 35px -32px rgba(0,0,0,0.8);
+        }
+        .dg-page-shell {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          min-height: 100%;
+        }
+        .dg-page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin: 0;
+          min-height: 3.25rem;
+        }
+        .dg-page-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 0.2rem;
+          min-width: 0;
+          justify-content: flex-start;
+        }
+        .dg-page-header > :not(.dg-page-heading) {
+          align-self: flex-end;
+        }
+        .dg-page-title {
+          margin: 0;
+          font-size: clamp(1.45rem, 1.22rem + 0.45vw, 1.85rem);
+          font-weight: 700;
+          line-height: 1.15;
+          color: var(--dg-text-primary, #f9fafb);
+        }
+        .dg-page-description {
+          margin: 0;
+          font-size: 0.9rem;
+          line-height: 1.35;
+          color: #cbd5e1;
+          max-width: 52rem;
         }
         @media (min-width: 1200px) {
           .dg-dashboard-shell {
@@ -72,6 +112,19 @@ const DashboardLayout: React.FC = () => {
             overflow-y: visible;
             width: 100%;
             padding: 0.95rem 0.9rem 1.2rem;
+          }
+          .dg-page-shell {
+            gap: 0.85rem;
+            min-height: auto;
+          }
+          .dg-page-header {
+            min-height: auto;
+          }
+          .dg-page-title {
+            font-size: 1.35rem;
+          }
+          .dg-page-description {
+            font-size: 0.85rem;
           }
         }
       `}</style>

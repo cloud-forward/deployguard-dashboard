@@ -410,15 +410,17 @@ const RiskPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="d-flex align-items-baseline gap-3 mb-4">
-        <h1 className="h2 mb-0 fw-bold">위험 최적화</h1>
-        <span className="fs-6" style={{ color: '#f2f2f2' }}>리스크 분석 및 초크포인트 탐지</span>
+    <div className="dg-page-shell">
+      <div className="dg-page-header">
+        <div className="dg-page-heading">
+          <h1 className="dg-page-title">위험 분석 및 최적화</h1>
+          <p className="dg-page-description">선택한 스캔을 바탕으로 위험을 분석하고, 결과와 권고사항을 확인합니다</p>
+        </div>
       </div>
 
       {routeClusterId ? <ClusterFlowNav clusterId={routeClusterId} current="risk" /> : null}
 
-      <div className="d-flex justify-content-between align-items-end gap-3 mb-4">
+      <div className="d-flex justify-content-between align-items-end gap-3 mb-3 flex-wrap">
         <ul className="nav nav-tabs mb-0">
           <li className="nav-item">
             <button
@@ -449,11 +451,11 @@ const RiskPage: React.FC = () => {
           </li>
         </ul>
         {activeTab === 'analysis' && (
-          <div className="d-flex gap-2 flex-wrap align-items-end">
+          <div className="d-flex gap-2 flex-wrap align-items-center">
+            <label htmlFor="cluster-select" className="form-label mb-0 text-nowrap small">
+              스캔 범위
+            </label>
             <div style={{ minWidth: '220px' }}>
-              <label htmlFor="cluster-select" className="form-label mb-1 d-block">
-                스캔 범위
-              </label>
               <select
                 id="cluster-select"
                 className="form-select form-select-sm"
@@ -482,7 +484,7 @@ const RiskPage: React.FC = () => {
       </div>
 
       {activeTab === 'analysis' && (
-        <div className="d-flex flex-column gap-4">
+        <div className="d-flex flex-column gap-3">
           {feedback && (
             <div className={`alert alert-${feedback.type} mb-0`} role="alert">
               {feedback.message}
