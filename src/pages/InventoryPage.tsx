@@ -57,16 +57,16 @@ const sumResources = (value?: Record<string, number> | null) =>
 
 const getRiskMeta = (baseRisk?: number | null) => {
   if (baseRisk == null) return null;
-  if (baseRisk >= 80) return { label: 'Critical', className: 'bg-danger-subtle text-danger border border-danger-subtle' };
-  if (baseRisk >= 60) return { label: 'High', className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' };
-  if (baseRisk >= 40) return { label: 'Medium', className: 'bg-info-subtle text-info-emphasis border border-info-subtle' };
-  return { label: 'Low', className: 'bg-success-subtle text-success border border-success-subtle' };
+  if (baseRisk >= 80) return { label: 'Critical', className: 'dg-badge dg-badge--high' };
+  if (baseRisk >= 60) return { label: 'High', className: 'dg-badge dg-badge--medium' };
+  if (baseRisk >= 40) return { label: 'Medium', className: 'dg-badge dg-badge--info' };
+  return { label: 'Low', className: 'dg-badge dg-badge--low' };
 };
 
 const getDomainClass = (domain?: string | null) => {
-  if (domain === 'k8s') return 'bg-primary-subtle text-primary border border-primary-subtle';
-  if (domain === 'aws') return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
-  return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+  if (domain === 'k8s') return 'dg-badge dg-badge--info';
+  if (domain === 'aws') return 'dg-badge dg-badge--notable';
+  return 'dg-badge dg-badge--tag';
 };
 
 const getNodeTypeMeta = (nodeType?: string | null) => {
@@ -378,10 +378,10 @@ const InventoryPage: React.FC = () => {
         }
         .dg-inventory-asset-table tbody tr,
         .dg-inventory-asset-table tbody tr > td {
-          background-color: #ffffff;
+          background-color: var(--bg-card);
         }
         .dg-inventory-asset-table tbody tr:hover > td {
-          background-color: #f8fafc;
+          background-color: var(--bg-card-hover);
         }
         .dg-inventory-asset-table th:nth-child(1),
         .dg-inventory-asset-table td:nth-child(1) {
@@ -424,9 +424,9 @@ const InventoryPage: React.FC = () => {
           position: sticky;
           top: 0;
           z-index: 1;
-          background: #e5e7eb;
-          color: #334155;
-          box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.32);
+          background: rgba(15, 23, 42, 0.94);
+          color: var(--text-secondary);
+          box-shadow: inset 0 -1px 0 var(--border-subtle);
         }
         .dg-inventory-asset-scroll .table-responsive,
         .dg-inventory-asset-scroll .table {
@@ -438,26 +438,26 @@ const InventoryPage: React.FC = () => {
           padding: 1rem 1.1rem 1.1rem;
         }
         .dg-inventory-spotlight-section {
-          border: 1px solid rgba(203, 213, 225, 0.9);
+          border: 1px solid var(--border-default);
           border-radius: 1rem;
           padding: 0.95rem;
-          background: #ffffff;
-          color: #0f172a;
-          box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.45);
+          background: var(--bg-card);
+          color: var(--text-primary);
+          box-shadow: var(--shadow-card);
         }
         .dg-inventory-spotlight-section .text-muted {
-          color: #64748b !important;
+          color: var(--text-secondary) !important;
         }
         .dg-inventory-spotlight-card {
-          background: #ffffff;
-          border-color: #cbd5e1;
-          color: #0f172a;
+          background: var(--bg-card);
+          border-color: var(--border-default);
+          color: var(--text-primary);
         }
         .dg-inventory-spotlight-card:hover,
         .dg-inventory-spotlight-card:focus {
-          background: #f8fafc;
-          border-color: #94a3b8;
-          color: #0f172a;
+          background: var(--bg-card-hover);
+          border-color: var(--border-default);
+          color: var(--text-primary);
         }
         @media (max-width: 1399.98px) {
           .dg-inventory-summary-grid {
@@ -613,13 +613,13 @@ const InventoryPage: React.FC = () => {
                                   </div>
                                 </td>
                                 <td>{asset.node_type}</td>
-                                <td><span className={`badge ${getDomainClass(asset.domain)}`}>{asset.domain}</span></td>
+                                <td><span className={`${getDomainClass(asset.domain)}`}>{asset.domain}</span></td>
                                 <td>{asset.namespace ?? '-'}</td>
-                                <td>{riskMeta ? <span className={`badge ${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</td>
+                                <td>{riskMeta ? <span className={`${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</td>
                                 <td>
                                   <div className="d-flex flex-wrap gap-2">
-                                    {asset.is_entry_point ? <span className="badge bg-danger-subtle text-danger border border-danger-subtle">Entry Point</span> : null}
-                                    {asset.is_crown_jewel ? <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Crown Jewel</span> : null}
+                                    {asset.is_entry_point ? <span className="dg-badge dg-badge--high">Entry Point</span> : null}
+                                    {asset.is_crown_jewel ? <span className="dg-badge dg-badge--notable">Crown Jewel</span> : null}
                                     {!asset.is_entry_point && !asset.is_crown_jewel ? '-' : null}
                                   </div>
                                 </td>
@@ -633,12 +633,12 @@ const InventoryPage: React.FC = () => {
                                       return (
                                         <span
                                           key={scannerType}
-                                          className={`badge d-inline-flex align-items-center gap-1 ${
+                                          className={`dg-badge d-inline-flex align-items-center gap-1 ${
                                             isCovered
-                                              ? 'bg-success-subtle text-success border border-success-subtle'
+                                              ? 'dg-badge--success'
                                               : isNotCovered
-                                                ? 'bg-secondary-subtle text-secondary border border-secondary-subtle'
-                                                : 'bg-dark-subtle text-light border border-secondary-subtle'
+                                                ? 'dg-badge--low'
+                                                : 'dg-badge--tag'
                                           }`}
                                         >
                                           {scannerType}
@@ -697,7 +697,7 @@ const InventoryPage: React.FC = () => {
                                   <div className="flex-grow-1">
                                     <div className="d-flex justify-content-between gap-3 flex-wrap">
                                       <div className="fw-semibold">{item.name}</div>
-                                      <div>{riskMeta ? <span className={`badge ${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</div>
+                                      <div>{riskMeta ? <span className={`${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</div>
                                     </div>
                                     <div className="small text-muted mt-2">공격 경로 {item.attack_path_count ?? 0}개</div>
                                     {item.reachable_crown_jewel_count != null ? (
@@ -731,7 +731,7 @@ const InventoryPage: React.FC = () => {
                                   <div className="flex-grow-1">
                                     <div className="d-flex justify-content-between gap-3 flex-wrap">
                                       <div className="fw-semibold">{item.name}</div>
-                                      <div>{riskMeta ? <span className={`badge ${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</div>
+                                      <div>{riskMeta ? <span className={`${riskMeta.className}`}>{riskMeta.label}</span> : '-'}</div>
                                     </div>
                                     <div className="small text-muted mt-2">공격 경로 {item.attack_path_count ?? 0}개</div>
                                   </div>
@@ -789,7 +789,7 @@ const InventoryPage: React.FC = () => {
                 <div>
                   <strong>Risk:</strong>{' '}
                   {getRiskMeta(selectedAsset.base_risk) ? (
-                    <span className={`badge ${getRiskMeta(selectedAsset.base_risk)?.className}`}>{getRiskMeta(selectedAsset.base_risk)?.label}</span>
+                    <span className={getRiskMeta(selectedAsset.base_risk)?.className}>{getRiskMeta(selectedAsset.base_risk)?.label}</span>
                   ) : (
                     '-'
                   )}

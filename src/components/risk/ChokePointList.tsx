@@ -100,7 +100,20 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
   }
 
   return (
-    <div className="row g-3">
+    <>
+      <style>{`
+        .dg-recommendation-list-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle) !important;
+          border-radius: 10px;
+          box-shadow: var(--shadow-card);
+          overflow: hidden;
+        }
+        .dg-recommendation-list-card:hover {
+          background: rgba(255, 255, 255, 0.04);
+        }
+      `}</style>
+      <div className="row g-3">
       {items.map((item) => {
         const riskPct =
           maxCoveredRisk > 0
@@ -115,10 +128,10 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
 
         return (
           <div key={item.recommendation_id} className="col-12 col-md-6 col-lg-4">
-            <div className="card h-100 border-0 shadow-sm border-start border-primary border-4">
+            <div className="card h-100 border-0 shadow-sm border-start border-primary border-4 dg-recommendation-list-card">
               <div className="card-body">
                 {item.recommendation_rank != null && (
-                  <span className="badge bg-secondary mb-2">#{item.recommendation_rank + 1}</span>
+                  <span className="dg-badge dg-badge--tag mb-2">#{item.recommendation_rank + 1}</span>
                 )}
                 <h5 className="card-title text-primary mb-1">{title}</h5>
                 <p className="text-muted small mb-3" style={{ minHeight: '2.5rem' }}>
@@ -127,7 +140,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
                 <div className="d-flex flex-column gap-2 mb-3">
                   <div className="d-flex justify-content-between align-items-center">
                     <span className="text-muted small">커버된 위험</span>
-                    <span className="badge bg-danger rounded-pill">
+                    <span className="dg-badge dg-badge--high">
                       {formatRisk(item.covered_risk)}
                     </span>
                   </div>
@@ -159,7 +172,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
                 {(item.edge_type || item.edge_source || item.edge_target) && (
                   <div className="d-flex flex-wrap gap-2 mt-2">
                     {item.edge_type && (
-                      <span className="badge bg-secondary-subtle text-secondary-emphasis">
+                      <span className="dg-badge dg-badge--low">
                         {formatEdgeType(item.edge_type)}
                       </span>
                     )}
@@ -183,7 +196,8 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
           </div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 };
 

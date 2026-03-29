@@ -35,14 +35,14 @@ const getBadgeClass = (status?: string) => {
   switch (status) {
     case 'active':
     case 'covered':
-      return 'bg-success';
+      return 'dg-badge dg-badge--success';
     case 'partial':
-      return 'bg-warning text-dark';
+      return 'dg-badge dg-badge--notable';
     case 'inactive':
     case 'not_covered':
-      return 'bg-secondary';
+      return 'dg-badge dg-badge--low';
     default:
-      return 'bg-secondary';
+      return 'dg-badge dg-badge--low';
   }
 };
 
@@ -78,7 +78,7 @@ const renderResourceBadges = (resources?: Record<string, number>) => {
   return (
     <div className="d-flex flex-wrap gap-2">
       {entries.map(([name, count]) => (
-        <span key={name} className="badge rounded-pill text-bg-light border">
+        <span key={name} className="dg-badge dg-badge--tag">
           {name}: {count}
         </span>
       ))}
@@ -259,7 +259,7 @@ const InventorySummarySection: React.FC = () => {
                       </p>
                     </div>
                     {(isSummaryLoading || isSpotlightLoading) && (
-                      <span className="badge text-bg-light border">불러오는 중…</span>
+                      <span className="dg-badge dg-badge--tag">불러오는 중…</span>
                     )}
                   </div>
                   <div className="mb-3">
@@ -285,7 +285,7 @@ const InventorySummarySection: React.FC = () => {
                       </p>
                     </div>
                     {isScannerStatusLoading && (
-                      <span className="badge text-bg-light border">불러오는 중…</span>
+                      <span className="dg-badge dg-badge--tag">불러오는 중…</span>
                     )}
                   </div>
                   {scanners.length === 0 ? (
@@ -306,10 +306,10 @@ const InventorySummarySection: React.FC = () => {
                               </div>
                             </div>
                             <div className="d-flex gap-2">
-                              <span className={`badge ${getBadgeClass(scanner.status)}`}>
+                              <span className={`${getBadgeClass(scanner.status)}`}>
                                 {scanner.status}
                               </span>
-                              <span className={`badge ${getBadgeClass(scanner.coverage_status)}`}>
+                              <span className={`${getBadgeClass(scanner.coverage_status)}`}>
                                 {scanner.coverage_status}
                               </span>
                             </div>

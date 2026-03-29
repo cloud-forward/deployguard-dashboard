@@ -28,7 +28,7 @@ const Sidebar: React.FC = () => {
     { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
     { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
     { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
-    { badge: 'AC', label: 'Activity',         path: '/activity',     exact: true },
+    { badge: 'RM', label: 'Runtime Monitoring', path: '/activity',   exact: true },
   ];
 
 
@@ -40,10 +40,10 @@ const Sidebar: React.FC = () => {
     >
       <style>{`
         .dg-sidebar {
-          background: #0d1b2a;
-          border-right: 1px solid var(--dg-border, #1f2937);
-          width: 64px;
-          min-width: 64px;
+          background: rgba(11, 15, 26, 0.95);
+          border-right: 1px solid var(--border-subtle);
+          width: 72px;
+          min-width: 72px;
           flex-shrink: 0;
           min-height: calc(100vh - 54px);
           position: sticky;
@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
           transition: width 0.22s ease;
         }
         .dg-sidebar:hover {
-          width: 220px;
+          width: 236px;
         }
         @media (max-width: 767.98px) {
           .dg-sidebar {
@@ -88,21 +88,21 @@ const Sidebar: React.FC = () => {
           align-items: center;
           gap: 0.75rem;
           padding: 0.62rem 0.9rem;
-          color: #64748b;
+          color: var(--text-secondary);
           text-decoration: none;
           border-left: 3px solid transparent;
           white-space: nowrap;
           transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
         .dg-sidebar-link:hover {
-          background: rgba(59, 130, 246, 0.08);
-          color: #cbd5e1;
+          background: rgba(59, 130, 246, 0.1);
+          color: var(--text-accent);
           border-left-color: rgba(59, 130, 246, 0.35);
         }
         .dg-sidebar-link.is-active {
-          border-left-color: var(--dg-accent, #3b82f6);
-          background: rgba(59, 130, 246, 0.14);
-          color: #f9fafb;
+          border-left-color: var(--border-accent-blue);
+          background: rgba(59, 130, 246, 0.15);
+          color: var(--text-accent);
         }
         .dg-sidebar-badge {
           display: inline-flex;
@@ -112,7 +112,7 @@ const Sidebar: React.FC = () => {
           width: 2rem;
           height: 2rem;
           border-radius: 0.45rem;
-          background: #1e2d3d;
+          background: rgba(30, 41, 59, 0.92);
           color: #7dd3fc;
           font-size: 0.67rem;
           font-weight: 700;
@@ -127,7 +127,7 @@ const Sidebar: React.FC = () => {
           border-color: #2563eb;
         }
         .dg-sidebar-link:hover .dg-sidebar-badge {
-          background: #1e3a5f;
+          background: rgba(30, 58, 95, 0.98);
           color: #93c5fd;
           border-color: #3b82f6;
         }

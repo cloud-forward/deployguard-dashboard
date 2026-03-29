@@ -239,14 +239,14 @@ const RiskPage: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-success';
+        return 'dg-badge dg-badge--success';
       case 'failed':
-        return 'bg-danger';
+        return 'dg-badge dg-badge--high';
       case 'running':
       case 'processing':
-        return 'bg-primary';
+        return 'dg-badge dg-badge--info';
       default:
-        return 'bg-secondary';
+        return 'dg-badge dg-badge--low';
     }
   };
 
@@ -377,7 +377,7 @@ const RiskPage: React.FC = () => {
         key={scan.scan_id}
         type="button"
         className={`btn text-start border rounded-3 p-3 w-100 ${
-          isSelected ? 'border-primary bg-primary-subtle' : 'bg-white'
+          isSelected ? 'border-primary bg-primary-subtle' : 'bg-card-surface'
         }`}
         onClick={() => handleScanSelection(field, scan.scan_id)}
       >
@@ -387,8 +387,8 @@ const RiskPage: React.FC = () => {
             <div className="fw-semibold text-break">{scan.scan_id}</div>
           </div>
           <div className="d-flex align-items-center gap-2">
-            <span className={`badge ${getStatusBadgeClass(scan.status)}`}>{scan.status}</span>
-            {isSelected && <span className="badge bg-primary">선택됨</span>}
+            <span className={`${getStatusBadgeClass(scan.status)}`}>{scan.status}</span>
+            {isSelected && <span className="dg-badge dg-badge--info">선택됨</span>}
           </div>
         </div>
         <div className="row g-2 small text-muted">
@@ -518,7 +518,7 @@ const RiskPage: React.FC = () => {
                   `}</style>
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <h4 className="h6 mb-0">스캔 후보</h4>
-                    <span className="badge bg-light text-dark border">
+                    <span className="dg-badge dg-badge--tag">
                       {selectedCount}개 선택됨
                     </span>
                   </div>
@@ -603,7 +603,7 @@ const RiskPage: React.FC = () => {
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <h4 className="h6 mb-0">작업 상태</h4>
                     {selectedActiveJob && (
-                      <span className={`badge ${getStatusBadgeClass(selectedActiveJob.status)}`}>
+                      <span className={`${getStatusBadgeClass(selectedActiveJob.status)}`}>
                         {selectedActiveJob.status}
                       </span>
                     )}
@@ -686,7 +686,7 @@ const RiskPage: React.FC = () => {
                         >
                           <td className="text-break small">{job.job_id}</td>
                           <td className="small">
-                            <span className={`badge ${getStatusBadgeClass(job.status)}`}>
+                            <span className={`${getStatusBadgeClass(job.status)}`}>
                               {job.status}
                             </span>
                           </td>

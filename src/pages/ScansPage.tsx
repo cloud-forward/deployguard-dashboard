@@ -24,13 +24,13 @@ type ClusterOption = {
 };
 
 const statusBadgeClass: Record<string, string> = {
-  queued: 'bg-secondary',
-  created: 'bg-secondary',
-  running: 'bg-primary',
-  processing: 'bg-primary',
-  uploading: 'bg-info text-dark',
-  completed: 'bg-success',
-  failed: 'bg-danger',
+  queued: 'dg-badge dg-badge--low',
+  created: 'dg-badge dg-badge--low',
+  running: 'dg-badge dg-badge--info',
+  processing: 'dg-badge dg-badge--info',
+  uploading: 'dg-badge dg-badge--notable',
+  completed: 'dg-badge dg-badge--success',
+  failed: 'dg-badge dg-badge--high',
 };
 
 const statusLabel: Record<string, string> = {
@@ -107,7 +107,7 @@ const ScansPage: React.FC = () => {
         max-height: 618px;
         overflow-y: auto;
         overflow-x: hidden;
-        border: 1px solid rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-default);
         border-radius: 0.375rem;
       }
       .dg-scans-table-container table {
@@ -117,8 +117,8 @@ const ScansPage: React.FC = () => {
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
+        background-color: rgba(15, 23, 42, 0.94);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
       }
       @media (max-width: 768px) {
         .dg-scans-table-container {
@@ -323,7 +323,7 @@ const ScansPage: React.FC = () => {
               <div>
                 <h2 className="h5 mb-1">스캔 기록</h2>
               </div>
-              <span className="badge text-bg-dark">
+              <span className="dg-badge dg-badge--tag">
                 {scanList?.total ?? scans.length}건
               </span>
             </div>
@@ -370,7 +370,7 @@ const ScansPage: React.FC = () => {
                   <tbody>
                     {scans.map((scan) => {
                       const isExpanded = scan.scan_id === expandedScanId;
-                      const badgeClass = statusBadgeClass[scan.status] ?? 'bg-secondary';
+                      const badgeClass = statusBadgeClass[scan.status] ?? 'dg-badge dg-badge--low';
                       const badgeText = statusLabel[scan.status] ?? scan.status;
 
                       return (
@@ -382,7 +382,7 @@ const ScansPage: React.FC = () => {
                             </td>
                             <td className="text-nowrap">{scan.scanner_type}</td>
                             <td>
-                              <span className={`badge ${badgeClass}`}>
+                              <span className={badgeClass}>
                                 {badgeText}
                               </span>
                             </td>
@@ -434,7 +434,7 @@ const ScansPage: React.FC = () => {
                                       </p>
                                     </div>
                                     <div className="d-flex gap-2">
-                                      <span className={`badge ${statusBadgeClass[effectiveStatus] ?? 'bg-secondary'}`}>
+                                      <span className={`${statusBadgeClass[effectiveStatus] ?? 'dg-badge dg-badge--low'}`}>
                                         {(statusLabel[effectiveStatus] ?? effectiveStatus) || '알 수 없음'}
                                       </span>
                                       <button
