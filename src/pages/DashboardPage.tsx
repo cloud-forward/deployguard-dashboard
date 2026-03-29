@@ -19,37 +19,41 @@ import type {
 } from '../api/model';
 import StatCard from '../components/dashboard/StatCard';
 
-const getRiskBadge = (baseRisk?: number | null) => {
-  if (baseRisk == null) {
-    return <span className="text-muted small">-</span>;
-  }
-
-  if (baseRisk >= 80) {
-    return <span className="badge bg-danger-subtle text-danger border border-danger-subtle">Critical</span>;
-  }
-
-  if (baseRisk >= 60) {
-    return <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">High</span>;
-  }
-
-  if (baseRisk >= 40) {
-    return <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">Medium</span>;
-  }
-
-  return <span className="badge bg-success-subtle text-success border border-success-subtle">Low</span>;
-};
-
 const getDomainBadgeClass = (domain?: string | null) => {
   if (domain === 'k8s') {
-    return 'bg-primary-subtle text-primary border border-primary-subtle';
+    return 'dg-badge dg-badge--info';
   }
 
   if (domain === 'aws') {
-    return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+    return 'dg-badge dg-badge--notable';
   }
 
-  return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+  return 'dg-badge dg-badge--tag';
 };
+
+const getAssetTypeBadgeClass = (assetType?: string | null) => {
+  const normalized = (assetType ?? '').toLowerCase();
+
+  if (
+    normalized.includes('pod') ||
+    normalized.includes('service_account') ||
+    normalized.includes('serviceaccount') ||
+    normalized.includes('cluster_role') ||
+    normalized.includes('clusterrole') ||
+    normalized.includes('secret') ||
+    normalized === 'service'
+  ) {
+    return 'dg-badge dg-badge--info';
+  }
+
+  if (normalized.includes('iam') || normalized.includes('security_group') || normalized.includes('securitygroup')) {
+    return 'dg-badge dg-badge--notable';
+  }
+
+  return 'dg-badge dg-badge--low';
+};
+
+const getClusterChipClass = () => 'dg-badge dg-badge--cluster';
 
 const isUserOverviewResponse = (value: unknown): value is UserOverviewResponse =>
   Boolean(value && typeof value === 'object');
@@ -450,11 +454,20 @@ const DashboardPage: React.FC = () => {
   const assetList = isMeAssetInventoryListResponse(assetsQuery.data) ? assetsQuery.data : null;
   const assets = Array.isArray(assetList?.items) ? assetList.items : [];
 
+  const statAccentMap: Record<string, string> = {
+    '전체 자산': '#22d3ee',
+    'Public 자산': '#f59e0b',
+    'K8s 자산': '#3b82f6',
+    'AWS 자산': '#f97316',
+    '진입점': '#a855f7',
+    '핵심 자산': '#ef4444',
+  };
+
   const statRows = [
     { title: '전체 자산', value: overview?.total_assets ?? 0 },
+    { title: 'Public 자산', value: overview?.public_assets ?? 0 },
     { title: 'K8s 자산', value: overview?.k8s_assets ?? 0 },
     { title: 'AWS 자산', value: overview?.aws_assets ?? 0 },
-    { title: 'Public 자산', value: overview?.public_assets ?? 0 },
     { title: '진입점', value: overview?.entry_point_assets ?? 0 },
     { title: '핵심 자산', value: overview?.crown_jewel_assets ?? 0 },
   ];
@@ -471,18 +484,37 @@ const DashboardPage: React.FC = () => {
     () => buildCountMap(assets, (asset) => asset.cluster_name).slice(0, 6),
     [assets],
   );
-  const flaggedCounts = useMemo(
-    () => [
-      { label: 'Entry Point', count: assets.filter((asset) => Boolean(asset.is_entry_point)).length, className: 'bg-danger-subtle text-danger border border-danger-subtle' },
-      { label: 'Crown Jewel', count: assets.filter((asset) => Boolean(asset.is_crown_jewel)).length, className: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
-      { label: 'High Risk', count: assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length, className: 'bg-light text-dark border' },
-    ],
-    [assets],
-  );
-
   return (
-    <div className="dg-page-shell">
+    <div className="dg-page-shell dg-dashboard-page">
       <style>{`
+        .dg-dashboard-page {
+          gap: 0.8rem;
+        }
+        .dg-dashboard-page .card {
+          background: var(--bg-card);
+          border-color: var(--border-default) !important;
+          box-shadow: var(--shadow-card) !important;
+        }
+        .dg-dashboard-page .card:hover {
+          border-color: var(--border-accent-blue) !important;
+        }
+        .dg-dashboard-page .dg-dashboard-graph-card,
+        .dg-dashboard-page .dg-dashboard-bottom-card {
+          background: var(--bg-card);
+        }
+        .dg-dashboard-page .dg-dashboard-bottom-card .card-body,
+        .dg-dashboard-page .dg-dashboard-graph-card .card-body {
+          position: relative;
+        }
+        .dg-dashboard-page .dg-dashboard-bottom-card .card-body::before,
+        .dg-dashboard-page .dg-dashboard-graph-card .card-body::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
+        }
         .dg-dashboard-top {
         }
         .dg-dashboard-stat-grid {
@@ -490,29 +522,130 @@ const DashboardPage: React.FC = () => {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0.9rem;
         }
+        .dg-dashboard-stat-card {
+          position: relative;
+          overflow: hidden;
+        }
+        .dg-dashboard-stat-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: var(--stat-accent, transparent);
+          box-shadow: 0 0 18px color-mix(in srgb, var(--stat-accent, transparent) 55%, transparent);
+          z-index: 2;
+        }
+        .dg-dashboard-stat-card::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stat-accent, transparent) 26%, rgba(255,255,255,0.06));
+        }
         .dg-dashboard-graph-card .card-body {
           display: flex;
           flex-direction: column;
           height: 100%;
           min-height: 0;
-          padding-top: 1rem;
-          padding-bottom: 1rem;
+          padding-top: 0.85rem;
+          padding-bottom: 0.85rem;
         }
         .dg-dashboard-graph-preview {
           display: flex;
           justify-content: center;
           align-items: center;
           flex: 1 1 auto;
-          min-height: 220px;
+          min-height: 208px;
           border-radius: 0.75rem;
-          border: 1px dashed rgba(148, 163, 184, 0.28);
-          background: #eef2f6;
+          border: 1px dashed rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.6);
           overflow: hidden;
           padding: 0.5rem;
         }
         .dg-dashboard-bottom-card .card-body {
-          padding-top: 1rem;
-          padding-bottom: 0.75rem;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          padding-top: 0.85rem;
+          padding-bottom: 0.65rem;
+        }
+        .dg-dashboard-bottom-panel {
+          height: 26rem;
+        }
+        .dg-dashboard-bottom-scroll {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-right: 0.25rem;
+        }
+        .dg-dashboard-panel-title {
+          display: flex;
+          align-items: baseline;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          margin-bottom: 0;
+        }
+        .dg-dashboard-section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.55rem;
+        }
+        .dg-dashboard-section-label {
+          font-size: 0.77rem;
+          color: #94a3b8;
+          margin: 0;
+        }
+        .dg-dashboard-chip-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          align-content: flex-start;
+        }
+        .dg-dashboard-chip-group.is-asset-type {
+          max-height: 3.85rem;
+          overflow: hidden;
+          padding-bottom: 0.2rem;
+        }
+        .dg-dashboard-chip {
+          display: inline-flex;
+          align-items: center;
+          max-width: 100%;
+          padding: 0.38rem 0.72rem;
+          font-size: 0.74rem;
+          line-height: 1.1;
+          white-space: nowrap;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .dg-dashboard-chip.dg-badge--info {
+          background: rgba(59, 130, 246, 0.2);
+          border-color: rgba(59, 130, 246, 0.42);
+          color: #bfdbfe;
+        }
+        .dg-dashboard-chip.dg-badge--notable {
+          background: rgba(249, 115, 22, 0.2);
+          border-color: rgba(249, 115, 22, 0.42);
+          color: #fdba74;
+        }
+        .dg-dashboard-chip.dg-badge--tag {
+          background: rgba(234, 179, 8, 0.18);
+          border-color: rgba(234, 179, 8, 0.38);
+          color: #fde68a;
+        }
+        .dg-dashboard-chip.dg-badge--low {
+          background: rgba(100, 116, 139, 0.22);
+          border-color: rgba(148, 163, 184, 0.3);
+          color: #cbd5e1;
+        }
+        .dg-dashboard-chip.dg-badge--cluster {
+          background: rgba(51, 65, 85, 0.72);
+          border-color: rgba(148, 163, 184, 0.28);
+          color: #e2e8f0;
         }
         @media (min-width: 1200px) {
           .dg-dashboard-top {
@@ -532,6 +665,12 @@ const DashboardPage: React.FC = () => {
           .dg-dashboard-graph-preview {
             min-height: 220px;
           }
+          .dg-dashboard-bottom-panel {
+            height: auto;
+          }
+          .dg-dashboard-chip-group.is-asset-type {
+            max-height: none;
+          }
         }
       `}</style>
       <div className="dg-page-header">
@@ -541,7 +680,7 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="row g-4 dg-dashboard-top">
+      <div className="row g-3 dg-dashboard-top">
         <div className="col-12 col-xl-4">
           {overviewQuery.isLoading ? (
             <div className="dg-dashboard-stat-grid">
@@ -561,7 +700,14 @@ const DashboardPage: React.FC = () => {
           ) : (
             <div className="dg-dashboard-stat-grid">
               {statRows.map((card) => (
-                <StatCard key={card.title} title={card.title} value={card.value} compact />
+                <StatCard
+                  key={card.title}
+                  title={card.title}
+                  value={card.value}
+                  compact
+                  accentColor={statAccentMap[card.title]}
+                  className="dg-dashboard-stat-card"
+                />
               ))}
             </div>
           )}
@@ -572,124 +718,74 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="row g-4">
-        <div className="col-12 col-xl-7">
-          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
+      <div className="row g-3">
+        <div className="col-12 col-xl-6">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card dg-dashboard-bottom-panel">
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
                 <div>
-                  <h2 className="h5 mb-1">자산 분포</h2>
-                  <p className="text-muted small mb-0">
-                    사용자 기준 전체 자산을 유형과 도메인으로 묶은 요약입니다.
-                  </p>
+                  <h2 className="h5 dg-dashboard-panel-title">자산 분포</h2>
                 </div>
                 {assetsQuery.isLoading ? (
-                  <span className="badge text-bg-light border">불러오는 중…</span>
+                  <span className="dg-badge dg-badge--tag">불러오는 중…</span>
                 ) : null}
               </div>
 
-              {assetsQuery.isError ? (
-                <div className="alert alert-danger mb-0" role="alert">
-                  자산 요약을 불러오지 못했습니다.
-                </div>
-              ) : assets.length === 0 ? (
-                <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
-              ) : (
-                <div className="d-flex flex-column gap-3">
-                  <div>
-                    <div className="small text-muted mb-2">Asset Type</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {assetTypeCounts.map((item) => (
-                        <span key={item.label} className="badge rounded-pill text-bg-light border px-3 py-2">
-                          {item.label}: {item.count}
-                        </span>
-                      ))}
-                    </div>
+              <div className="dg-dashboard-bottom-scroll">
+                {assetsQuery.isError ? (
+                  <div className="alert alert-danger mb-0" role="alert">
+                    자산 요약을 불러오지 못했습니다.
                   </div>
-
-                  <div>
-                    <div className="small text-muted mb-2">Domain</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {domainCounts.map((item) => (
-                        <span key={item.label} className={`badge rounded-pill px-3 py-2 ${getDomainBadgeClass(item.label)}`}>
-                          {item.label}: {item.count}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="small text-muted mb-2">상위 클러스터</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {clusterCounts.length === 0 ? (
-                        <span className="text-muted small">클러스터 정보 없음</span>
-                      ) : (
-                        clusterCounts.map((item) => (
-                          <span key={item.label} className="badge rounded-pill text-bg-light border px-3 py-2">
+                ) : assets.length === 0 ? (
+                  <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
+                ) : (
+                  <div className="d-flex flex-column gap-2">
+                    <div className="dg-dashboard-section">
+                      <div className="dg-dashboard-section-label">Asset Type</div>
+                      <div className="dg-dashboard-chip-group is-asset-type">
+                        {assetTypeCounts.map((item) => (
+                          <span key={item.label} className={`${getAssetTypeBadgeClass(item.label)} dg-dashboard-chip`}>
                             {item.label}: {item.count}
                           </span>
-                        ))
-                      )}
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="dg-dashboard-section">
+                      <div className="dg-dashboard-section-label">Domain</div>
+                      <div className="dg-dashboard-chip-group">
+                        {domainCounts.map((item) => (
+                          <span key={item.label} className={`${getDomainBadgeClass(item.label)} dg-dashboard-chip`}>
+                            {item.label}: {item.count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="dg-dashboard-section">
+                      <div className="dg-dashboard-section-label">상위 클러스터</div>
+                      <div className="dg-dashboard-chip-group">
+                        {clusterCounts.length === 0 ? (
+                          <span className="text-muted small">클러스터 정보 없음</span>
+                        ) : (
+                          clusterCounts.map((item) => (
+                            <span key={item.label} className={`${getClusterChipClass()} dg-dashboard-chip`}>
+                              {item.label}: {item.count}
+                            </span>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="col-12 col-xl-5">
-          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-start gap-3 mb-2">
-                <div>
-                  <h2 className="h5 mb-1">주요 분류</h2>
-                  <p className="text-muted small mb-0">
-                    `/api/v1/me/assets` 기반 플래그 및 위험도 집계입니다.
-                  </p>
-                </div>
-                {assetsQuery.isLoading ? (
-                  <span className="badge text-bg-light border">불러오는 중…</span>
-                ) : null}
-              </div>
-
-              {assetsQuery.isError ? (
-                <div className="alert alert-danger mb-0" role="alert">
-                  자산 분류 집계를 불러오지 못했습니다.
-                </div>
-              ) : assets.length === 0 ? (
-                <p className="text-muted small mb-0">표시할 자산이 없습니다.</p>
-              ) : (
-                <div className="d-flex flex-column gap-3">
-                  {flaggedCounts.map((item) => (
-                    <div key={item.label} className="border rounded p-2">
-                      <div className="d-flex justify-content-between align-items-center gap-3">
-                        <span className={`badge ${item.className}`}>{item.label}</span>
-                        <div className="fw-semibold fs-5">{item.count}</div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="border-top pt-1">
-                    <div className="small text-muted mb-2">고위험 샘플</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {assets
-                        .filter((asset) => (asset.base_risk ?? 0) >= 60)
-                        .sort((left, right) => (right.base_risk ?? 0) - (left.base_risk ?? 0))
-                        .slice(0, 6)
-                        .map((asset) => (
-                          <span key={asset.asset_id} className="badge rounded-pill text-bg-light border px-3 py-2">
-                            {asset.name} {getRiskBadge(asset.base_risk)}
-                          </span>
-                        ))}
-                      {assets.filter((asset) => (asset.base_risk ?? 0) >= 60).length === 0 ? (
-                        <span className="text-muted small">고위험 자산 없음</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="col-12 col-xl-6">
+          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card dg-dashboard-bottom-panel" aria-hidden="true">
+            <div className="card-body" />
           </div>
         </div>
       </div>

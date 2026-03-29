@@ -1,4 +1,36 @@
 :root {
+  /* ── Design system tokens ────────────────────────────── */
+  --bg-base:        #0b0f1a;
+  --bg-surface:     #111827;
+  --bg-card:        rgba(17, 24, 39, 0.75);
+  --bg-card-hover:  rgba(30, 41, 59, 0.85);
+
+  --border-subtle:        rgba(255, 255, 255, 0.08);
+  --border-default:       rgba(255, 255, 255, 0.12);
+  --border-accent-red:    rgba(239, 68, 68, 0.7);
+  --border-accent-orange: rgba(249, 115, 22, 0.7);
+  --border-accent-yellow: rgba(234, 179, 8, 0.7);
+  --border-accent-blue:   rgba(59, 130, 246, 0.7);
+  --border-accent-purple: rgba(168, 85, 247, 0.7);
+  --border-accent-green:  rgba(34, 197, 94, 0.7);
+
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+  --text-accent:    #7dd3fc;
+
+  --status-high:    #ef4444;
+  --status-medium:  #f97316;
+  --status-low:     #6b7280;
+  --status-notable: #eab308;
+  --status-info:    #3b82f6;
+  --status-ok:      #22c55e;
+
+  --shadow-card:       0 0 0 1px rgba(255,255,255,0.06), 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow-blue:  0 0 12px rgba(59, 130, 246, 0.3);
+  --shadow-glow-red:   0 0 12px rgba(239, 68, 68, 0.3);
+
+  /* ── Legacy tokens (kept for backwards compatibility) ── */
   --dg-bg-primary: #0a1021;
   --dg-bg-card: #111827;
   --dg-border: #1f2937;
@@ -28,8 +60,8 @@
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: dark;
-  color: var(--text);
-  background: var(--bg);
+  color: var(--text-primary);
+  background: var(--bg-base);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -44,15 +76,15 @@
   width: 100%;
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--bg-base);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
 * {

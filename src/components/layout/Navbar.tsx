@@ -88,8 +88,8 @@ const Navbar: React.FC = () => {
     <header className="dg-navbar navbar navbar-dark sticky-top flex-md-nowrap">
       <style>{`
         .dg-navbar {
-          background: #0d1b2a;
-          border-bottom: 1px solid var(--dg-border, #1f2937);
+          background: rgba(11, 15, 26, 0.9);
+          border-bottom: 1px solid var(--border-subtle);
           padding: 0;
           height: 54px;
           min-height: 54px;
@@ -102,15 +102,15 @@ const Navbar: React.FC = () => {
           padding: 0 1rem;
           height: 54px;
           min-width: 64px;
-          color: #f8fafc;
+          color: var(--text-primary);
           text-decoration: none;
           font-weight: 600;
-          border-right: 1px solid var(--dg-border, #1f2937);
+          border-right: 1px solid var(--border-subtle);
           flex-shrink: 0;
           transition: background 0.15s;
         }
         .dg-navbar .dg-brand:hover {
-          background: rgba(59,130,246,0.06);
+          background: rgba(59,130,246,0.08);
         }
         .dg-navbar .dg-brand-mark {
           width: 1.85rem;
@@ -127,14 +127,14 @@ const Navbar: React.FC = () => {
           flex-shrink: 0;
         }
         .dg-navbar .dg-brand-text {
-          color: #f1f5f9;
+          color: var(--text-primary);
           font-size: 0.95rem;
           font-weight: 700;
           line-height: 1;
           white-space: nowrap;
         }
         .dg-navbar .dg-brand-sub {
-          color: #64748b;
+          color: var(--text-secondary);
           font-size: 0.62rem;
           line-height: 1;
           display: block;
@@ -160,7 +160,7 @@ const Navbar: React.FC = () => {
           border-left: 1px solid rgba(255,255,255,0.12);
         }
         .dg-user-email {
-          color: #cbd5e1;
+          color: var(--text-primary);
           font-size: 0.78rem;
           max-width: 220px;
           overflow: hidden;
@@ -173,19 +173,19 @@ const Navbar: React.FC = () => {
           gap: 0.3rem;
           padding: 0.2rem 0.65rem;
           border-radius: 999px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--border-subtle);
           font-size: 0.72rem;
-          color: #94a3b8;
+          color: rgba(148, 163, 184, 0.7);
           white-space: nowrap;
           line-height: 1.4;
         }
         .dg-scan-pill-name {
-          color: #cbd5e1;
+          color: rgba(226, 232, 240, 0.92);
           font-weight: 600;
         }
         .dg-scan-pill-sep {
-          color: #475569;
+          color: var(--text-muted);
           font-size: 0.6rem;
         }
         .dg-scan-pill-dot {
@@ -193,7 +193,7 @@ const Navbar: React.FC = () => {
           line-height: 1;
         }
         .dg-scan-pill-status {
-          color: #94a3b8;
+          color: var(--text-secondary);
         }
         .dg-navbar .navbar-toggler {
           border: none;

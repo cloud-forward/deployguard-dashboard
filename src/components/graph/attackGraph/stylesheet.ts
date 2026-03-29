@@ -69,7 +69,7 @@ export const attackGraphStylesheet: any[] = [
       shape: 'ellipse',
       'border-width': 2,
       'border-color': '#adb5bd',
-      color: '#212529',
+      color: '#e2e8f0',
       'text-outline-width': 0,
       'background-color': '#adb5bd',
     },
@@ -106,7 +106,7 @@ export const attackGraphStylesheet: any[] = [
     selector: 'node:active',
     style: {
       'border-width': 3,
-      'border-color': '#212529',
+      'border-color': '#60a5fa',
     },
   },
   {
@@ -131,7 +131,7 @@ export const attackGraphStylesheet: any[] = [
     selector: 'node.selected-node',
     style: {
       'border-width': 4,
-      'border-color': '#212529',
+      'border-color': '#60a5fa',
     },
   },
   {
@@ -139,10 +139,10 @@ export const attackGraphStylesheet: any[] = [
     style: {
       width: 3.5,
       opacity: 1,
-      'line-color': '#212529',
-      'target-arrow-color': '#212529',
+      'line-color': '#60a5fa',
+      'target-arrow-color': '#60a5fa',
       'line-style': 'solid',
-      'text-background-color': '#f8f9fa',
+      'text-background-color': 'rgba(15, 23, 42, 0.88)',
       'text-background-opacity': 1,
     },
   },
@@ -164,8 +164,8 @@ export const attackGraphStylesheet: any[] = [
       'target-arrow-shape': 'triangle',
       'line-color': '#adb5bd',
       'target-arrow-color': '#adb5bd',
-      color: '#6c757d',
-      'text-background-color': '#fff',
+      color: '#94a3b8',
+      'text-background-color': 'rgba(15, 23, 42, 0.78)',
       'text-background-opacity': 1,
       'text-background-padding': '2px',
       opacity: 0.72,

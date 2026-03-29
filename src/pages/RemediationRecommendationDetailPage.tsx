@@ -70,7 +70,7 @@ const isRecommendationExplanationResponse = (value: unknown): value is Recommend
 
 const SummaryField: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="col-12 col-md-6 col-xl-3">
-    <div className="border rounded-3 p-3 h-100 bg-white">
+    <div className="border rounded-3 p-3 h-100 bg-card-surface">
       <div className="text-muted small mb-1">{label}</div>
       <div className="fw-semibold text-break">{value}</div>
     </div>
@@ -172,7 +172,7 @@ const RecommendationNarrative: React.FC<{
 );
 
 const StatusBadge: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <span className="badge text-bg-light border text-dark fw-normal">
+  <span className="dg-badge dg-badge--tag">
     {label}: {value}
   </span>
 );
@@ -227,7 +227,7 @@ const ExplanationSection: React.FC<{
             </div>
           </div>
           <div className="col-12 col-xl-6">
-            <div className="border rounded-3 p-3 h-100 bg-white">
+            <div className="border rounded-3 p-3 h-100 bg-card-surface">
               <div className="fw-semibold mb-2">AI 설명</div>
               {displayedExplanation ? (
                 <div className="mb-0 text-break" style={{ whiteSpace: 'pre-wrap' }}>
