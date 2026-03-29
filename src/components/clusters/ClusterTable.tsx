@@ -27,7 +27,7 @@ const ClusterTable: React.FC<ClusterTableProps> = ({ clusters, onEdit, onDelete 
               <td>{cluster.name}</td>
               <td>{cluster.type}</td>
               <td>
-                <span className={`badge bg-${cluster.status === 'Active' ? 'success' : cluster.status === 'Inactive' ? 'danger' : 'warning'}`}>
+                <span className={`dg-badge ${cluster.status === 'Active' ? 'dg-badge--success' : cluster.status === 'Inactive' ? 'dg-badge--high' : 'dg-badge--notable'}`}>
                   {cluster.status}
                 </span>
               </td>

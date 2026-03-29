@@ -206,7 +206,7 @@ const renderValue = (value: unknown): string => {
 
 const SummaryField: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="col-12 col-md-6 col-xl-3">
-    <div className="border rounded-3 p-3 h-100 bg-white">
+    <div className="border rounded-3 p-3 h-100 bg-card-surface">
       <div className="text-muted small mb-1">{label}</div>
       <div className="fw-semibold text-break">{value}</div>
     </div>
@@ -266,7 +266,7 @@ const StepList: React.FC<{
         <h2 className="h6 mb-3">Path Progression</h2>
         <div className="d-flex flex-column gap-3">
           {steps.map((step) => (
-            <div key={step.id} className="border rounded-3 p-3 bg-white">
+            <div key={step.id} className="border rounded-3 p-3 bg-card-surface">
               <div className="small text-muted mb-2">Step {step.index + 1}</div>
               <div className="fw-semibold text-break">{step.sourceNodeId}</div>
               <div className="small text-muted my-2">

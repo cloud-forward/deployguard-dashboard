@@ -21,14 +21,14 @@ import StatCard from '../components/dashboard/StatCard';
 
 const getDomainBadgeClass = (domain?: string | null) => {
   if (domain === 'k8s') {
-    return 'bg-primary-subtle text-primary border border-primary-subtle';
+    return 'dg-badge dg-badge--info';
   }
 
   if (domain === 'aws') {
-    return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+    return 'dg-badge dg-badge--notable';
   }
 
-  return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+  return 'dg-badge dg-badge--tag';
 };
 
 const isUserOverviewResponse = (value: unknown): value is UserOverviewResponse =>
@@ -457,6 +457,31 @@ const DashboardPage: React.FC = () => {
         .dg-dashboard-page {
           gap: 0.8rem;
         }
+        .dg-dashboard-page .card {
+          background: var(--bg-card);
+          border-color: var(--border-default) !important;
+          box-shadow: var(--shadow-card) !important;
+        }
+        .dg-dashboard-page .card:hover {
+          border-color: var(--border-accent-blue) !important;
+        }
+        .dg-dashboard-page .dg-dashboard-graph-card,
+        .dg-dashboard-page .dg-dashboard-bottom-card {
+          background: var(--bg-card);
+        }
+        .dg-dashboard-page .dg-dashboard-bottom-card .card-body,
+        .dg-dashboard-page .dg-dashboard-graph-card .card-body {
+          position: relative;
+        }
+        .dg-dashboard-page .dg-dashboard-bottom-card .card-body::before,
+        .dg-dashboard-page .dg-dashboard-graph-card .card-body::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
+        }
         .dg-dashboard-top {
         }
         .dg-dashboard-stat-grid {
@@ -479,8 +504,8 @@ const DashboardPage: React.FC = () => {
           flex: 1 1 auto;
           min-height: 208px;
           border-radius: 0.75rem;
-          border: 1px dashed rgba(148, 163, 184, 0.28);
-          background: #eef2f6;
+          border: 1px dashed rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.6);
           overflow: hidden;
           padding: 0.5rem;
         }
@@ -610,7 +635,7 @@ const DashboardPage: React.FC = () => {
                   <h2 className="h5 dg-dashboard-panel-title">자산 분포</h2>
                 </div>
                 {assetsQuery.isLoading ? (
-                  <span className="badge text-bg-light border">불러오는 중…</span>
+                  <span className="dg-badge dg-badge--tag">불러오는 중…</span>
                 ) : null}
               </div>
 
@@ -627,7 +652,7 @@ const DashboardPage: React.FC = () => {
                       <div className="dg-dashboard-section-label">Asset Type</div>
                       <div className="dg-dashboard-chip-group is-asset-type">
                         {assetTypeCounts.map((item) => (
-                          <span key={item.label} className="badge rounded-pill text-bg-light border dg-dashboard-chip">
+                          <span key={item.label} className="dg-badge dg-badge--tag dg-dashboard-chip">
                             {item.label}: {item.count}
                           </span>
                         ))}
@@ -638,7 +663,7 @@ const DashboardPage: React.FC = () => {
                       <div className="dg-dashboard-section-label">Domain</div>
                       <div className="dg-dashboard-chip-group">
                         {domainCounts.map((item) => (
-                          <span key={item.label} className={`badge rounded-pill dg-dashboard-chip ${getDomainBadgeClass(item.label)}`}>
+                          <span key={item.label} className={`dg-dashboard-chip ${getDomainBadgeClass(item.label)}`}>
                             {item.label}: {item.count}
                           </span>
                         ))}
@@ -652,7 +677,7 @@ const DashboardPage: React.FC = () => {
                           <span className="text-muted small">클러스터 정보 없음</span>
                         ) : (
                           clusterCounts.map((item) => (
-                            <span key={item.label} className="badge rounded-pill text-bg-light border dg-dashboard-chip">
+                            <span key={item.label} className="dg-badge dg-badge--tag dg-dashboard-chip">
                               {item.label}: {item.count}
                             </span>
                           ))

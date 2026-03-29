@@ -190,10 +190,10 @@ const ActivityPage: React.FC = () => {
     <div className="position-relative dg-activity-page dg-page-shell">
       <style>{`
         .dg-activity-page {
-          --dg-activity-high: #ef4444;
-          --dg-activity-notable: #f97316;
-          --dg-activity-cloudtrail: #3b82f6;
-          --dg-activity-error: #a855f7;
+          --dg-activity-high: var(--status-high);
+          --dg-activity-notable: var(--status-medium);
+          --dg-activity-cloudtrail: var(--status-info);
+          --dg-activity-error: var(--border-accent-purple);
           --dg-activity-text: rgba(226, 232, 240, 1);
           --dg-activity-muted: rgba(148, 163, 184, 0.7);
           --dg-activity-muted-soft: rgba(148, 163, 184, 0.5);
@@ -206,13 +206,15 @@ const ActivityPage: React.FC = () => {
           overflow: hidden;
         }
         .dg-activity-card {
-          background: rgba(15, 23, 42, 0.75);
-          border: 1px solid rgba(148, 163, 184, 0.12);
-          border-radius: 16px;
+          background: var(--bg-card);
+          border: 1px solid var(--border-default);
+          border-radius: 12px;
+          box-shadow: var(--shadow-card);
           backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
         }
         .dg-activity-card:hover {
-          border-color: rgba(148, 163, 184, 0.25);
+          border-color: var(--border-accent-blue);
         }
         .dg-activity-cluster-picker {
           display: flex;
@@ -262,7 +264,7 @@ const ActivityPage: React.FC = () => {
           align-items: flex-start;
           gap: 1rem;
           padding: 1rem 1.25rem 0.95rem;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+          border-bottom: 1px solid var(--border-subtle);
         }
         .dg-activity-panel-body {
           flex: 1 1 auto;
@@ -286,12 +288,12 @@ const ActivityPage: React.FC = () => {
           animation: live-pulse 1.5s ease-in-out infinite;
         }
         .dg-activity-live-dot.is-runtime {
-          background: rgba(34, 197, 94, 1);
-          box-shadow: 0 0 6px rgba(34, 197, 94, 0.9);
+          background: var(--status-ok);
+          box-shadow: var(--shadow-glow-blue);
         }
         .dg-activity-live-dot.is-cloudtrail {
           background: var(--dg-activity-cloudtrail);
-          box-shadow: 0 0 6px rgba(59, 130, 246, 0.9);
+          box-shadow: var(--shadow-glow-blue);
         }
         .dg-activity-panel-description,
         .dg-activity-muted {
@@ -328,7 +330,7 @@ const ActivityPage: React.FC = () => {
           background: var(--dg-activity-hover-bg);
         }
         .dg-activity-runtime-item.is-notable {
-          border-left: 3px solid var(--dg-activity-high);
+          border-left: 3px solid var(--border-accent-red);
         }
         .dg-activity-runtime-title {
           color: var(--dg-activity-text);
@@ -346,34 +348,34 @@ const ActivityPage: React.FC = () => {
           white-space: nowrap;
         }
         .dg-activity-severity-badge {
-          background: rgba(148, 163, 184, 0.1);
-          color: rgba(148, 163, 184, 0.7);
-          border: 1px solid rgba(148, 163, 184, 0.2);
+          background: rgba(148, 163, 184, 0.08);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-subtle);
           border-radius: 6px;
           font-size: 0.7rem;
           padding: 2px 10px;
           text-transform: uppercase;
         }
         .dg-activity-severity-badge.is-high {
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-          border-color: rgba(239, 68, 68, 0.3);
+          background: rgba(239, 68, 68, 0.12);
+          color: var(--status-high);
+          border-color: var(--border-accent-red);
         }
         .dg-activity-tag {
           background: rgba(59, 130, 246, 0.1);
-          color: #60a5fa;
-          border: 1px solid rgba(59, 130, 246, 0.25);
+          color: var(--text-accent);
+          border: 1px solid var(--border-accent-blue);
           border-radius: 6px;
           font-size: 0.7rem;
           padding: 2px 8px;
         }
         .dg-activity-cloudtrail-row {
-          border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+          border-bottom: 1px solid var(--border-subtle);
           padding: 0.8rem 0;
           transition: background-color 0.18s ease;
         }
         .dg-activity-cloudtrail-row:hover {
-          background: rgba(255, 255, 255, 0.02);
+          background: var(--bg-card-hover);
         }
         .dg-activity-cloudtrail-row:last-child {
           border-bottom: 0;
@@ -387,17 +389,17 @@ const ActivityPage: React.FC = () => {
           font-size: 0.82rem;
         }
         .dg-activity-identity-badge {
-          background: rgba(99, 102, 241, 0.12);
+          background: rgba(99, 102, 241, 0.1);
           color: #818cf8;
-          border: 1px solid rgba(99, 102, 241, 0.25);
+          border: 1px solid var(--border-accent-purple);
           border-radius: 6px;
           font-size: 0.7rem;
           padding: 2px 8px;
         }
         .dg-activity-error-badge {
-          background: rgba(239, 68, 68, 0.12);
-          color: #f87171;
-          border: 1px solid rgba(239, 68, 68, 0.25);
+          background: rgba(239, 68, 68, 0.1);
+          color: var(--status-high);
+          border: 1px solid var(--border-accent-red);
           border-radius: 6px;
           font-size: 0.7rem;
           padding: 2px 8px;

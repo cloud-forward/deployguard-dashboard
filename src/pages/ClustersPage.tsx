@@ -121,12 +121,12 @@ const ClustersPage: React.FC = () => {
     const getClusterTypeBadgeClass = (clusterType: string) => {
         switch (clusterType) {
             case 'aws':
-                return 'bg-success text-white';
+                return 'dg-badge dg-badge--success';
             case 'self-managed':
-                return 'bg-warning text-dark';
+                return 'dg-badge dg-badge--notable';
             case 'eks':
             default:
-                return 'bg-primary text-white';
+                return 'dg-badge dg-badge--info';
         }
     };
 
@@ -386,9 +386,9 @@ const ClustersPage: React.FC = () => {
                                             <td className="text-muted">{cluster.id}</td>
                                             <td>
                                                 <span
-                                                    className={`badge ${getClusterTypeBadgeClass(
+                                                    className={getClusterTypeBadgeClass(
                                                         cluster.cluster_type ?? 'eks',
-                                                    )}`}
+                                                    )}
                                                 >
                                                     {getClusterTypeLabel(cluster.cluster_type ?? '-')}
                                                 </span>
