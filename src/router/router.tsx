@@ -11,6 +11,7 @@ import RemediationRecommendationDetailPage from '../pages/RemediationRecommendat
 import ScansPage from '../pages/ScansPage';
 import RiskPage from '../pages/RiskPage';
 import InventoryPage from '../pages/InventoryPage';
+import ActivityPage from '../pages/ActivityPage';
 
 export const router = createBrowserRouter([
   {
@@ -80,6 +81,10 @@ export const router = createBrowserRouter([
       {
         path: 'clusters/:clusterId/inventory',
         element: <InventoryPage />,
+      },
+      {
+        path: 'activity',
+        element: <ActivityPage />,
       },
     ],
   },

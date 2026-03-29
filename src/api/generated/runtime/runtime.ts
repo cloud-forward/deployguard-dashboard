@@ -38,7 +38,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CloudTrailEventListResponse,
+  GetCloudtrailEventsApiV1CloudtrailEventsGetParams,
+  GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams,
   HTTPValidationError,
+  RuntimeActivityListResponse,
   RuntimeCompleteRequest,
   RuntimeCompleteResponse,
   RuntimeStatusResponse,
@@ -300,6 +304,238 @@ export function useGetRuntimeStatusApiV1ClustersClusterIdRuntimeStatusGet<TData 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetRuntimeStatusApiV1ClustersClusterIdRuntimeStatusGetQueryOptions(clusterId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * @summary Get Runtime Activities
+ */
+export type getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse200 = RuntimeActivityListResponse
+
+export type getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse422 = HTTPValidationError
+
+export type getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponseSuccess = (getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse200);export type getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponseError = (getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse422);
+export type getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse = (getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponseSuccess | getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponseError)
+
+export const getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetUrl = (clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/clusters/${clusterId}/runtime/activities?${stringifiedParams}` : `/api/v1/clusters/${clusterId}/runtime/activities`
+}
+
+export const getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet = async (clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options?: RequestInit): Promise<getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse> => {
+  
+  return apiClient<getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetResponse>(getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetUrl(clusterId,params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryKey = (clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams,) => {
+    return [
+    `/api/v1/clusters/${clusterId}/runtime/activities`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+    
+export const getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryOptions = <TData = Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError = HTTPValidationError>(clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryKey(clusterId,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>> = ({ signal }) => getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet(clusterId,params, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(clusterId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>>
+export type GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryError = HTTPValidationError
+
+
+export function useGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet<TData = Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params: undefined |  GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet<TData = Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet<TData = Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Runtime Activities
+ */
+
+export function useGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet<TData = Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError = HTTPValidationError>(
+ clusterId: string,
+    params?: GetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRuntimeActivitiesApiV1ClustersClusterIdRuntimeActivitiesGetQueryOptions(clusterId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+/**
+ * @summary Get Cloudtrail Events
+ */
+export type getCloudtrailEventsApiV1CloudtrailEventsGetResponse200 = CloudTrailEventListResponse
+
+export type getCloudtrailEventsApiV1CloudtrailEventsGetResponse422 = HTTPValidationError
+
+export type getCloudtrailEventsApiV1CloudtrailEventsGetResponseSuccess = (getCloudtrailEventsApiV1CloudtrailEventsGetResponse200);export type getCloudtrailEventsApiV1CloudtrailEventsGetResponseError = (getCloudtrailEventsApiV1CloudtrailEventsGetResponse422);
+export type getCloudtrailEventsApiV1CloudtrailEventsGetResponse = (getCloudtrailEventsApiV1CloudtrailEventsGetResponseSuccess | getCloudtrailEventsApiV1CloudtrailEventsGetResponseError)
+
+export const getGetCloudtrailEventsApiV1CloudtrailEventsGetUrl = (params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/cloudtrail/events?${stringifiedParams}` : `/api/v1/cloudtrail/events`
+}
+
+export const getCloudtrailEventsApiV1CloudtrailEventsGet = async (params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options?: RequestInit): Promise<getCloudtrailEventsApiV1CloudtrailEventsGetResponse> => {
+  
+  return apiClient<getCloudtrailEventsApiV1CloudtrailEventsGetResponse>(getGetCloudtrailEventsApiV1CloudtrailEventsGetUrl(params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+  
+
+
+
+
+export const getGetCloudtrailEventsApiV1CloudtrailEventsGetQueryKey = (params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams,) => {
+    return [
+    `/api/v1/cloudtrail/events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+    
+export const getGetCloudtrailEventsApiV1CloudtrailEventsGetQueryOptions = <TData = Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError = HTTPValidationError>(params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCloudtrailEventsApiV1CloudtrailEventsGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>> = ({ signal }) => getCloudtrailEventsApiV1CloudtrailEventsGet(params, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCloudtrailEventsApiV1CloudtrailEventsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>>
+export type GetCloudtrailEventsApiV1CloudtrailEventsGetQueryError = HTTPValidationError
+
+
+export function useGetCloudtrailEventsApiV1CloudtrailEventsGet<TData = Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError = HTTPValidationError>(
+ params: undefined |  GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCloudtrailEventsApiV1CloudtrailEventsGet<TData = Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError = HTTPValidationError>(
+ params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCloudtrailEventsApiV1CloudtrailEventsGet<TData = Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError = HTTPValidationError>(
+ params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Cloudtrail Events
+ */
+
+export function useGetCloudtrailEventsApiV1CloudtrailEventsGet<TData = Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError = HTTPValidationError>(
+ params?: GetCloudtrailEventsApiV1CloudtrailEventsGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCloudtrailEventsApiV1CloudtrailEventsGet>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCloudtrailEventsApiV1CloudtrailEventsGetQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -22,12 +22,22 @@ const Sidebar: React.FC = () => {
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
 
   const navItems = [
+<<<<<<< HEAD
     { badge: 'OV', label: 'Overview',         path: '/dashboard',    exact: true },
     { badge: 'CL', label: 'Clusters',         path: '/clusters',     exact: true },
     { badge: 'SC', label: 'Scans',            path: '/scans',        exact: true },
     { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
     { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
     { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
+=======
+    { badge: 'OV', label: '개요',            path: '/dashboard',    exact: true },
+    { badge: 'AG', label: '공격 경로 그래프', path: '/attack-graph', exact: true },
+    { badge: 'CL', label: '클러스터',         path: '/clusters',     exact: true },
+    { badge: 'SC', label: '스캐너',           path: '/scans',        exact: true },
+    { badge: 'RO', label: '위험 최적화',      path: '/risk',         exact: true },
+    { badge: 'IV', label: '인벤토리',         path: inventoryHref,   exact: false, forceActive: isInventoryActive },
+    { badge: 'AC', label: '활동',             path: '/activity',     exact: true },
+>>>>>>> 37f4938 (feat: Activity 페이지 추가 - 런타임 이벤트 및 CloudTrail 감사 로그)
   ];
 
   return (
