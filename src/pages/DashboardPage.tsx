@@ -481,10 +481,9 @@ const DashboardPage: React.FC = () => {
   );
 
   return (
-    <div>
+    <div className="dg-page-shell">
       <style>{`
         .dg-dashboard-top {
-          margin-bottom: 1.5rem;
         }
         .dg-dashboard-stat-grid {
           display: grid;
@@ -535,9 +534,11 @@ const DashboardPage: React.FC = () => {
           }
         }
       `}</style>
-      <div className="d-flex align-items-baseline gap-3 mb-4">
-        <h4 className="mb-0 fw-bold">대시보드 개요</h4>
-        <span className="fs-6" style={{ color: '#f2f2f2' }}>사용자 기준 자산 요약</span>
+      <div className="dg-page-header">
+        <div className="dg-page-heading">
+          <h1 className="dg-page-title">대시보드 오버뷰</h1>
+          <p className="dg-page-description">한눈에 보는 클러스터 보안 현황과 분석 결과 요약</p>
+        </div>
       </div>
 
       <div className="row g-4 dg-dashboard-top">

@@ -22,12 +22,12 @@ const Sidebar: React.FC = () => {
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
 
   const navItems = [
-    { badge: 'OV', label: '개요',            path: '/dashboard',    exact: true },
-    { badge: 'AG', label: '공격 경로 그래프', path: '/attack-graph', exact: true },
-    { badge: 'CL', label: '클러스터',         path: '/clusters',     exact: true },
-    { badge: 'SC', label: '스캐너',           path: '/scans',        exact: true },
-    { badge: 'RO', label: '위험 최적화',      path: '/risk',         exact: true },
-    { badge: 'IV', label: '인벤토리',         path: inventoryHref,   exact: false, forceActive: isInventoryActive },
+    { badge: 'OV', label: 'Overview',         path: '/dashboard',    exact: true },
+    { badge: 'CL', label: 'Clusters',         path: '/clusters',     exact: true },
+    { badge: 'SC', label: 'Scans',            path: '/scans',        exact: true },
+    { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
+    { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
+    { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
   ];
 
   return (
@@ -44,7 +44,12 @@ const Sidebar: React.FC = () => {
           min-width: 64px;
           flex-shrink: 0;
           min-height: calc(100vh - 54px);
-          overflow: hidden;
+          position: sticky;
+          top: 54px;
+          align-self: flex-start;
+          max-height: calc(100vh - 54px);
+          overflow-y: auto;
+          overflow-x: hidden;
           transition: width 0.22s ease;
         }
         .dg-sidebar:hover {

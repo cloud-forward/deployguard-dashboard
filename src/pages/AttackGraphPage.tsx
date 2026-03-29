@@ -1,18 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { ElementDefinition } from 'cytoscape';
 import { Link, useParams } from 'react-router-dom';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
-import { mockElements } from '../components/graph/mockGraphData';
 import {
   useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
-  useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
-import type { AttackPathListItemResponse, RemediationRecommendationListItemResponse } from '../api/model';
+import type { AttackPathListItemResponse } from '../api/model';
 import { useGetClusterAttackGraph } from '../api/attackGraph';
 import {
   attackGraphDefaultLayout,
@@ -20,8 +17,6 @@ import {
   filterIsolatedAttackGraphNodes,
   toAttackGraphElements,
   toAttackGraphViewModel,
-  type AttackGraphApiEdge,
-  type AttackGraphApiNode,
   type AttackGraphApiResponse,
   type AttackGraphEdgeRelation,
   type AttackGraphFilters,
@@ -39,8 +34,7 @@ const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
 };
 
 type SelectionMode = 'none' | 'path' | 'node' | 'edge';
-type AttackGraphDataSource = 'mock' | 'live';
-type AttackGraphInnerTab = 'graph' | 'attack-paths' | 'remediation';
+type AttackGraphInnerTab = 'graph' | 'attack-paths';
 
 interface EdgeData {
   id: string;
@@ -57,57 +51,6 @@ const mapLegacyTypeToAttackGraphType = (nodeType: string): string => {
   if (nodeType === 'S3Bucket') return 'S3';
   return nodeType;
 };
-
-const mapLegacyType = (value: unknown): string => {
-  return String(value);
-};
-
-const buildAttackGraphApiPayload = (elements: ElementDefinition[]): AttackGraphApiResponse => {
-  const nodes: AttackGraphApiNode[] = [];
-  const edges: AttackGraphApiEdge[] = [];
-
-  for (const element of elements) {
-    const data = element.data as Record<string, unknown>;
-    if (typeof data.source === 'string') {
-      edges.push({
-        id: String(data.id),
-        source: String(data.source),
-        target: String(data.target),
-        relation: data.label ? String(data.label) : undefined,
-        label: data.label ? String(data.label) : undefined,
-      });
-      continue;
-    }
-
-    nodes.push({
-      id: String(data.id),
-      label: data.label ? String(data.label) : String(data.id),
-      resource_type: mapLegacyTypeToAttackGraphType(mapLegacyType(data.type)),
-      namespace: typeof data.namespace === 'string' ? data.namespace : null,
-      severity: 'unknown',
-      is_entry_point: false,
-      is_crown_jewel: false,
-      has_runtime_evidence: false,
-      details: typeof data.details === 'object' && data.details !== null ? (data.details as Record<string, unknown>) : {},
-    });
-  }
-
-  return {
-    nodes,
-    edges,
-    paths: [
-      {
-        id: 'mock-path-1',
-        label: '파드에서 S3로의 어택 경로',
-        node_ids: ['pod-1', 'sa-1', 'iam-1', 's3-1'],
-        edge_ids: ['e1', 'e2', 'e3'],
-        severity: 'high',
-      },
-    ],
-  };
-};
-
-const MOCK_ATTACK_GRAPH_PAYLOAD = buildAttackGraphApiPayload(mockElements);
 
 const sortAndNormalize = <T,>(values: T[]): T[] =>
   [...values]
@@ -482,116 +425,6 @@ const AttackPathsPanel: React.FC<{
   );
 };
 
-const RemediationPanel: React.FC<{
-  clusterId: string;
-  enabled: boolean;
-}> = ({ clusterId, enabled }) => {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet(clusterId, {
-    query: {
-      enabled,
-      retry: false,
-    },
-  });
-
-  const items = Array.isArray((data as { items?: RemediationRecommendationListItemResponse[] } | undefined)?.items)
-    ? ((data as { items?: RemediationRecommendationListItemResponse[] }).items ?? [])
-    : [];
-
-  if (isLoading) {
-    return (
-      <div className="card border-0 shadow-sm">
-        <div className="card-body py-5 text-center text-muted">Persisted remediation recommendations loading…</div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="card border-0 shadow-sm">
-        <div className="card-body py-4">
-          <div className="alert alert-danger mb-3" role="alert">
-            {toErrorMessage(error, 'Persisted remediation recommendations could not be loaded.')}
-          </div>
-          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => refetch()}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="card border-0 shadow-sm">
-        <div className="card-body py-5 text-center">
-          <h2 className="h5 mb-2">No persisted remediation recommendations found.</h2>
-          <p className="text-muted mb-0">
-            Persisted remediation recommendations will appear here when analysis data is available.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="card border-0 shadow-sm">
-      <div className="card-body py-3">
-        <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
-          <div>
-            <h2 className="h5 mb-1">Persisted Remediation Recommendations</h2>
-            <p className="text-muted mb-0 small">총 {items.length}개 권장 사항</p>
-          </div>
-        </div>
-        <div className="table-responsive">
-          <table className="table align-middle mb-0 small">
-            <thead className="table-light">
-              <tr>
-                <th>Recommendation ID</th>
-                <th>Fix Type</th>
-                <th>Fix Cost</th>
-                <th>Covered Risk</th>
-                <th>Cumulative Risk Reduction</th>
-                <th>Edge Source</th>
-                <th>Edge Target</th>
-                <th>Edge Type</th>
-                <th>Open</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.recommendation_id}>
-                  <td className="text-break">{item.recommendation_id}</td>
-                  <td>{item.fix_type ?? '-'}</td>
-                  <td>{formatNumber(item.fix_cost)}</td>
-                  <td>{formatNumber(item.covered_risk)}</td>
-                  <td>{formatNumber(item.cumulative_risk_reduction)}</td>
-                  <td className="text-break">{item.edge_source ?? '-'}</td>
-                  <td className="text-break">{item.edge_target ?? '-'}</td>
-                  <td>{item.edge_type ?? '-'}</td>
-                  <td>
-                    <Link
-                      to={`/clusters/${clusterId}/recommendations/${item.recommendation_id}`}
-                      className="btn btn-outline-secondary btn-sm"
-                    >
-                      Open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
@@ -781,43 +614,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
       <div
         className="card dg-attack-graph-canvas-card"
-        style={{ position: 'relative' }}
+        style={{ position: 'relative', overflow: 'hidden' }}
       >
-        <div className="px-2 py-1 bg-light border-bottom small">
-          <div className="d-flex align-items-center gap-2 flex-nowrap overflow-auto">
-            <span className="text-muted fw-semibold text-nowrap">공격 경로:</span>
-            <div
-              className="d-flex align-items-center gap-1 overflow-auto flex-nowrap"
-              style={{ maxHeight: 28, whiteSpace: 'nowrap', width: '100%' }}
-            >
-              {hasAttackPaths
-                ? attackPaths.map((path) => (
-                    <button
-                      key={path.id}
-                      type="button"
-                      className={`btn btn-sm py-0 px-2 ${
-                        selectedPathId === path.id ? 'btn-dark text-white' : 'btn-outline-secondary'
-                      }`}
-                      onClick={() => {
-                        const next = path.id === selectedPathId ? null : path.id;
-                        setSelectedPathId(next);
-                        setSelectedMode(next ? 'path' : 'none');
-                        setSelectedNodeId(null);
-                        setSelectedEdgeId(null);
-                        setSelectedNode(null);
-                        setSelectedEdge(null);
-                      }}
-                    >
-                      {path.label || `경로 ${path.id}`}
-                    </button>
-                  ))
-                : null}
-              {!hasAttackPaths && hasRenderableGraph ? (
-                <span className="text-muted">No attack paths found. Showing full graph instead.</span>
-              ) : null}
-            </div>
-          </div>
-        </div>
         {hasRenderableGraph ? (
           <GraphView
             showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
@@ -942,11 +740,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
 const AttackGraphPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
-  const [activeSource, setActiveSource] = useState<AttackGraphDataSource>(
-    'live',
-  );
   const [activeTab, setActiveTab] = useState<AttackGraphInnerTab>('graph');
-  const [mockFilters, setMockFilters] = useState<AttackGraphFilters>({});
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState('');
 
@@ -967,7 +761,6 @@ const AttackGraphPage: React.FC = () => {
   useEffect(() => {
     if (routeClusterId) {
       setSelectedClusterId(routeClusterId);
-      setActiveSource('live');
     }
   }, [routeClusterId]);
 
@@ -985,14 +778,13 @@ const AttackGraphPage: React.FC = () => {
     error: liveGraphError,
   } = useGetClusterAttackGraph(activeClusterId, {
     query: {
-      enabled: activeSource === 'live' && Boolean(activeClusterId),
+      enabled: Boolean(activeClusterId),
       retry: false,
     },
   });
 
   const livePayload = coerceAttackGraphApiResponse(liveAttackGraphResponse);
-  const shouldLoadAttackPaths = activeSource === 'live' && activeTab === 'attack-paths' && Boolean(activeClusterId);
-  const shouldLoadRemediation = activeSource === 'live' && activeTab === 'remediation' && Boolean(activeClusterId);
+  const shouldLoadAttackPaths = activeTab === 'attack-paths' && Boolean(activeClusterId);
 
   return (
     <div>
@@ -1014,140 +806,102 @@ const AttackGraphPage: React.FC = () => {
           }
         }
       `}</style>
-      <div className="dg-attack-graph-page">
-      <div className="d-flex align-items-baseline gap-3 mb-3">
-        <h1 className="h3 mb-0 fw-bold">어택 그래프</h1>
-        <span className="fs-6" style={{ color: '#f2f2f2' }}>잠재적 어택 벡터 시각화</span>
-      </div>
-
-      <div className="card border-0 shadow-sm mb-1">
-        <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-center">
-          <div className="btn-group btn-group-sm" role="tablist" aria-label="어택 그래프 데이터 소스">
-            <button
-              type="button"
-              className={`btn ${activeSource === 'live' ? 'btn-dark' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveSource('live')}
-            >
-              실시간
-            </button>
-            <button
-              type="button"
-              className={`btn ${activeSource === 'mock' ? 'btn-dark' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveSource('mock')}
-            >
-              모의
-            </button>
-          </div>
-          {activeSource === 'live' ? (
-            <div className="d-flex align-items-center gap-2">
-              <span className="text-muted small text-nowrap">클러스터</span>
-              <select
-                id="attack-graph-cluster-select"
-                className="form-select form-select-sm"
-                style={{ minWidth: 320 }}
-                value={activeClusterId}
-                onChange={(event) => {
-                  setSelectedClusterId(event.target.value);
-                  setLiveFilters({});
-                }}
-                disabled={isClustersLoading || clusters.length === 0}
-              >
-                {clusters.length === 0 ? (
-                  <option value="">사용 가능한 클러스터 없음</option>
-                ) : (
-                  clusters.map((cluster) => (
-                    <option key={cluster.id} value={cluster.id}>
-                      {cluster.name} ({cluster.id})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          ) : null}
+      <div className="dg-attack-graph-page dg-page-shell">
+      <div className="dg-page-header">
+        <div className="dg-page-heading">
+          <h1 className="dg-page-title">공격 경로 시각화</h1>
+          <p className="dg-page-description">리소스 간 연결 관계와 잠재적 공격 경로를 시각화합니다</p>
         </div>
       </div>
 
-      {activeSource === 'mock' ? (
-        <AttackGraphContent payload={MOCK_ATTACK_GRAPH_PAYLOAD} filters={mockFilters} onFiltersChange={setMockFilters} />
-      ) : (
-        <>
-          <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
-            <ul className="nav nav-tabs mb-0">
-              <li className="nav-item">
-                <button
-                  type="button"
-                  className={`nav-link ${activeTab === 'graph' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('graph')}
-                >
-                  Graph
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  type="button"
-                  className={`nav-link ${activeTab === 'attack-paths' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('attack-paths')}
-                >
-                  Attack Paths
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  type="button"
-                  className={`nav-link ${activeTab === 'remediation' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('remediation')}
-                >
-                  Remediation
-                </button>
-              </li>
-            </ul>
-          </div>
-          {isClustersError ? (
-            <div className="alert alert-danger mb-1" role="alert">
-              {toErrorMessage(clustersError, '실시간 어택 그래프용 클러스터를 불러오지 못했습니다.')}
-            </div>
-          ) : null}
-          {activeTab === 'graph' ? (
-            <AttackGraphContent
-              payload={livePayload}
-              filters={liveFilters}
-              onFiltersChange={setLiveFilters}
-              liveSummary={livePayload.summary ?? null}
-              liveEvidenceCount={livePayload.evidence_count ?? null}
-              emptyStateTitle={
-                isClustersLoading
-                  ? '실시간 어택 그래프 불러오는 중…'
-                  : !activeClusterId
-                    ? '선택된 클러스터 없음.'
-                    : isLiveGraphError
-                      ? '실시간 어택 그래프를 사용할 수 없습니다.'
-                      : '실시간 어택 그래프 데이터 없음.'
-              }
-              emptyStateBody={
-                isClustersLoading
-                  ? '실시간 어택 그래프 불러오기 전 클러스터 옵션을 가져오는 중.'
-                  : !activeClusterId
-                    ? '클러스터를 선택하여 /api/v1/clusters/{cluster_id}/attack-graph를 요청하세요.'
-                    : isLiveGraphLoading
-                      ? '백엔드 엔드포인트에서 그래프 데이터를 가져오는 중.'
-                      : isLiveGraphError
-                        ? toErrorMessage(liveGraphError, '백엔드 어택 그래프 요청이 실패했습니다.')
-                        : '백엔드가 이 클러스터에 대한 노드 또는 엣지를 반환하지 않았습니다.'
-              }
-            />
-          ) : null}
-          {activeTab === 'attack-paths' ? (
-            <AttackPathsPanel clusterId={activeClusterId} enabled={shouldLoadAttackPaths} />
-          ) : null}
-          {activeTab === 'remediation' ? (
-            <RemediationPanel clusterId={activeClusterId} enabled={shouldLoadRemediation} />
-          ) : null}
-        </>
-      )}
+      <div className="card border-0 shadow-sm mb-3">
+        <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 justify-content-between align-items-end">
+          <ul className="nav nav-tabs mb-0 flex-shrink-0">
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link ${activeTab === 'graph' ? 'active' : ''}`}
+                onClick={() => setActiveTab('graph')}
+              >
+                Graph
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link ${activeTab === 'attack-paths' ? 'active' : ''}`}
+                onClick={() => setActiveTab('attack-paths')}
+              >
+                Attack Paths
+              </button>
+            </li>
+          </ul>
 
-      {/* TODO Step5: advanced filters (critical paths only, escape-only, AWS pivot-only) are not supported by the current mock model */}
+          <div className="d-flex align-items-center gap-2 ms-auto">
+            <span className="text-muted small text-nowrap">클러스터</span>
+            <select
+              id="attack-graph-cluster-select"
+              className="form-select form-select-sm"
+              style={{ minWidth: 320 }}
+              value={activeClusterId}
+              onChange={(event) => {
+                setSelectedClusterId(event.target.value);
+                setLiveFilters({});
+              }}
+              disabled={isClustersLoading || clusters.length === 0}
+            >
+              {clusters.length === 0 ? (
+                <option value="">사용 가능한 클러스터 없음</option>
+              ) : (
+                clusters.map((cluster) => (
+                  <option key={cluster.id} value={cluster.id}>
+                    {cluster.name} ({cluster.id})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        </div>
+      </div>
+      {isClustersError ? (
+        <div className="alert alert-danger mb-1" role="alert">
+          {toErrorMessage(clustersError, '실시간 어택 그래프용 클러스터를 불러오지 못했습니다.')}
+        </div>
+      ) : null}
+      {activeTab === 'graph' ? (
+        <AttackGraphContent
+          payload={livePayload}
+          filters={liveFilters}
+          onFiltersChange={setLiveFilters}
+          liveSummary={livePayload.summary ?? null}
+          liveEvidenceCount={livePayload.evidence_count ?? null}
+          emptyStateTitle={
+            isClustersLoading
+              ? '실시간 어택 그래프 불러오는 중…'
+              : !activeClusterId
+                ? '선택된 클러스터 없음.'
+                : isLiveGraphError
+                  ? '실시간 어택 그래프를 사용할 수 없습니다.'
+                  : '실시간 어택 그래프 데이터 없음.'
+          }
+          emptyStateBody={
+            isClustersLoading
+              ? '실시간 어택 그래프 불러오기 전 클러스터 옵션을 가져오는 중.'
+              : !activeClusterId
+                ? '클러스터를 선택하여 /api/v1/clusters/{cluster_id}/attack-graph를 요청하세요.'
+                : isLiveGraphLoading
+                  ? '백엔드 엔드포인트에서 그래프 데이터를 가져오는 중.'
+                  : isLiveGraphError
+                    ? toErrorMessage(liveGraphError, '백엔드 어택 그래프 요청이 실패했습니다.')
+                    : '백엔드가 이 클러스터에 대한 노드 또는 엣지를 반환하지 않았습니다.'
+          }
+        />
+      ) : null}
+      {activeTab === 'attack-paths' ? (
+        <AttackPathsPanel clusterId={activeClusterId} enabled={shouldLoadAttackPaths} />
+      ) : null}
+
       {/* TODO Step5: cleanup of temporary compatibility bridges (legacy NodeData contracts remain in place) */}
-      {/* TODO Step5: remove the mock payload once the live graph becomes the default source */}
       </div>
     </div>
   );

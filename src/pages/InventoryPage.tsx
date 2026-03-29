@@ -290,7 +290,7 @@ const InventoryPage: React.FC = () => {
   }
 
   return (
-    <div className="position-relative dg-inventory-page">
+    <div className="position-relative dg-inventory-page dg-page-shell">
       <style>{`
         .dg-inventory-page {
           --dg-inventory-asset-height: clamp(23rem, calc(100vh - 28rem), 29rem);
@@ -310,8 +310,9 @@ const InventoryPage: React.FC = () => {
         .dg-inventory-cluster-picker {
           display: flex;
           align-items: center;
-          gap: 0.7rem;
+          gap: 0.55rem;
           min-width: 320px;
+          flex-wrap: wrap;
         }
         .dg-inventory-cluster-label {
           margin: 0;
@@ -480,13 +481,16 @@ const InventoryPage: React.FC = () => {
           .dg-inventory-summary-grid {
             grid-template-columns: 1fr;
           }
+          .dg-inventory-cluster-picker {
+            min-width: 100%;
+          }
         }
       `}</style>
 
-      <div className="d-flex justify-content-between align-items-end gap-3 mb-2 flex-wrap">
-        <div className="dg-inventory-heading">
-          <h1 className="h2 mb-0 fw-bold">인벤토리</h1>
-          <span className="dg-inventory-subtitle">클러스터 자산과 위험 포인트를 한눈에 확인합니다.</span>
+      <div className="dg-page-header">
+        <div className="dg-page-heading dg-inventory-heading">
+          <h1 className="dg-page-title">자산 현황</h1>
+          <p className="dg-page-description dg-inventory-subtitle">클러스터 자산 현황과 위험 요소를 한눈에 확인합니다</p>
         </div>
         <div className="dg-inventory-cluster-picker">
           <label htmlFor="inventory-cluster-select" className="dg-inventory-cluster-label">
@@ -494,7 +498,8 @@ const InventoryPage: React.FC = () => {
           </label>
           <select
             id="inventory-cluster-select"
-            className="form-select"
+            className="form-select form-select-sm"
+            style={{ minWidth: 220, flex: '1 1 220px' }}
             value={clusterId}
             onChange={(event) => {
               const nextClusterId = event.target.value;
