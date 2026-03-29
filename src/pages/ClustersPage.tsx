@@ -356,9 +356,9 @@ const ClustersPage: React.FC = () => {
                         </div>
                     )}
                     {showClustersTable && (
-                        <div className="table-responsive">
+                        <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
                             <table className="table table-hover mb-0 align-middle">
-                                <thead className="table-light">
+                                <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                                     <tr>
                                         <th className="text-start align-middle">이름</th>
                                         <th className="text-start align-middle">클러스터 ID</th>

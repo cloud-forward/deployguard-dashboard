@@ -104,9 +104,9 @@ const ScansPage: React.FC = () => {
     const style = document.createElement('style');
     style.textContent = `
       .dg-scans-table-container {
-        max-height: 500px;
+        max-height: 582px;
         overflow-y: auto;
-        overflow-x: auto;
+        overflow-x: hidden;
         border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 0.375rem;
       }
@@ -266,7 +266,7 @@ const ScansPage: React.FC = () => {
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div className="d-flex align-items-baseline gap-3">
-          <h1 className="h2 mb-0 fw-bold">스캐너</h1>
+          <h4 className="mb-0 fw-bold">스캔 기록</h4>
           <span className="fs-6" style={{ color: '#f2f2f2' }}>스캔 이력 및 커버리지 현황</span>
         </div>
         <div style={{ minWidth: 280 }}>
@@ -316,14 +316,11 @@ const ScansPage: React.FC = () => {
       )}
 
       {!isClustersLoading && !isClustersError && clusters.length > 0 && (
-        <div className="card shadow-sm">
+        <div className="card border-0 shadow-sm h-100">
           <div className="card-body p-0">
-            <div className="d-flex justify-content-between align-items-center px-3 py-3 border-bottom">
+            <div className="d-flex justify-content-between align-items-start gap-3 px-3 py-3 border-bottom">
               <div>
-                <h2 className="h6 mb-1">스캔 기록</h2>
-                <p className="text-muted small mb-0">
-                  {selectedCluster ? `${selectedCluster.name} (${selectedCluster.id})` : '선택된 클러스터'}
-                </p>
+                <h2 className="h5 mb-1">스캔 기록</h2>
               </div>
               <span className="badge text-bg-dark">
                 {scanList?.total ?? scans.length}건
