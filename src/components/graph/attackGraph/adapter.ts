@@ -17,29 +17,35 @@ import type { ElementDefinition } from 'cytoscape';
 
 const UNKNOWN = 'unknown' as const;
 
+const normalizeToken = (value?: string | null): string => {
+  if (!value) return '';
+
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+};
+
 const normalizeResourceType = (value?: string | null): AttackGraphResourceType => {
   if (!value) return 'Unknown';
 
-  const normalized = value.toLowerCase();
+  const normalized = normalizeToken(value);
 
   switch (normalized) {
     case 'ingress':
       return 'Ingress';
     case 'pod':
       return 'Pod';
-    case 'serviceaccount':
     case 'service_account':
+    case 'serviceaccount':
       return 'ServiceAccount';
     case 'role':
       return 'Role';
-    case 'clusterrole':
     case 'cluster_role':
+    case 'clusterrole':
       return 'ClusterRole';
-    case 'rolebinding':
     case 'role_binding':
+    case 'rolebinding':
       return 'RoleBinding';
-    case 'clusterrolebinding':
     case 'cluster_role_binding':
+    case 'clusterrolebinding':
       return 'ClusterRoleBinding';
     case 'secret':
       return 'Secret';
@@ -47,21 +53,20 @@ const normalizeResourceType = (value?: string | null): AttackGraphResourceType =
       return 'Service';
     case 'node':
       return 'Node';
-    case 'containerimage':
     case 'container_image':
-    case 'container image':
+    case 'containerimage':
       return 'ContainerImage';
-    case 'iamrole':
     case 'iam_role':
+    case 'iamrole':
       return 'IAMRole';
-    case 'iamuser':
     case 'iam_user':
+    case 'iamuser':
       return 'IAMUser';
-    case 'ec2instance':
     case 'ec2_instance':
+    case 'ec2instance':
       return 'EC2Instance';
-    case 'securitygroup':
     case 'security_group':
+    case 'securitygroup':
       return 'SecurityGroup';
     case 's3':
     case 's3_bucket':
@@ -82,6 +87,7 @@ const normalizeSeverity = (value?: string | null): AttackGraphRiskSeverity => {
   if (normalized === 'high') return 'high';
   if (normalized === 'medium') return 'medium';
   if (normalized === 'low') return 'low';
+  if (normalized === 'none') return 'none';
 
   return 'unknown';
 };
@@ -89,7 +95,7 @@ const normalizeSeverity = (value?: string | null): AttackGraphRiskSeverity => {
 const normalizeRelationType = (value?: string | null): AttackGraphEdgeRelation => {
   if (!value) return UNKNOWN;
 
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const normalized = normalizeToken(value);
 
   switch (normalized) {
     case 'boundto':
@@ -114,7 +120,7 @@ const toPathRecord = (
     nodeIds: Array.isArray(raw.node_ids) ? raw.node_ids : [],
     edgeIds: Array.isArray(raw.edge_ids) ? raw.edge_ids : [],
     severity: normalizeSeverity(raw.severity),
-    label: raw.label,
+    label: raw.label ?? raw.title ?? raw.summary,
   };
 };
 
@@ -148,8 +154,10 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
   const nodes = (payload.nodes ?? []).map((node) => ({
     id: node.id,
     label: node.label ?? node.id,
-    resourceType: normalizeResourceType(node.type ?? node.resource_type),
-    namespace: node.namespace ?? null,
+    resourceType: normalizeResourceType(node.resource_type ?? node.type),
+    namespace:
+      node.namespace ??
+      (typeof node.metadata?.namespace === 'string' ? node.metadata.namespace : null),
     severity: normalizeSeverity(node.severity),
     markerFlags: {
       isEntryPoint: Boolean(node.is_entry_point),
@@ -170,19 +178,23 @@ const buildGraphData = (payload: AttackGraphApiResponse): AttackGraphGraphData =
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    relationType: normalizeRelationType(edge.type ?? edge.relation),
-    label: edge.label,
+    relationType: normalizeRelationType(edge.relation ?? edge.type),
+    label: edge.label ?? edge.relation ?? edge.type,
     raw: edge as unknown as Record<string, unknown>,
   }));
 
-  const paths = (payload.paths ?? []).map((path) => ({
-    id: path.id,
-    label: path.label,
-    nodeIds: toPathRecord(path).nodeIds,
-    edgeIds: toPathRecord(path).edgeIds,
-    severity: toPathRecord(path).severity,
-    raw: path as unknown as Record<string, unknown>,
-  }));
+  const paths = (payload.paths ?? []).map((path) => {
+    const normalizedPath = toPathRecord(path);
+
+    return {
+      id: path.id,
+      label: normalizedPath.label,
+      nodeIds: normalizedPath.nodeIds,
+      edgeIds: normalizedPath.edgeIds,
+      severity: normalizedPath.severity,
+      raw: path as unknown as Record<string, unknown>,
+    };
+  });
 
   return {
     nodes,
