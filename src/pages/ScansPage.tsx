@@ -104,7 +104,7 @@ const ScansPage: React.FC = () => {
     const style = document.createElement('style');
     style.textContent = `
       .dg-scans-table-container {
-        max-height: 582px;
+        max-height: 618px;
         overflow-y: auto;
         overflow-x: hidden;
         border: 1px solid rgba(0, 0, 0, 0.1);
@@ -263,19 +263,20 @@ const ScansPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div className="d-flex align-items-baseline gap-3">
-          <h4 className="mb-0 fw-bold">스캔 기록</h4>
-          <span className="fs-6" style={{ color: '#f2f2f2' }}>스캔 이력 및 커버리지 현황</span>
+    <div className="dg-page-shell">
+      <div className="dg-page-header">
+        <div className="dg-page-heading">
+          <h1 className="dg-page-title">스캔 기록</h1>
+          <p className="dg-page-description">클러스터별 스캔 이력과 실행 상태를 확인합니다</p>
         </div>
-        <div style={{ minWidth: 280 }}>
-          <label htmlFor="scan-cluster-select" className="form-label mb-1">
+        <div className="d-flex align-items-center gap-2 flex-wrap" style={{ minWidth: 280 }}>
+          <label htmlFor="scan-cluster-select" className="form-label mb-0 text-nowrap small">
             클러스터
           </label>
           <select
             id="scan-cluster-select"
-            className="form-select"
+            className="form-select form-select-sm"
+            style={{ minWidth: 220, flex: '1 1 220px' }}
             value={activeClusterId}
             onChange={(event) => {
               setSelectedClusterId(event.target.value);
