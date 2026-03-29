@@ -399,15 +399,6 @@ const ClustersPage: React.FC = () => {
                                             <td className="text-end">
                                                 <div className="d-inline-flex gap-2">
                                                     <button
-                                                        className="btn btn-sm btn-outline-primary"
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            handleOpenInventory(cluster);
-                                                        }}
-                                                    >
-                                                        인벤토리 보기
-                                                    </button>
-                                                    <button
                                                         className="btn btn-sm btn-outline-success"
                                                         onClick={(event) => {
                                                             event.stopPropagation();

@@ -5,11 +5,22 @@ interface StatCardProps {
   value: string | number;
   icon?: React.ReactNode;
   compact?: boolean;
+  accentColor?: string;
+  className?: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, compact = false }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, compact = false, accentColor, className = '' }) => {
   return (
-    <div className="card shadow-sm h-100 border-0">
+    <div
+      className={`card shadow-sm h-100 border-0 ${className}`.trim()}
+      style={
+        accentColor
+          ? {
+              ['--stat-accent' as string]: accentColor,
+            }
+          : undefined
+      }
+    >
       <div className={`card-body d-flex align-items-center ${compact ? 'py-3 px-3' : ''}`}>
         {icon && (
           <div className="me-3 p-3 bg-light rounded-circle text-primary">

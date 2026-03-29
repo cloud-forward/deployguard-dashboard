@@ -100,7 +100,20 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
   }
 
   return (
-    <div className="row g-3">
+    <>
+      <style>{`
+        .dg-recommendation-list-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle) !important;
+          border-radius: 10px;
+          box-shadow: var(--shadow-card);
+          overflow: hidden;
+        }
+        .dg-recommendation-list-card:hover {
+          background: rgba(255, 255, 255, 0.04);
+        }
+      `}</style>
+      <div className="row g-3">
       {items.map((item) => {
         const riskPct =
           maxCoveredRisk > 0
@@ -115,7 +128,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
 
         return (
           <div key={item.recommendation_id} className="col-12 col-md-6 col-lg-4">
-            <div className="card h-100 border-0 shadow-sm border-start border-primary border-4">
+            <div className="card h-100 border-0 shadow-sm border-start border-primary border-4 dg-recommendation-list-card">
               <div className="card-body">
                 {item.recommendation_rank != null && (
                   <span className="dg-badge dg-badge--tag mb-2">#{item.recommendation_rank + 1}</span>
@@ -183,7 +196,8 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
           </div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 };
 

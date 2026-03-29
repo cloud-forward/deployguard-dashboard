@@ -31,6 +31,30 @@ const getDomainBadgeClass = (domain?: string | null) => {
   return 'dg-badge dg-badge--tag';
 };
 
+const getAssetTypeBadgeClass = (assetType?: string | null) => {
+  const normalized = (assetType ?? '').toLowerCase();
+
+  if (
+    normalized.includes('pod') ||
+    normalized.includes('service_account') ||
+    normalized.includes('serviceaccount') ||
+    normalized.includes('cluster_role') ||
+    normalized.includes('clusterrole') ||
+    normalized.includes('secret') ||
+    normalized === 'service'
+  ) {
+    return 'dg-badge dg-badge--info';
+  }
+
+  if (normalized.includes('iam') || normalized.includes('security_group') || normalized.includes('securitygroup')) {
+    return 'dg-badge dg-badge--notable';
+  }
+
+  return 'dg-badge dg-badge--low';
+};
+
+const getClusterChipClass = () => 'dg-badge dg-badge--cluster';
+
 const isUserOverviewResponse = (value: unknown): value is UserOverviewResponse =>
   Boolean(value && typeof value === 'object');
 
@@ -430,6 +454,15 @@ const DashboardPage: React.FC = () => {
   const assetList = isMeAssetInventoryListResponse(assetsQuery.data) ? assetsQuery.data : null;
   const assets = Array.isArray(assetList?.items) ? assetList.items : [];
 
+  const statAccentMap: Record<string, string> = {
+    '전체 자산': '#22d3ee',
+    'Public 자산': '#f59e0b',
+    'K8s 자산': '#3b82f6',
+    'AWS 자산': '#f97316',
+    '진입점': '#a855f7',
+    '핵심 자산': '#ef4444',
+  };
+
   const statRows = [
     { title: '전체 자산', value: overview?.total_assets ?? 0 },
     { title: 'Public 자산', value: overview?.public_assets ?? 0 },
@@ -489,6 +522,29 @@ const DashboardPage: React.FC = () => {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0.9rem;
         }
+        .dg-dashboard-stat-card {
+          position: relative;
+          overflow: hidden;
+        }
+        .dg-dashboard-stat-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: var(--stat-accent, transparent);
+          box-shadow: 0 0 18px color-mix(in srgb, var(--stat-accent, transparent) 55%, transparent);
+          z-index: 2;
+        }
+        .dg-dashboard-stat-card::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stat-accent, transparent) 26%, rgba(255,255,255,0.06));
+        }
         .dg-dashboard-graph-card .card-body {
           display: flex;
           flex-direction: column;
@@ -517,7 +573,7 @@ const DashboardPage: React.FC = () => {
           padding-bottom: 0.65rem;
         }
         .dg-dashboard-bottom-panel {
-          height: 24.5rem;
+          height: 26rem;
         }
         .dg-dashboard-bottom-scroll {
           flex: 1 1 auto;
@@ -536,7 +592,7 @@ const DashboardPage: React.FC = () => {
         .dg-dashboard-section {
           display: flex;
           flex-direction: column;
-          gap: 0.45rem;
+          gap: 0.55rem;
         }
         .dg-dashboard-section-label {
           font-size: 0.77rem;
@@ -546,21 +602,50 @@ const DashboardPage: React.FC = () => {
         .dg-dashboard-chip-group {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.35rem;
+          gap: 0.45rem;
           align-content: flex-start;
         }
         .dg-dashboard-chip-group.is-asset-type {
-          max-height: 3.4rem;
+          max-height: 3.85rem;
           overflow: hidden;
+          padding-bottom: 0.2rem;
         }
         .dg-dashboard-chip {
           display: inline-flex;
           align-items: center;
           max-width: 100%;
-          padding: 0.35rem 0.65rem;
+          padding: 0.38rem 0.72rem;
           font-size: 0.74rem;
-          line-height: 1.05;
+          line-height: 1.1;
           white-space: nowrap;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .dg-dashboard-chip.dg-badge--info {
+          background: rgba(59, 130, 246, 0.2);
+          border-color: rgba(59, 130, 246, 0.42);
+          color: #bfdbfe;
+        }
+        .dg-dashboard-chip.dg-badge--notable {
+          background: rgba(249, 115, 22, 0.2);
+          border-color: rgba(249, 115, 22, 0.42);
+          color: #fdba74;
+        }
+        .dg-dashboard-chip.dg-badge--tag {
+          background: rgba(234, 179, 8, 0.18);
+          border-color: rgba(234, 179, 8, 0.38);
+          color: #fde68a;
+        }
+        .dg-dashboard-chip.dg-badge--low {
+          background: rgba(100, 116, 139, 0.22);
+          border-color: rgba(148, 163, 184, 0.3);
+          color: #cbd5e1;
+        }
+        .dg-dashboard-chip.dg-badge--cluster {
+          background: rgba(51, 65, 85, 0.72);
+          border-color: rgba(148, 163, 184, 0.28);
+          color: #e2e8f0;
         }
         @media (min-width: 1200px) {
           .dg-dashboard-top {
@@ -615,7 +700,14 @@ const DashboardPage: React.FC = () => {
           ) : (
             <div className="dg-dashboard-stat-grid">
               {statRows.map((card) => (
-                <StatCard key={card.title} title={card.title} value={card.value} compact />
+                <StatCard
+                  key={card.title}
+                  title={card.title}
+                  value={card.value}
+                  compact
+                  accentColor={statAccentMap[card.title]}
+                  className="dg-dashboard-stat-card"
+                />
               ))}
             </div>
           )}
@@ -652,7 +744,7 @@ const DashboardPage: React.FC = () => {
                       <div className="dg-dashboard-section-label">Asset Type</div>
                       <div className="dg-dashboard-chip-group is-asset-type">
                         {assetTypeCounts.map((item) => (
-                          <span key={item.label} className="dg-badge dg-badge--tag dg-dashboard-chip">
+                          <span key={item.label} className={`${getAssetTypeBadgeClass(item.label)} dg-dashboard-chip`}>
                             {item.label}: {item.count}
                           </span>
                         ))}
@@ -663,7 +755,7 @@ const DashboardPage: React.FC = () => {
                       <div className="dg-dashboard-section-label">Domain</div>
                       <div className="dg-dashboard-chip-group">
                         {domainCounts.map((item) => (
-                          <span key={item.label} className={`dg-dashboard-chip ${getDomainBadgeClass(item.label)}`}>
+                          <span key={item.label} className={`${getDomainBadgeClass(item.label)} dg-dashboard-chip`}>
                             {item.label}: {item.count}
                           </span>
                         ))}
@@ -677,7 +769,7 @@ const DashboardPage: React.FC = () => {
                           <span className="text-muted small">클러스터 정보 없음</span>
                         ) : (
                           clusterCounts.map((item) => (
-                            <span key={item.label} className="dg-badge dg-badge--tag dg-dashboard-chip">
+                            <span key={item.label} className={`${getClusterChipClass()} dg-dashboard-chip`}>
                               {item.label}: {item.count}
                             </span>
                           ))

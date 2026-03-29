@@ -24,6 +24,10 @@ const DashboardLayout: React.FC = () => {
           --dg-text-muted: rgba(148, 163, 184, 0.5);
           --dg-accent: #3b82f6;
           --dg-accent-soft: rgba(59, 130, 246, 0.14);
+          --bg-card: rgba(17, 24, 39, 0.75);
+          --border-subtle: rgba(255, 255, 255, 0.08);
+          --text-primary: rgba(226, 232, 240, 1);
+          --text-secondary: rgba(148, 163, 184, 0.7);
           min-height: 100vh;
           background: var(--dg-bg-primary, #0a1021);
           color: var(--dg-text-primary, #f9fafb);
@@ -139,31 +143,48 @@ const DashboardLayout: React.FC = () => {
         .dg-dashboard-shell .text-body {
           color: var(--dg-text-primary) !important;
         }
-        .dg-dashboard-panel .table {
+        .dg-dashboard-shell .table {
           --bs-table-bg: transparent;
-          --bs-table-color: var(--dg-text-primary);
-          --bs-table-border-color: var(--dg-divider);
-          --bs-table-hover-color: var(--dg-text-primary);
-          --bs-table-hover-bg: rgba(255, 255, 255, 0.025);
-          color: var(--dg-text-primary);
+          --bs-table-color: var(--text-primary);
+          --bs-table-border-color: var(--border-subtle);
+          --bs-table-hover-color: var(--text-primary);
+          --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+          color: var(--text-primary);
           margin-bottom: 0;
         }
-        .dg-dashboard-panel .table thead th {
-          color: var(--dg-text-secondary);
-          font-weight: 600;
-          border-bottom-color: var(--dg-divider);
+        .dg-dashboard-shell .table thead {
+          background: rgba(255, 255, 255, 0.04);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+        .dg-dashboard-shell .table thead th {
+          color: var(--text-secondary);
+          font-size: 12px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 0;
+          background: transparent;
         }
         .dg-dashboard-shell .bg-body-tertiary {
           background-color: rgba(30, 41, 59, 0.5) !important;
         }
-        .dg-dashboard-panel .table tbody td,
-        .dg-dashboard-panel .table tbody th {
-          border-color: var(--dg-divider);
+        .dg-dashboard-shell .table tbody tr {
+          border-bottom: 1px solid var(--border-subtle);
+          transition: background 0.15s;
         }
-        .dg-dashboard-panel .table-responsive {
-          border-radius: 14px;
+        .dg-dashboard-shell .table tbody tr:hover {
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .dg-dashboard-shell .table tbody td,
+        .dg-dashboard-shell .table tbody th {
+          color: var(--text-primary);
+          border-color: transparent;
+        }
+        .dg-dashboard-shell .table-responsive {
+          border-radius: 10px;
           border: 1px solid var(--border-subtle);
           background: var(--bg-card);
+          overflow: hidden;
         }
         .dg-dashboard-panel .form-control,
         .dg-dashboard-panel .form-select {
