@@ -61,6 +61,13 @@ const PRIORITY_EDGE_TYPES = [
   'iam_role_access_resource',
 ] as const;
 const PRIORITY_EDGE_TYPE_SET = new Set<string>(PRIORITY_EDGE_TYPES);
+const SECOND_RESOURCE_ROW_TYPES: AttackGraphResourceType[] = [
+  'Secret',
+  'SecurityGroup',
+  'Service',
+  'ServiceAccount',
+];
+const SECOND_RESOURCE_ROW_TYPE_SET = new Set<AttackGraphResourceType>(SECOND_RESOURCE_ROW_TYPES);
 
 const formatRelationLabel = (relation: string) =>
   relation
@@ -122,6 +129,8 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
     ...PRIORITY_EDGE_TYPES.filter((relation) => availableEdgeRelations.includes(relation)),
     ...availableEdgeRelations.filter((relation) => !PRIORITY_EDGE_TYPE_SET.has(relation)),
   ];
+  const firstRowResourceTypes = availableResourceTypes.filter((type) => !SECOND_RESOURCE_ROW_TYPE_SET.has(type));
+  const secondRowResourceTypes = SECOND_RESOURCE_ROW_TYPES.filter((type) => availableResourceTypes.includes(type));
 
   const groupDividerStyle: React.CSSProperties = {
     paddingRight: '0.9rem',
@@ -129,30 +138,51 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
     borderRight: `1px solid var(--bs-border-color, #dee2e6)`,
   };
 
+  const renderResourceButton = (type: AttackGraphResourceType) => {
+    const active = filters.nodeTypes?.includes(type) ?? false;
+    return (
+      <button
+        key={type}
+        type="button"
+        onClick={() => toggle(type, filters.nodeTypes ?? [], updateNodeTypes)}
+        className={`btn btn-sm py-0 px-2 ${active ? 'btn-primary' : 'btn-outline-primary'}`}
+        aria-pressed={active}
+      >
+        <span className="me-1" aria-hidden="true">
+          {ResourceIcon[type] ?? '◉'}
+        </span>
+        {ResourceLabel[type]}
+      </button>
+    );
+  };
+
   return (
-    <div className="d-flex align-items-start justify-content-between gap-3 small flex-wrap">
-      <div className="d-flex align-items-center gap-3 flex-wrap flex-grow-1">
-        <div className="d-flex align-items-center gap-1 flex-wrap" style={groupDividerStyle}>
+    <div className="d-flex flex-column gap-3 small">
+      <div className="d-flex flex-column gap-2">
+        <div className="d-flex align-items-center gap-1 flex-wrap">
           <span className="text-muted fw-semibold">Resource:</span>
-          {availableResourceTypes.map((type) => {
-            const active = filters.nodeTypes?.includes(type) ?? false;
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => toggle(type, filters.nodeTypes ?? [], updateNodeTypes)}
-                className={`btn btn-sm py-0 px-2 ${active ? 'btn-primary' : 'btn-outline-primary'}`}
-                aria-pressed={active}
-              >
-                <span className="me-1" aria-hidden="true">
-                  {ResourceIcon[type] ?? '◉'}
-                </span>
-                {ResourceLabel[type]}
-              </button>
-            );
-          })}
+          {firstRowResourceTypes.map(renderResourceButton)}
         </div>
 
+        <div className="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+          <div className="d-flex align-items-center gap-1 flex-wrap">
+            {secondRowResourceTypes.map(renderResourceButton)}
+          </div>
+
+          <div className="d-flex align-items-center justify-content-end gap-2 ms-auto">
+            <input
+              type="search"
+              className="form-control form-control-sm py-0"
+              style={{ width: 240, maxWidth: '100%', minWidth: 180 }}
+              value={filters.search ?? ''}
+              placeholder="Search nodes, edges, paths"
+              onChange={(evt) => updateSearch(evt.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="d-flex align-items-center gap-3 flex-wrap">
         <div className="d-flex align-items-center gap-1 flex-wrap" style={groupDividerStyle}>
           <span className="text-muted fw-semibold">Risk:</span>
           {availableSeverities.map((severity) => {
@@ -192,17 +222,6 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="d-flex align-items-center justify-content-end gap-2 ms-auto">
-        <input
-          type="search"
-          className="form-control form-control-sm py-0"
-          style={{ width: 240, maxWidth: '100%', minWidth: 180 }}
-          value={filters.search ?? ''}
-          placeholder="Search nodes, edges, paths"
-          onChange={(evt) => updateSearch(evt.target.value)}
-        />
       </div>
     </div>
   );

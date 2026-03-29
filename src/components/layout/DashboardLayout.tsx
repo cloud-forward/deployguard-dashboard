@@ -35,6 +35,8 @@ const DashboardLayout: React.FC = () => {
           margin: 0 auto;
           padding: clamp(1.15rem, 1.6vw, 1.55rem) clamp(1.15rem, 1.9vw, 1.9rem) clamp(1.4rem, 2vw, 1.9rem);
           min-height: calc(100vh - 54px - 2.5rem);
+          max-height: calc(100vh - 54px - 2.5rem);
+          overflow-y: auto;
           box-shadow: 0 18px 35px -32px rgba(0,0,0,0.8);
         }
         @media (min-width: 1200px) {
@@ -66,6 +68,8 @@ const DashboardLayout: React.FC = () => {
             border-radius: 12px 12px 0 0;
             border-bottom: none;
             min-height: auto;
+            max-height: none;
+            overflow-y: visible;
             width: 100%;
             padding: 0.95rem 0.9rem 1.2rem;
           }

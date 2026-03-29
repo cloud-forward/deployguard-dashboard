@@ -258,7 +258,16 @@ const RiskPage: React.FC = () => {
     return new Date(value).toLocaleString();
   };
 
+  const getScanListMaxHeight = (scannerType: 'k8s' | 'image' | 'aws') => {
+    if (visibleScannerGroups.length === 1 && scannerType === 'aws') {
+      return '400px';
+    }
+
+    return '220px';
+  };
+
   const formatRawResult = (value: boolean) => (value ? '사용 가능' : '없음');
+  const analysisPanelMinHeight = '600px';
 
   const handleScanSelection = (field: keyof SelectedScans, scanId: string) => {
     setSelectedScans((current) => ({
@@ -482,19 +491,14 @@ const RiskPage: React.FC = () => {
 
           <div className="row g-3" style={{ alignItems: 'stretch' }}>
             <div className="col-12 col-xl-7" style={{ display: 'flex' }}>
-              <div className="card shadow-sm border-0 w-100">
+              <div className="card shadow-sm border-0 w-100" style={{ minHeight: analysisPanelMinHeight }}>
                 <div className="card-body py-3">
                   <style>{`
                     .dg-risk-candidate-scroll {
-                      overflow-y: auto;
                       padding-right: 0.5rem;
                     }
-                    .dg-risk-candidate-scroll.k8s,
-                    .dg-risk-candidate-scroll.image {
-                      max-height: 200px;
-                    }
-                    .dg-risk-candidate-scroll.aws {
-                      max-height: 280px;
+                    .dg-risk-candidate-scroll {
+                      overflow-y: auto;
                     }
                     .dg-risk-candidate-scroll::-webkit-scrollbar {
                       width: 6px;
@@ -542,7 +546,12 @@ const RiskPage: React.FC = () => {
                                 현재 클러스터 범위에서 완료된 {group.scannerType} 스캔 결과가 없습니다.
                               </div>
                             ) : (
-                              <div className={`dg-risk-candidate-scroll ${group.scannerType}`}>
+                              <div
+                                className={`dg-risk-candidate-scroll ${group.scannerType}`}
+                                style={{
+                                  maxHeight: getScanListMaxHeight(group.scannerType),
+                                }}
+                              >
                                 <div className="d-flex flex-column gap-2">
                                   {group.items.map((scan) =>
                                     renderScanCandidate(scan, field, group.scannerType),
@@ -559,8 +568,8 @@ const RiskPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="col-12 col-xl-5" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div className="card shadow-sm border-0 mb-3" style={{ flexShrink: 0 }}>
+            <div className="col-12 col-xl-5 d-flex flex-column" style={{ minHeight: analysisPanelMinHeight }}>
+              <div className="card shadow-sm border-0 mb-3">
                 <div className="card-body py-3">
                   <h4 className="h6 mb-2">생성 및 실행</h4>
                   <div className="d-flex flex-column gap-2 small mb-3">
@@ -587,8 +596,8 @@ const RiskPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="card shadow-sm border-0" style={{ flex: 1, minHeight: '220px', display: 'flex', flexDirection: 'column' }}>
-                <div className="card-body py-3 d-flex flex-column">
+              <div className="card shadow-sm border-0" style={{ minHeight: '220px', flex: 1 }}>
+                <div className="card-body py-3">
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <h4 className="h6 mb-0">작업 상태</h4>
                     {selectedActiveJob && (
@@ -705,7 +714,7 @@ const RiskPage: React.FC = () => {
         <div>
           <div className="mb-4">
             <h3 className="h5 mb-3">주요 권장 사항</h3>
-            <ChokePointList />
+            <ChokePointList clusterId={selectedClusterId} />
           </div>
         </div>
       )}
