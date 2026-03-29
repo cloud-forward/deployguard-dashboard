@@ -23,6 +23,9 @@ interface GraphViewProps {
   stylesheet?: Array<Record<string, unknown>>;
   viewportRefreshKey?: string;
   onLayoutComplete?: (cy: cytoscape.Core) => void;
+  focusNodeId?: string | null;
+  focusRequestKey?: string | null;
+  onFocusHandled?: (result: { found: boolean; nodeId: string }) => void;
   selectedPathNodeIds: string[];
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
@@ -53,6 +56,9 @@ const GraphView: React.FC<GraphViewProps> = ({
   stylesheet = attackGraphStylesheet,
   viewportRefreshKey,
   onLayoutComplete,
+  focusNodeId,
+  focusRequestKey,
+  onFocusHandled,
   selectedPathNodeIds,
   selectedPathEdgeIds,
   selectedNodeId,
@@ -96,6 +102,10 @@ const GraphView: React.FC<GraphViewProps> = ({
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
+  const focusTimeoutRef = useRef<number | null>(null);
+  const focusPulseIntervalRef = useRef<number | null>(null);
+  const focusedNodeIdRef = useRef<string | null>(null);
+  const handledFocusKeyRef = useRef<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<{
     edge: EdgeData;
     position: { x: number; y: number };
@@ -118,6 +128,76 @@ const GraphView: React.FC<GraphViewProps> = ({
 
     return map;
   }, [elements]);
+
+  const clearFocusedNode = useCallback((cy?: cytoscape.Core | null) => {
+    const graph = cy ?? cyRef.current;
+
+    if (focusTimeoutRef.current != null) {
+      window.clearTimeout(focusTimeoutRef.current);
+      focusTimeoutRef.current = null;
+    }
+
+    if (focusPulseIntervalRef.current != null) {
+      window.clearInterval(focusPulseIntervalRef.current);
+      focusPulseIntervalRef.current = null;
+    }
+
+    if (!graph || !focusedNodeIdRef.current) {
+      focusedNodeIdRef.current = null;
+      return;
+    }
+
+    graph.getElementById(focusedNodeIdRef.current).removeClass('focus-target focus-target-emphasis');
+    focusedNodeIdRef.current = null;
+  }, []);
+
+  const applyFocusHighlight = useCallback(
+    (cy: cytoscape.Core, nodeId: string, requestKey: string) => {
+      if (handledFocusKeyRef.current === requestKey) {
+        return true;
+      }
+
+      const node = cy.getElementById(nodeId);
+      if (node.empty()) {
+        handledFocusKeyRef.current = requestKey;
+        onFocusHandled?.({ found: false, nodeId });
+        return false;
+      }
+
+      handledFocusKeyRef.current = requestKey;
+      clearFocusedNode(cy);
+      focusedNodeIdRef.current = nodeId;
+      node.addClass('focus-target focus-target-emphasis');
+
+      const nextZoom = Math.min(cy.maxZoom(), Math.max(cy.minZoom(), Math.max(cy.zoom(), 1.2)));
+      cy.stop();
+      cy.animate({
+        center: { eles: node },
+        zoom: nextZoom,
+        duration: 700,
+        easing: 'ease-in-out-cubic',
+      });
+
+      let isEmphasized = true;
+      focusPulseIntervalRef.current = window.setInterval(() => {
+        if (node.removed()) {
+          clearFocusedNode(cy);
+          return;
+        }
+
+        isEmphasized = !isEmphasized;
+        node.toggleClass('focus-target-emphasis', isEmphasized);
+      }, 320);
+
+      focusTimeoutRef.current = window.setTimeout(() => {
+        clearFocusedNode(cy);
+      }, 3200);
+
+      onFocusHandled?.({ found: true, nodeId });
+      return true;
+    },
+    [clearFocusedNode, onFocusHandled],
+  );
 
   const updateSelectionState = useCallback(
     (
@@ -299,6 +379,10 @@ const GraphView: React.FC<GraphViewProps> = ({
       layoutInstance.one('layoutstop', () => {
         onLayoutComplete?.(cy);
         cy.fit(undefined, getLayoutPadding(layout));
+
+        if (focusNodeId && focusRequestKey) {
+          applyFocusHighlight(cy, focusNodeId, focusRequestKey);
+        }
       });
       layoutInstance.run();
     };
@@ -328,11 +412,32 @@ const GraphView: React.FC<GraphViewProps> = ({
         resizeFrameRef.current = null;
       }
     };
-  }, [elements, layout, onLayoutComplete, viewportRefreshKey]);
+  }, [elements, layout, onLayoutComplete, viewportRefreshKey, focusNodeId, focusRequestKey, applyFocusHighlight]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || !focusNodeId || !focusRequestKey) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      applyFocusHighlight(cy, focusNodeId, focusRequestKey);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [applyFocusHighlight, focusNodeId, focusRequestKey]);
 
   useEffect(() => {
     setHoveredEdge(null);
   }, [elements, selectedNodeId, selectedEdgeId, selectedPathNodeIds, selectedPathEdgeIds]);
+
+  useEffect(() => {
+    return () => {
+      clearFocusedNode();
+    };
+  }, [clearFocusedNode]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>

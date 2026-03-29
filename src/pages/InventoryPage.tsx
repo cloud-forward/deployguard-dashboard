@@ -813,7 +813,25 @@ const InventoryPage: React.FC = () => {
                 </div>
               </div>
               <div className="d-grid gap-2">
-                <button type="button" className="btn btn-primary" onClick={() => navigate(`/clusters/${clusterId}/graph`)}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const searchParams = new URLSearchParams({
+                      node_id: selectedAsset.node_id,
+                      asset_type: selectedAsset.node_type,
+                    });
+
+                    navigate(`/clusters/${clusterId}/graph?${searchParams.toString()}`, {
+                      state: {
+                        focusAsset: {
+                          nodeId: selectedAsset.node_id,
+                          assetType: selectedAsset.node_type,
+                        },
+                      },
+                    });
+                  }}
+                >
                   Attack Graph에서 보기
                 </button>
                 <button type="button" className="btn btn-outline-light" onClick={() => navigate(`/clusters/${clusterId}/risk`)}>

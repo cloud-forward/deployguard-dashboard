@@ -135,6 +135,33 @@ export const attackGraphStylesheet: any[] = [
     },
   },
   {
+    selector: 'node.focus-target',
+    style: {
+      'border-width': 7,
+      'border-color': '#fde047',
+      'shadow-blur': 30,
+      'shadow-color': '#f97316',
+      'shadow-opacity': 0.95,
+      'shadow-offset-x': 0,
+      'shadow-offset-y': 0,
+      'underlay-color': '#facc15',
+      'underlay-opacity': 0.3,
+      'underlay-padding': 18,
+      'z-compound-depth': 'top',
+    },
+  },
+  {
+    selector: 'node.focus-target-emphasis',
+    style: {
+      'border-color': '#fff3bf',
+      'shadow-blur': 42,
+      'shadow-color': '#fff3bf',
+      'shadow-opacity': 1,
+      'underlay-opacity': 0.5,
+      'underlay-padding': 28,
+    },
+  },
+  {
     selector: 'edge.selected-edge',
     style: {
       width: 3.5,
