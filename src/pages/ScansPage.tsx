@@ -29,8 +29,8 @@ const statusBadgeClass: Record<string, string> = {
   running: 'dg-badge dg-badge--info',
   processing: 'dg-badge dg-badge--info',
   uploading: 'dg-badge dg-badge--notable',
-  completed: 'dg-badge dg-badge--success',
-  failed: 'dg-badge dg-badge--high',
+  completed: 'dg-badge dg-badge--status-success',
+  failed: 'dg-badge dg-badge--status-error',
 };
 
 const statusLabel: Record<string, string> = {
@@ -41,6 +41,82 @@ const statusLabel: Record<string, string> = {
   uploading: '업로드 중',
   completed: '완료',
   failed: '실패',
+};
+
+const scannerBadgeStyle: Record<string, React.CSSProperties> = {
+  k8s: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2em 0.6em',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+    background: 'rgba(59, 130, 246, 0.15)',
+    color: '#93c5fd',
+    border: '1px solid rgba(59, 130, 246, 0.6)',
+  },
+  aws: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2em 0.6em',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+    background: 'rgba(249, 115, 22, 0.15)',
+    color: '#fdba74',
+    border: '1px solid rgba(249, 115, 22, 0.6)',
+  },
+  image: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2em 0.6em',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+    background: 'rgba(168, 85, 247, 0.15)',
+    color: '#d8b4fe',
+    border: '1px solid rgba(168, 85, 247, 0.6)',
+  },
+};
+
+const statusBadgeStyle: Record<string, React.CSSProperties> = {
+  completed: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2em 0.6em',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+    background: 'rgba(34, 197, 94, 0.15)',
+    color: '#86efac',
+    border: '1px solid rgba(34, 197, 94, 0.6)',
+  },
+  failed: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.2em 0.6em',
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    letterSpacing: '0.01em',
+    background: 'rgba(239, 68, 68, 0.15)',
+    color: '#fca5a5',
+    border: '1px solid rgba(239, 68, 68, 0.6)',
+  },
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -98,6 +174,45 @@ const isRawScanResultUrlResponse = (value: unknown): value is RawScanResultUrlRe
 
 const canManuallyFailScan = (status: string) =>
   status === 'created' || status === 'processing' || status === 'uploading';
+
+const renderStatusBadge = (status?: string) => {
+  const normalizedStatus = status ?? '';
+  const badgeText = (statusLabel[normalizedStatus] ?? normalizedStatus) || '-';
+  const badgeStyle = statusBadgeStyle[normalizedStatus];
+
+  if (badgeStyle) {
+    return (
+      <span style={badgeStyle}>
+        {badgeText}
+      </span>
+    );
+  }
+
+  return (
+    <span className={statusBadgeClass[normalizedStatus] ?? 'dg-badge dg-badge--low'}>
+      {badgeText}
+    </span>
+  );
+};
+
+const renderScannerBadge = (scannerType?: string) => {
+  const normalizedScannerType = scannerType ?? '';
+  const badgeStyle = scannerBadgeStyle[normalizedScannerType];
+
+  if (badgeStyle) {
+    return (
+      <span style={badgeStyle}>
+        {normalizedScannerType}
+      </span>
+    );
+  }
+
+  return (
+    <span className="dg-badge dg-badge--low">
+      {normalizedScannerType || '-'}
+    </span>
+  );
+};
 
 const ScansPage: React.FC = () => {
   React.useEffect(() => {
@@ -370,8 +485,6 @@ const ScansPage: React.FC = () => {
                   <tbody>
                     {scans.map((scan) => {
                       const isExpanded = scan.scan_id === expandedScanId;
-                      const badgeClass = statusBadgeClass[scan.status] ?? 'dg-badge dg-badge--low';
-                      const badgeText = statusLabel[scan.status] ?? scan.status;
 
                       return (
                         <React.Fragment key={scan.scan_id}>
@@ -380,11 +493,11 @@ const ScansPage: React.FC = () => {
                               <div className="fw-semibold">{selectedCluster?.name ?? activeClusterId}</div>
                               <div className="text-muted small">{activeClusterId}</div>
                             </td>
-                            <td className="text-nowrap">{scan.scanner_type}</td>
+                            <td className="text-nowrap">
+                              {renderScannerBadge(scan.scanner_type)}
+                            </td>
                             <td>
-                              <span className={badgeClass}>
-                                {badgeText}
-                              </span>
+                              {renderStatusBadge(scan.status)}
                             </td>
                             <td className="text-nowrap">{formatDateTime(scan.created_at)}</td>
                             <td className="text-nowrap">{formatDateTime(scan.completed_at)}</td>
@@ -434,9 +547,7 @@ const ScansPage: React.FC = () => {
                                       </p>
                                     </div>
                                     <div className="d-flex gap-2">
-                                      <span className={`${statusBadgeClass[effectiveStatus] ?? 'dg-badge dg-badge--low'}`}>
-                                        {(statusLabel[effectiveStatus] ?? effectiveStatus) || '알 수 없음'}
-                                      </span>
+                                      {renderStatusBadge(effectiveStatus || '알 수 없음')}
                                       <button
                                         type="button"
                                         className="btn btn-sm btn-outline-primary"
@@ -471,7 +582,7 @@ const ScansPage: React.FC = () => {
                                     </div>
                                     <div className="col-12 col-md-6">
                                       <div className="text-muted mb-1">상태</div>
-                                      <div>{(statusLabel[effectiveStatus] ?? effectiveStatus) || '-'}</div>
+                                      <div>{renderStatusBadge(effectiveStatus)}</div>
                                     </div>
                                     <div className="col-12 col-md-6">
                                       <div className="text-muted mb-1">클러스터 ID</div>
