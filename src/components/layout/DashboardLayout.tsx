@@ -49,35 +49,34 @@ const DashboardLayout: React.FC = () => {
         .dg-page-header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
+          align-items: flex-end;
+          gap: 1rem;
           flex-wrap: wrap;
           margin: 0;
-          min-height: 3.25rem;
         }
         .dg-page-heading {
           display: flex;
-          flex-direction: column;
-          gap: 0.2rem;
+          align-items: baseline;
+          gap: 0.75rem;
+          flex-wrap: wrap;
           min-width: 0;
-          justify-content: flex-start;
         }
         .dg-page-header > :not(.dg-page-heading) {
           align-self: flex-end;
         }
         .dg-page-title {
           margin: 0;
-          font-size: clamp(1.45rem, 1.22rem + 0.45vw, 1.85rem);
+          font-size: clamp(1.7rem, 1.5rem + 0.45vw, 2rem);
           font-weight: 700;
-          line-height: 1.15;
-          color: var(--dg-text-primary, #f9fafb);
+          line-height: 1.2;
+          color: rgba(226, 232, 240, 1);
         }
         .dg-page-description {
           margin: 0;
-          font-size: 0.9rem;
+          font-size: 0.92rem;
           line-height: 1.35;
-          color: #cbd5e1;
-          max-width: 52rem;
+          color: rgba(148, 163, 184, 0.7);
+          max-width: none;
         }
         @media (min-width: 1200px) {
           .dg-dashboard-shell {
@@ -117,8 +116,10 @@ const DashboardLayout: React.FC = () => {
             gap: 0.85rem;
             min-height: auto;
           }
-          .dg-page-header {
-            min-height: auto;
+          .dg-page-heading {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
           }
           .dg-page-title {
             font-size: 1.35rem;

@@ -28,7 +28,7 @@ const Sidebar: React.FC = () => {
     { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
     { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
     { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
-    { badge: 'AC', label: 'Activity',         path: '/activity',     exact: true },
+    { badge: 'RM', label: 'Runtime Monitoring', path: '/activity',   exact: true },
   ];
 
 
@@ -42,8 +42,8 @@ const Sidebar: React.FC = () => {
         .dg-sidebar {
           background: #0d1b2a;
           border-right: 1px solid var(--dg-border, #1f2937);
-          width: 64px;
-          min-width: 64px;
+          width: 72px;
+          min-width: 72px;
           flex-shrink: 0;
           min-height: calc(100vh - 54px);
           position: sticky;
@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
           transition: width 0.22s ease;
         }
         .dg-sidebar:hover {
-          width: 220px;
+          width: 236px;
         }
         @media (max-width: 767.98px) {
           .dg-sidebar {

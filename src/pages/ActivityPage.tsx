@@ -187,7 +187,7 @@ const ActivityPage: React.FC = () => {
   const isSummaryLoading = (Boolean(clusterId) && runtimeQuery.isLoading) || cloudtrailQuery.isLoading;
 
   return (
-    <div className="position-relative dg-activity-page">
+    <div className="position-relative dg-activity-page dg-page-shell">
       <style>{`
         .dg-activity-page {
           --dg-activity-high: #ef4444;
@@ -201,6 +201,9 @@ const ActivityPage: React.FC = () => {
           --dg-activity-scroll-thumb: rgba(148, 163, 184, 0.2);
           --dg-activity-scroll-track: rgba(15, 23, 42, 0.24);
           --dg-activity-hover-bg: rgba(30, 41, 59, 0.82);
+          --dg-activity-lower-panel-height: 39.5rem;
+          min-height: 100%;
+          overflow: hidden;
         }
         .dg-activity-card {
           background: rgba(15, 23, 42, 0.75);
@@ -210,17 +213,6 @@ const ActivityPage: React.FC = () => {
         }
         .dg-activity-card:hover {
           border-color: rgba(148, 163, 184, 0.25);
-        }
-        .dg-activity-heading {
-          display: flex;
-          align-items: baseline;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-        .dg-activity-subtitle {
-          color: var(--dg-activity-muted);
-          font-size: 0.92rem;
-          line-height: 1.35;
         }
         .dg-activity-cluster-picker {
           display: flex;
@@ -262,6 +254,7 @@ const ActivityPage: React.FC = () => {
           flex-direction: column;
           min-height: 0;
           overflow: hidden;
+          height: var(--dg-activity-lower-panel-height);
         }
         .dg-activity-panel-header {
           display: flex;
@@ -273,8 +266,11 @@ const ActivityPage: React.FC = () => {
         }
         .dg-activity-panel-body {
           flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
           min-height: 0;
           padding: 1rem 1.25rem 1.1rem;
+          overflow: hidden;
         }
         .dg-activity-section-title {
           display: flex;
@@ -302,7 +298,8 @@ const ActivityPage: React.FC = () => {
           color: var(--dg-activity-muted);
         }
         .dg-activity-list {
-          max-height: 520px;
+          flex: 1 1 auto;
+          min-height: 0;
           overflow-y: auto;
           padding-right: 0.25rem;
         }
@@ -421,8 +418,8 @@ const ActivityPage: React.FC = () => {
             min-width: 0;
             width: 100%;
           }
-          .dg-activity-list {
-            max-height: none;
+          .dg-activity-panel {
+            height: auto;
           }
         }
         @media (max-width: 575.98px) {
@@ -435,12 +432,11 @@ const ActivityPage: React.FC = () => {
         }
       `}</style>
 
-      <div className="d-flex justify-content-between align-items-end gap-3 mb-2 flex-wrap">
-        <div className="dg-activity-heading">
-          <h1 className="h2 mb-0 fw-bold">활동 모니터</h1>
-          <span className="dg-activity-subtitle">
-            런타임 이벤트 및 AWS 감사 로그를 한눈에
-          </span>
+      <div className="dg-page-header">
+        <div className="dg-page-heading">
+          <h1 className="dg-page-title">활동 모니터</h1>
+          <p className="dg-page-description">런타임 이벤트 및 AWS 감사 로그를 한눈에 보여줍니다/
+          </p>
         </div>
         <div className="dg-activity-cluster-picker">
           <label htmlFor="activity-cluster-select" className="dg-activity-cluster-label">
@@ -458,7 +454,7 @@ const ActivityPage: React.FC = () => {
             ) : (
               clusters.map((cluster) => (
                 <option key={cluster.id} value={cluster.id}>
-                  {cluster.id}
+                  {cluster.name}
                 </option>
               ))
             )}
@@ -466,7 +462,7 @@ const ActivityPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="d-flex flex-column gap-3">
+      <div className="d-flex flex-column gap-3 flex-grow-1 min-h-0 overflow-hidden">
         {isSummaryLoading ? (
           <SummarySkeleton />
         ) : (
@@ -486,7 +482,7 @@ const ActivityPage: React.FC = () => {
           </div>
         )}
 
-        <div className="row g-4">
+        <div className="row g-4 flex-grow-1 min-h-0">
           <div className="col-12 col-xl-6">
             <div className="dg-activity-card dg-activity-panel h-100">
               <div className="dg-activity-panel-header">
