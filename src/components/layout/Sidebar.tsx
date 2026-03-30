@@ -1,12 +1,26 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, useMatch } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { ChevronDown, ChevronUp, Settings } from 'lucide-react';
 import { useListClustersApiV1ClustersGet } from '../../api/generated/clusters/clusters';
 import LlmSettingsModal from './LlmSettingsModal';
+
+type SidebarLeafItem = {
+  badge: string;
+  label: string;
+  path: string;
+  exact: boolean;
+  forceActive?: boolean;
+};
+
+type SidebarItem = SidebarLeafItem & {
+  children?: SidebarLeafItem[];
+};
 
 const Sidebar: React.FC = () => {
   const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
   const isInventoryActive = inventoryMatch !== null;
+  const isWorkloadSecurityActive =
+    useMatch('/clusters') !== null || useMatch('/scans') !== null;
 
   const { data: clustersResponse } = useListClustersApiV1ClustersGet();
   const firstClusterId = useMemo(() => {
@@ -20,11 +34,44 @@ const Sidebar: React.FC = () => {
       ? `/clusters/${firstClusterId}/inventory`
       : '/clusters';
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
+  const [isWorkloadSecurityOpen, setIsWorkloadSecurityOpen] = useState(true);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
-  const navItems = [
+  useEffect(() => {
+    if (isWorkloadSecurityActive) {
+      setIsWorkloadSecurityOpen(true);
+    }
+  }, [isWorkloadSecurityActive]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767.98px)');
+
+    const syncSidebarExpanded = (event?: MediaQueryListEvent) => {
+      const matches = event ? event.matches : mediaQuery.matches;
+      setIsSidebarExpanded(matches);
+    };
+
+    syncSidebarExpanded();
+    mediaQuery.addEventListener('change', syncSidebarExpanded);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncSidebarExpanded);
+    };
+  }, []);
+
+  const navItems: SidebarItem[] = [
     { badge: 'OV', label: 'Overview',         path: '/dashboard',    exact: true },
-    { badge: 'CL', label: 'Clusters',         path: '/clusters',     exact: true },
-    { badge: 'SC', label: 'Scans',            path: '/scans',        exact: true },
+    {
+      badge: 'WS',
+      label: 'Workload Security',
+      path: '/clusters',
+      exact: true,
+      forceActive: isWorkloadSecurityActive,
+      children: [
+        { badge: 'CL', label: 'Clusters', path: '/clusters', exact: true },
+        { badge: 'SC', label: 'Scans', path: '/scans', exact: true },
+      ],
+    },
     { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
     { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
     { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
@@ -37,6 +84,8 @@ const Sidebar: React.FC = () => {
       id="sidebarMenu"
       className="dg-sidebar d-md-block collapse"
       aria-label="메인 내비게이션"
+      onMouseEnter={() => setIsSidebarExpanded(true)}
+      onMouseLeave={() => setIsSidebarExpanded(window.matchMedia('(max-width: 767.98px)').matches)}
     >
       <style>{`
         .dg-sidebar {
@@ -83,6 +132,22 @@ const Sidebar: React.FC = () => {
         .dg-sidebar-list--main {
           flex: 1;
         }
+        .dg-sidebar-item-children {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+        }
+        .dg-sidebar-group-row {
+          display: flex;
+          align-items: stretch;
+        }
+        .dg-sidebar-group-row .dg-sidebar-link {
+          flex: 1;
+          min-width: 0;
+        }
         .dg-sidebar-link {
           display: flex;
           align-items: center;
@@ -103,6 +168,39 @@ const Sidebar: React.FC = () => {
           border-left-color: var(--border-accent-blue);
           background: rgba(59, 130, 246, 0.15);
           color: var(--text-accent);
+        }
+        .dg-sidebar-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.2rem;
+          margin-left: auto;
+          border: 0;
+          border-left: 1px solid rgba(148, 163, 184, 0.08);
+          background: transparent;
+          color: rgba(148, 163, 184, 0.72);
+          opacity: 0;
+          transition: background 0.15s ease, color 0.15s ease, opacity 0.18s ease;
+        }
+        .dg-sidebar-group-row:hover .dg-sidebar-toggle,
+        .dg-sidebar-toggle:focus-visible {
+          opacity: 1;
+        }
+        .dg-sidebar-toggle:hover,
+        .dg-sidebar-toggle:focus-visible {
+          background: rgba(59, 130, 246, 0.08);
+          color: rgba(226, 232, 240, 0.96);
+          outline: none;
+        }
+        .dg-sidebar-link--child {
+          padding-left: 1.65rem;
+          color: rgba(148, 163, 184, 0.62);
+        }
+        .dg-sidebar-link--child:hover {
+          color: rgba(226, 232, 240, 0.92);
+        }
+        .dg-sidebar-link--child.is-active {
+          color: rgba(226, 232, 240, 0.96);
         }
         .dg-sidebar-badge {
           display: inline-flex;
@@ -131,6 +229,25 @@ const Sidebar: React.FC = () => {
           color: #93c5fd;
           border-color: #3b82f6;
         }
+        .dg-sidebar-badge--child {
+          min-width: 1.65rem;
+          width: 1.65rem;
+          height: 1.65rem;
+          font-size: 0.58rem;
+          color: rgba(125, 211, 252, 0.72);
+          border-color: rgba(51, 65, 85, 0.85);
+          background: rgba(30, 41, 59, 0.7);
+        }
+        .dg-sidebar-link--child:hover .dg-sidebar-badge--child {
+          color: #93c5fd;
+          background: rgba(30, 58, 95, 0.86);
+          border-color: #3b82f6;
+        }
+        .dg-sidebar-link--child.is-active .dg-sidebar-badge--child {
+          background: rgba(59, 130, 246, 0.82);
+          color: #fff;
+          border-color: #2563eb;
+        }
         .dg-sidebar-label {
           font-size: 0.83rem;
           font-weight: 500;
@@ -140,8 +257,23 @@ const Sidebar: React.FC = () => {
           transition: opacity 0.18s ease;
           pointer-events: none;
         }
+        .dg-sidebar-label--child {
+          font-size: 0.76rem;
+          opacity: 0.82;
+        }
+        .dg-sidebar-link--child.is-active .dg-sidebar-label--child {
+          opacity: 0.96;
+        }
         .dg-sidebar:hover .dg-sidebar-label {
           opacity: 1;
+        }
+        .dg-sidebar:hover .dg-sidebar-toggle {
+          opacity: 1;
+        }
+        @media (max-width: 767.98px) {
+          .dg-sidebar-toggle {
+            opacity: 1 !important;
+          }
         }
         .dg-sidebar-divider {
           height: 1px;
@@ -160,18 +292,73 @@ const Sidebar: React.FC = () => {
         <ul className="dg-sidebar-list dg-sidebar-list--main">
           {navItems.map((item) => (
             <li key={item.badge}>
-              <NavLink
-                to={item.path}
-                end={item.exact}
-                className={({ isActive }) =>
-                  `dg-sidebar-link${(item.forceActive ?? isActive) ? ' is-active' : ''}`
-                }
-              >
-                <span className="dg-sidebar-badge" aria-hidden="true">
-                  {item.badge}
-                </span>
-                <span className="dg-sidebar-label">{item.label}</span>
-              </NavLink>
+              {item.children ? (
+                <>
+                  <div className="dg-sidebar-group-row">
+                    <NavLink
+                      to={item.path}
+                      end={item.exact}
+                      className={({ isActive }) =>
+                        `dg-sidebar-link${(item.forceActive ?? isActive) ? ' is-active' : ''}`
+                      }
+                    >
+                      <span className="dg-sidebar-badge" aria-hidden="true">
+                        {item.badge}
+                      </span>
+                      <span className="dg-sidebar-label">{item.label}</span>
+                    </NavLink>
+                    <button
+                      type="button"
+                      className="dg-sidebar-toggle"
+                      aria-label={`${isWorkloadSecurityOpen ? 'Collapse' : 'Expand'} Workload Security`}
+                      aria-expanded={isWorkloadSecurityOpen}
+                      aria-controls="workload-security-submenu"
+                      onClick={() => setIsWorkloadSecurityOpen((current) => !current)}
+                    >
+                      {isSidebarExpanded ? (
+                        isWorkloadSecurityOpen ? (
+                          <ChevronUp size={14} aria-hidden="true" />
+                        ) : (
+                          <ChevronDown size={14} aria-hidden="true" />
+                        )
+                      ) : null}
+                    </button>
+                  </div>
+                  {isWorkloadSecurityOpen ? (
+                    <ul className="dg-sidebar-item-children" id="workload-security-submenu">
+                      {item.children.map((child) => (
+                        <li key={child.badge}>
+                          <NavLink
+                            to={child.path}
+                            end={child.exact}
+                            className={({ isActive }) =>
+                              `dg-sidebar-link dg-sidebar-link--child${isActive ? ' is-active' : ''}`
+                            }
+                          >
+                            <span className="dg-sidebar-badge dg-sidebar-badge--child" aria-hidden="true">
+                              {child.badge}
+                            </span>
+                            <span className="dg-sidebar-label dg-sidebar-label--child">{child.label}</span>
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              ) : (
+                <NavLink
+                  to={item.path}
+                  end={item.exact}
+                  className={({ isActive }) =>
+                    `dg-sidebar-link${(item.forceActive ?? isActive) ? ' is-active' : ''}`
+                  }
+                >
+                  <span className="dg-sidebar-badge" aria-hidden="true">
+                    {item.badge}
+                  </span>
+                  <span className="dg-sidebar-label">{item.label}</span>
+                </NavLink>
+              )}
             </li>
           ))}
         </ul>
