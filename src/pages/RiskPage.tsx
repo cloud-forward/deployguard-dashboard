@@ -402,7 +402,7 @@ const RiskPage: React.FC = () => {
             <strong className="text-dark">파일:</strong> {scan.file_count}
           </div>
           <div className="col-12 col-md-6">
-            <strong className="text-dark">원시 결과:</strong> {formatRawResult(scan.has_raw_result)}
+            <strong className="text-dark">원본 결과:</strong> {formatRawResult(scan.has_raw_result)}
           </div>
         </div>
       </button>

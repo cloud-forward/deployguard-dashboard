@@ -484,7 +484,7 @@ const ScansPage: React.FC = () => {
                                         onClick={() => setShouldLoadRawResult(true)}
                                         disabled={isRawResultLoading}
                                       >
-                                        {isRawResultLoading ? '원시 결과 불러오는 중…' : '원시 결과 링크 가져오기'}
+                                        {isRawResultLoading ? '원본 결과 불러오는 중…' : '원본 결과 링크 가져오기'}
                                       </button>
                                     </div>
                                   </div>
@@ -547,7 +547,7 @@ const ScansPage: React.FC = () => {
                                   {shouldLoadRawResult && rawResult?.download_url && (
                                     <div className="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 mb-0">
                                       <div>
-                                        원시 결과 링크가 준비되었습니다
+                                        원본 결과 링크가 준비되었습니다
                                         {rawResult.expires_in
                                           ? ` (유효 기간: ${rawResult.expires_in}초)`
                                           : ''}
@@ -559,7 +559,7 @@ const ScansPage: React.FC = () => {
                                         rel="noreferrer"
                                         className="btn btn-sm btn-success"
                                       >
-                                        원시 결과 열기
+                                        원본 결과 열기
                                       </a>
                                     </div>
                                   )}
@@ -568,7 +568,7 @@ const ScansPage: React.FC = () => {
                                     <div className="alert alert-warning mt-3 mb-0" role="alert">
                                       {toErrorMessage(
                                         rawResultError,
-                                        '이 스캔의 원시 결과 링크가 아직 준비되지 않았습니다.',
+                                        '이 스캔의 원본 결과 링크가 아직 준비되지 않았습니다.',
                                       )}
                                     </div>
                                   )}
