@@ -548,20 +548,19 @@ const DashboardPage: React.FC = () => {
     ? (analysisResult?.remediation_preview ?? [])
     : [];
 
-  const openRecommendationList = () => {
-    if (!dashboardClusterId) {
-      return;
-    }
-
-    navigate(`/clusters/${dashboardClusterId}/risk`);
+  const openRemediationList = () => {
+    navigate('/remediation');
   };
 
-  const openRecommendationDetail = (recommendationId: string) => {
+  const openRemediationDetail = (recommendationId: string) => {
     if (!dashboardClusterId || !recommendationId) {
+      navigate('/remediation');
       return;
     }
 
-    navigate(`/clusters/${dashboardClusterId}/recommendations/${recommendationId}`);
+    navigate(
+      `/clusters/${dashboardClusterId}/recommendations/${encodeURIComponent(recommendationId)}`,
+    );
   };
 
   return (
@@ -940,8 +939,8 @@ const DashboardPage: React.FC = () => {
             recommendations={remediationRecommendations}
             isLoading={analysisJobsQuery.isLoading || analysisResultQuery.isLoading}
             isError={analysisJobsQuery.isError || analysisResultQuery.isError}
-            onOpenList={openRecommendationList}
-            onOpenDetail={openRecommendationDetail}
+            onOpenList={openRemediationList}
+            onOpenDetail={openRemediationDetail}
           />
         </div>
       </div>

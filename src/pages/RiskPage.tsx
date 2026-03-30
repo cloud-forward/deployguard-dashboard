@@ -22,7 +22,6 @@ import {
   getListClusterScansApiV1ClustersClusterIdScansGetQueryKey,
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
-import ChokePointList from '../components/risk/ChokePointList';
 import ClusterFlowNav from '../components/layout/ClusterFlowNav';
 
 type ClusterOption = {
@@ -37,7 +36,7 @@ type SelectedScans = {
   aws_scan_id: string | null;
 };
 
-type AnalysisTab = 'analysis' | 'results' | 'recommendations';
+type AnalysisTab = 'analysis' | 'results';
 
 const isScanSummaryItem = (value: unknown): value is ScanSummaryItemResponse =>
   Boolean(
@@ -440,15 +439,6 @@ const RiskPage: React.FC = () => {
               결과
             </button>
           </li>
-          <li className="nav-item">
-            <button
-              type="button"
-              className={`nav-link ${activeTab === 'recommendations' ? 'active' : ''}`}
-              onClick={() => setActiveTab('recommendations')}
-            >
-              권장 사항
-            </button>
-          </li>
         </ul>
         {activeTab === 'analysis' && (
           <div className="d-flex gap-2 flex-wrap align-items-center">
@@ -712,14 +702,6 @@ const RiskPage: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'recommendations' && (
-        <div>
-          <div className="mb-4">
-            <h3 className="h5 mb-3">주요 권장 사항</h3>
-            <ChokePointList clusterId={selectedClusterId} />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

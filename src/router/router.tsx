@@ -10,6 +10,7 @@ import ClustersPage from '../pages/ClustersPage';
 import RemediationRecommendationDetailPage from '../pages/RemediationRecommendationDetailPage';
 import ScansPage from '../pages/ScansPage';
 import RiskPage from '../pages/RiskPage';
+import RemediationPage from '../pages/RemediationPage';
 import InventoryPage from '../pages/InventoryPage';
 import ActivityPage from '../pages/ActivityPage';
 
@@ -77,6 +78,10 @@ export const router = createBrowserRouter([
       {
         path: 'clusters/:clusterId/risk',
         element: <RiskPage />,
+      },
+      {
+        path: 'remediation',
+        element: <RemediationPage />,
       },
       {
         path: 'clusters/:clusterId/inventory',
