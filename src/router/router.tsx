@@ -18,6 +18,7 @@ const RiskOptimizationPage = React.lazy(() => import('../pages/RiskOptimizationP
 const WorkloadSecurityPage = React.lazy(() => import('../pages/WorkloadSecurityPage'));
 const InventoryPage = React.lazy(() => import('../pages/InventoryPage'));
 const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
+const AnalysisJobDetailPage = React.lazy(() => import('../pages/AnalysisJobDetailPage'));
 
 const withFallback = (element: React.ReactNode, label: string) => (
   <Suspense fallback={<PageLoader label={label} minHeight="100vh" />}>{element}</Suspense>
@@ -107,6 +108,10 @@ export const router = createBrowserRouter([
       {
         path: 'activity',
         element: <ActivityPage />,
+      },
+      {
+        path: 'analysis/jobs/:jobId',
+        element: <AnalysisJobDetailPage />,
       },
     ],
   },

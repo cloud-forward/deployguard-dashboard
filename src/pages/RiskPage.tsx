@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Chip from '@mui/material/Chip';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import type {
@@ -23,6 +24,7 @@ import {
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
 import ClusterFlowNav from '../components/layout/ClusterFlowNav';
+import StatusChip from '../components/StatusChip';
 
 type ClusterOption = {
   id: string;
@@ -256,6 +258,22 @@ const RiskPage: React.FC = () => {
 
     return new Date(value).toLocaleString();
   };
+
+  const formatSelectedScans = (job: AnalysisJobSummaryResponse) =>
+    [
+      job.k8s_scan_id ? `k8s:${job.k8s_scan_id}` : null,
+      job.image_scan_id ? `image:${job.image_scan_id}` : null,
+      job.aws_scan_id ? `aws:${job.aws_scan_id}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ') || '-';
+
+  const getSelectedScanTypes = (job: AnalysisJobSummaryResponse) =>
+    [
+      job.k8s_scan_id ? 'k8s' : null,
+      job.image_scan_id ? 'image' : null,
+      job.aws_scan_id ? 'aws' : null,
+    ].filter((value): value is 'k8s' | 'image' | 'aws' => Boolean(value));
 
   const getScanListMaxHeight = (scannerType: 'k8s' | 'image' | 'aws') => {
     if (visibleScannerGroups.length === 1 && scannerType === 'aws') {
@@ -643,8 +661,77 @@ const RiskPage: React.FC = () => {
           <div className="card-body py-3">
             <style>{`
               .dg-risk-results-scroll {
-                max-height: 420px;
+                max-height: 560px;
                 overflow-y: auto;
+              }
+              .dg-risk-jobs-table {
+                table-layout: fixed;
+              }
+              .dg-risk-jobs-table thead th {
+                padding-top: 0.8rem;
+                padding-bottom: 0.8rem;
+                vertical-align: middle;
+              }
+              .dg-risk-jobs-table tbody td {
+                padding-top: 0.58rem;
+                padding-bottom: 0.58rem;
+                vertical-align: middle;
+              }
+              .dg-risk-jobs-table tbody tr {
+                cursor: pointer;
+              }
+              .dg-risk-jobs-table tbody tr.table-active > * {
+                background: rgba(59, 130, 246, 0.12) !important;
+              }
+              .dg-risk-job-info {
+                display: flex;
+                flex-direction: column;
+                gap: 0.16rem;
+                min-width: 0;
+                max-width: 100%;
+              }
+              .dg-risk-job-info__id {
+                color: var(--text-primary);
+                font-weight: 600;
+                font-size: 0.82rem;
+                line-height: 1.35;
+                white-space: normal;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+              }
+              .dg-risk-job-info__meta {
+                color: var(--text-secondary);
+                font-size: 0.76rem;
+                line-height: 1.3;
+              }
+              .dg-risk-job-status-cell {
+                white-space: nowrap;
+              }
+              .dg-risk-job-scans {
+                max-width: 100%;
+                overflow: hidden;
+              }
+              .dg-risk-job-scans-list {
+                display: flex;
+                align-items: center;
+                gap: 0.38rem;
+                flex-wrap: nowrap;
+                overflow: hidden;
+                min-width: 0;
+              }
+              .dg-risk-job-scan-chip {
+                flex: 0 0 auto;
+              }
+              .dg-risk-job-action {
+                text-align: right;
+                white-space: nowrap;
+              }
+              .dg-risk-job-action .btn {
+                min-width: 5.6rem;
+                border-radius: 999px;
+                font-size: 0.76rem;
+                font-weight: 600;
+                padding: 0.35rem 0.8rem;
               }
             `}</style>
             <h4 className="h6 mb-2">최근 분석 작업</h4>
@@ -656,14 +743,19 @@ const RiskPage: React.FC = () => {
             ) : (
               <div className="dg-risk-results-scroll">
                 <div className="table-responsive">
-                  <table className="table align-middle mb-0 small">
+                  <table className="table align-middle mb-0 small dg-risk-jobs-table">
+                    <colgroup>
+                      <col style={{ width: '46%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '26%' }} />
+                      <col style={{ width: '14%' }} />
+                    </colgroup>
                     <thead className="table-light">
                       <tr>
-                        <th className="small">작업 ID</th>
+                        <th className="small">작업 정보</th>
                         <th className="small">상태</th>
-                        <th className="small">현재 단계</th>
-                        <th className="small">생성</th>
                         <th className="small">선택된 스캔</th>
+                        <th className="small text-end">상세 보기</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -674,22 +766,57 @@ const RiskPage: React.FC = () => {
                           className={activeJobId === job.job_id ? 'table-active' : undefined}
                           onClick={() => setActiveJobId(job.job_id)}
                         >
-                          <td className="text-break small">{job.job_id}</td>
                           <td className="small">
-                            <span className={`${getStatusBadgeClass(job.status)}`}>
-                              {job.status}
-                            </span>
+                            <div className="dg-risk-job-info">
+                              <span className="dg-risk-job-info__id">{job.job_id}</span>
+                              <span className="dg-risk-job-info__meta">
+                                생성시간 {formatDateTime(job.created_at)}
+                              </span>
+                            </div>
                           </td>
-                          <td className="small">{job.current_step ?? '-'}</td>
-                          <td className="small">{formatDateTime(job.created_at)}</td>
-                          <td className="small text-muted">
-                            {[
-                              job.k8s_scan_id ? `k8s:${job.k8s_scan_id}` : null,
-                              job.image_scan_id ? `image:${job.image_scan_id}` : null,
-                              job.aws_scan_id ? `aws:${job.aws_scan_id}` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(' | ') || '-'}
+                          <td className="small dg-risk-job-status-cell">
+                            <StatusChip status={job.status} size="small" />
+                          </td>
+                          <td className="small">
+                            <div className="dg-risk-job-scans" title={formatSelectedScans(job)}>
+                              <div className="dg-risk-job-scans-list">
+                                {getSelectedScanTypes(job).length > 0 ? (
+                                  getSelectedScanTypes(job).map((scanType) => (
+                                    <Chip
+                                      key={scanType}
+                                      label={scanType}
+                                      size="small"
+                                      className="dg-risk-job-scan-chip"
+                                      sx={{
+                                        height: 22,
+                                        backgroundColor: 'rgba(148, 163, 184, 0.12)',
+                                        color: 'rgba(226, 232, 240, 0.88)',
+                                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                                        '& .MuiChip-label': {
+                                          paddingLeft: '0.5rem',
+                                          paddingRight: '0.5rem',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 600,
+                                          lineHeight: 1,
+                                          textTransform: 'none',
+                                        },
+                                      }}
+                                    />
+                                  ))
+                                ) : (
+                                  <span className="text-muted">-</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="small dg-risk-job-action">
+                            <button
+                              type="button"
+                              className="btn btn-outline-light btn-sm"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              상세 보기
+                            </button>
                           </td>
                         </tr>
                       ))}
