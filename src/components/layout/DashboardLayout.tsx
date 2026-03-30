@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import PageLoader from './PageLoader';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
@@ -256,6 +257,19 @@ const DashboardLayout: React.FC = () => {
         .dg-dashboard-panel .nav-tabs .nav-link.active {
           color: var(--dg-text-primary);
         }
+        @keyframes dg-page-loader-spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        @keyframes dg-page-loader-shimmer {
+          0% {
+            background-position: 200% 0;
+          }
+          100% {
+            background-position: -200% 0;
+          }
+        }
         @media (min-width: 1200px) {
           .dg-dashboard-shell {
             --dg-content-padding-x: clamp(1.5rem, 4.8vw, 4.5rem);
@@ -312,7 +326,9 @@ const DashboardLayout: React.FC = () => {
         <Sidebar />
         <main className="dg-dashboard-main">
           <div className="dg-dashboard-panel">
-            <Outlet />
+            <Suspense fallback={<PageLoader label="페이지를 불러오는 중..." minHeight="60vh" />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

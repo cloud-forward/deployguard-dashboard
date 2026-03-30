@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
+import PageLoader from '../components/layout/PageLoader';
 import {
   useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
@@ -25,6 +25,8 @@ import {
   type AttackGraphResourceType,
   type AttackGraphRiskSeverity,
 } from '../components/graph/attackGraph';
+
+const GraphView = React.lazy(() => import('../components/graph/GraphView'));
 
 const LARGE_GRAPH_THRESHOLD = 180;
 const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
@@ -617,34 +619,36 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         style={{ position: 'relative', overflow: 'hidden' }}
       >
         {hasRenderableGraph ? (
-          <GraphView
-            showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
-            elements={filteredElements}
-            layout={attackGraphDefaultLayout}
-            selectedPathNodeIds={selectedPathNodeIds}
-            selectedPathEdgeIds={selectedPathEdgeIds}
-            selectedNodeId={selectedNodeId}
-            selectedEdgeId={selectedEdgeId}
-            onNodeClick={(node) => {
-              const nextNodeId = node.id ? String(node.id) : null;
-              const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
-              setSelectedNode(clicked);
-              setSelectedNodeId(nextNodeId);
-              setSelectedEdgeId(null);
-              setSelectedEdge(null);
-              setSelectedPathId(null);
-              setSelectedMode(nextNodeId ? 'node' : 'none');
-            }}
-            onEdgeClick={(edge) => {
-              const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
-              setSelectedEdge(clicked);
-              setSelectedEdgeId(clicked.id);
-              setSelectedNodeId(null);
-              setSelectedNode(null);
-              setSelectedPathId(null);
-              setSelectedMode('edge');
-            }}
-          />
+          <Suspense fallback={<PageLoader label="공격 그래프를 준비하는 중..." minHeight="100%" compact />}>
+            <GraphView
+              showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
+              elements={filteredElements}
+              layout={attackGraphDefaultLayout}
+              selectedPathNodeIds={selectedPathNodeIds}
+              selectedPathEdgeIds={selectedPathEdgeIds}
+              selectedNodeId={selectedNodeId}
+              selectedEdgeId={selectedEdgeId}
+              onNodeClick={(node) => {
+                const nextNodeId = node.id ? String(node.id) : null;
+                const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
+                setSelectedNode(clicked);
+                setSelectedNodeId(nextNodeId);
+                setSelectedEdgeId(null);
+                setSelectedEdge(null);
+                setSelectedPathId(null);
+                setSelectedMode(nextNodeId ? 'node' : 'none');
+              }}
+              onEdgeClick={(edge) => {
+                const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+                setSelectedEdge(clicked);
+                setSelectedEdgeId(clicked.id);
+                setSelectedNodeId(null);
+                setSelectedNode(null);
+                setSelectedPathId(null);
+                setSelectedMode('edge');
+              }}
+            />
+          </Suspense>
         ) : (
           <div className="d-flex flex-column justify-content-center align-items-center h-100 text-center px-4">
             <strong className="mb-2">{emptyStateTitle}</strong>
