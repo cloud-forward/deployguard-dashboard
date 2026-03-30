@@ -1,10 +1,19 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { ElementDefinition } from 'cytoscape';
 import { useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet } from '../api/generated/clusters/clusters';
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import { attackGraphStylesheet } from '../components/graph/attackGraph';
+import {
+  formatEdgeTypeLabel,
+  getThreatLabel,
+  NodeIdentity,
+  NodeTypeBadge,
+  parseAttackPathNode,
+  RiskLevelBadge,
+  ThreatTypeBadge,
+} from '../components/graph/attackPathVisuals';
 import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
@@ -204,11 +213,59 @@ const renderValue = (value: unknown): string => {
   }
 };
 
-const SummaryField: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+const getHopAccent = (count?: number | null) => {
+  if (typeof count !== 'number' || Number.isNaN(count)) return '#94a3b8';
+  if (count >= 2 && count <= 3) return '#ef4444';
+  if (count === 4) return '#f59e0b';
+  return '#9ca3af';
+};
+
+const SummaryCard: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="col-12 col-md-6 col-xl-3">
-    <div className="border rounded-3 p-3 h-100 bg-card-surface">
-      <div className="text-muted small mb-1">{label}</div>
+    <div className="border rounded-4 p-3 h-100 bg-card-surface">
+      <div className="text-muted small text-uppercase mb-2">{label}</div>
       <div className="fw-semibold text-break">{value}</div>
+    </div>
+  </div>
+);
+
+const NodeSummaryValue: React.FC<{
+  value?: string | null;
+  showThreatTag?: boolean;
+}> = ({ value, showThreatTag = false }) => {
+  const parsed = parseAttackPathNode(value);
+
+  return (
+    <div className="d-flex flex-column gap-2" title={parsed.raw}>
+      <div className="d-flex flex-wrap align-items-center gap-2">
+        <NodeTypeBadge type={parsed.type} />
+        <span className="fw-semibold text-break">{parsed.name}</span>
+        {showThreatTag ? <ThreatTypeBadge type={parsed.type} /> : null}
+      </div>
+      <div className="small text-muted text-break">{parsed.raw}</div>
+    </div>
+  );
+};
+
+const HopCountValue: React.FC<{ count?: number | null }> = ({ count }) => (
+  <span
+    style={{
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+      fontSize: '1.75rem',
+      fontWeight: 700,
+      color: getHopAccent(count),
+      lineHeight: 1,
+    }}
+  >
+    {count ?? '-'}
+  </span>
+);
+
+const DetailField: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="col-12 col-md-6 col-xl-4">
+    <div className="border rounded-4 p-3 h-100 bg-card-surface">
+      <div className="text-muted small text-uppercase mb-1">{label}</div>
+      <div className="text-break">{value}</div>
     </div>
   </div>
 );
@@ -265,24 +322,48 @@ const StepList: React.FC<{
       <div className="card-body">
         <h2 className="h6 mb-3">Path Progression</h2>
         <div className="d-flex flex-column gap-3">
-          {steps.map((step) => (
-            <div key={step.id} className="border rounded-3 p-3 bg-card-surface">
-              <div className="small text-muted mb-2">Step {step.index + 1}</div>
-              <div className="fw-semibold text-break">{step.sourceNodeId}</div>
-              <div className="small text-muted my-2">
-                {step.edge ? `${step.edge.edge_type} (${step.edge.edge_id})` : 'connects to'}
-              </div>
-              <div className="fw-semibold text-break">{step.targetNodeId}</div>
-              {step.edge?.metadata && Object.keys(step.edge.metadata).length > 0 ? (
-                <div className="mt-3">
-                  <div className="small text-muted mb-1">Edge Metadata</div>
-                  <pre className="mb-0 small text-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {renderValue(step.edge.metadata)}
-                  </pre>
+          {steps.map((step, index) => {
+            const sourceNode = parseAttackPathNode(step.sourceNodeId);
+            const targetNode = parseAttackPathNode(step.targetNodeId);
+            const isFinalTarget = step.targetNodeId === path.target_node_id;
+
+            return (
+              <React.Fragment key={step.id}>
+                <div className="border rounded-4 p-3 bg-card-surface">
+                  <div className="small text-muted mb-2">Step {step.index + 1}</div>
+                  <div className="d-flex flex-column gap-3">
+                    <div className="d-flex flex-wrap align-items-center gap-2" title={sourceNode.raw}>
+                      <span className="small text-muted">Source</span>
+                      <NodeTypeBadge type={sourceNode.type} />
+                      <span className="fw-semibold text-break">{sourceNode.name}</span>
+                    </div>
+                    <div className="small text-muted">
+                      {step.edge ? formatEdgeTypeLabel(step.edge.edge_type) : 'Connects To'}
+                    </div>
+                    <div className="d-flex flex-wrap align-items-center gap-2" title={targetNode.raw}>
+                      <span className="small text-muted">Target</span>
+                      <NodeTypeBadge type={targetNode.type} />
+                      <span className="fw-semibold text-break">{targetNode.name}</span>
+                      {isFinalTarget ? <ThreatTypeBadge type={targetNode.type} /> : null}
+                    </div>
+                  </div>
+                  {step.edge?.metadata && Object.keys(step.edge.metadata).length > 0 ? (
+                    <div className="mt-3">
+                      <div className="small text-muted mb-1">Edge Metadata</div>
+                      <pre className="mb-0 small text-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {renderValue(step.edge.metadata)}
+                      </pre>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-          ))}
+                {index < steps.length - 1 ? (
+                  <div className="text-center text-muted" aria-hidden="true" style={{ fontSize: '1.1rem', lineHeight: 1 }}>
+                    ↓
+                  </div>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -311,9 +392,9 @@ const EdgeList: React.FC<{
               <tr key={edge.edge_id}>
                 <td>{edge.edge_index + 1}</td>
                 <td className="text-break">{edge.edge_id}</td>
-                <td>{edge.edge_type}</td>
-                <td className="text-break">{edge.source_node_id}</td>
-                <td className="text-break">{edge.target_node_id}</td>
+                <td>{formatEdgeTypeLabel(edge.edge_type)}</td>
+                <td style={{ minWidth: 220 }}><NodeIdentity value={edge.source_node_id} compact showThreat /></td>
+                <td style={{ minWidth: 220 }}><NodeIdentity value={edge.target_node_id} compact showThreat showGlow /></td>
               </tr>
             ))}
           </tbody>
@@ -441,7 +522,7 @@ const AttackPathDetailPage: React.FC = () => {
     return (
       <div className="container-fluid py-4">
         <div className="card border-0 shadow-sm">
-          <div className="card-body py-5 text-center text-muted">Attack path detail loading…</div>
+          <div className="card-body py-5 text-center text-muted">Attack path detail loading...</div>
         </div>
       </div>
     );
@@ -482,14 +563,25 @@ const AttackPathDetailPage: React.FC = () => {
     );
   }
 
+  const entryNode = parseAttackPathNode(path.entry_node_id);
+  const targetNode = parseAttackPathNode(path.target_node_id);
+  const targetThreat = getThreatLabel(targetNode.type);
+
   return (
     <div className="container-fluid py-4">
       <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
           <div className="text-muted small text-uppercase mb-2">Attack Path Detail</div>
-          <h1 className="h3 mb-2 text-break">{path.title || path.path_id}</h1>
-          <div className="text-muted small text-break">
-            Cluster <strong>{envelope.cluster_id}</strong> / Path <strong>{path.path_id}</strong>
+          <div className="d-flex flex-wrap align-items-center gap-2 text-break">
+            <RiskLevelBadge level={path.risk_level} />
+            {targetThreat ? <ThreatTypeBadge type={targetNode.type} /> : null}
+            <span className="text-muted small">|</span>
+            <span className="small text-muted">Entry:</span>
+            <NodeTypeBadge type={entryNode.type} />
+            <span className="fw-semibold">{entryNode.name}</span>
+            <span className="small text-muted">Target:</span>
+            <NodeTypeBadge type={targetNode.type} />
+            <span className="fw-semibold">{targetNode.name}</span>
           </div>
         </div>
         {clusterId ? (
@@ -500,51 +592,43 @@ const AttackPathDetailPage: React.FC = () => {
       </div>
 
       <div className="row g-3 mb-4">
-        <SummaryField label="Cluster ID" value={envelope.cluster_id} />
-        <SummaryField label="Path ID" value={path.path_id} />
-        <SummaryField label="Risk Level" value={path.risk_level} />
-        <SummaryField label="Risk Score" value={formatNumber(path.risk_score)} />
-        <SummaryField label="Raw Final Risk" value={formatNumber(path.raw_final_risk)} />
-        <SummaryField label="Hop Count" value={formatNumber(path.hop_count)} />
-        <SummaryField label="Entry Node" value={path.entry_node_id ?? '-'} />
-        <SummaryField label="Target Node" value={path.target_node_id ?? '-'} />
-        <SummaryField label="Analysis Run ID" value={envelope.analysis_run_id ?? '-'} />
-        <SummaryField label="Generated At" value={formatDateTime(envelope.generated_at)} />
+        <SummaryCard label="Risk Level" value={<RiskLevelBadge level={path.risk_level} />} />
+        <SummaryCard label="Entry Node" value={<NodeSummaryValue value={path.entry_node_id} />} />
+        <SummaryCard label="Target Node" value={<NodeSummaryValue value={path.target_node_id} showThreatTag />} />
+        <SummaryCard label="Hop Count" value={<HopCountValue count={path.hop_count} />} />
       </div>
 
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          <h2 className="h6 mb-3">Attack Path Graph</h2>
-          {pathGraphElements.length === 0 ? (
-            <div className="text-muted small">This path does not contain enough ordered graph data to render a path-only graph.</div>
-          ) : (
-            <div style={{ height: 320 }}>
-              <GraphView
-                elements={pathGraphElements}
-                layout={attackPathLayout}
-                stylesheet={attackPathGraphStylesheet}
-                selectedPathNodeIds={[]}
-                selectedPathEdgeIds={[]}
-                selectedNodeId={selectedNodeId}
-                selectedEdgeId={selectedEdgeId}
-                showLabels
-                onNodeClick={(node) => {
-                  const clicked = selectedNodeLookup.get(node.id) ?? node;
-                  setSelectedNode(clicked);
-                  setSelectedNodeId(clicked.id);
-                  setSelectedEdge(null);
-                  setSelectedEdgeId(null);
-                }}
-                onEdgeClick={(edge) => {
-                  const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
-                  setSelectedEdge(clicked);
-                  setSelectedEdgeId(clicked.id);
-                  setSelectedNode(null);
-                  setSelectedNodeId(null);
-                }}
-              />
+      <div className="accordion mb-4" id="attack-path-detail-accordion">
+        <div className="accordion-item border-0 shadow-sm">
+          <h2 className="accordion-header" id="attack-path-detail-heading">
+            <button
+              className="accordion-button collapsed"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#attack-path-detail-collapse"
+              aria-expanded="false"
+              aria-controls="attack-path-detail-collapse"
+            >
+              상세 정보
+            </button>
+          </h2>
+          <div
+            id="attack-path-detail-collapse"
+            className="accordion-collapse collapse"
+            aria-labelledby="attack-path-detail-heading"
+            data-bs-parent="#attack-path-detail-accordion"
+          >
+            <div className="accordion-body bg-card-surface">
+              <div className="row g-3">
+                <DetailField label="Cluster ID" value={envelope.cluster_id} />
+                <DetailField label="Path ID" value={<code className="small text-break">{path.path_id}</code>} />
+                <DetailField label="Risk Score" value={formatNumber(path.risk_score)} />
+                <DetailField label="Raw Final Risk" value={formatNumber(path.raw_final_risk)} />
+                <DetailField label="Analysis Run ID" value={envelope.analysis_run_id ?? '-'} />
+                <DetailField label="Generated At" value={formatDateTime(envelope.generated_at)} />
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
       {selectedNode ? (
@@ -567,11 +651,11 @@ const AttackPathDetailPage: React.FC = () => {
       {selectedEdge ? (
         <div className="card shadow mb-4">
           <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <strong>엣지 상세</strong>
+            <strong>Edge Detail</strong>
             <button
               type="button"
               className="btn-close btn-close-white"
-              aria-label="닫기"
+              aria-label="Close"
               onClick={() => {
                 setSelectedEdge(null);
                 setSelectedEdgeId(null);
@@ -579,27 +663,27 @@ const AttackPathDetailPage: React.FC = () => {
             />
           </div>
           <div className="card-body">
-            <p className="small text-muted mb-3">선택된 엣지 상세 정보</p>
+            <p className="small text-muted mb-3">Selected edge details</p>
             <table className="table table-sm table-borderless mb-0">
               <tbody>
                 <tr>
-                  <td className="text-muted fw-semibold">관계</td>
+                  <td className="text-muted fw-semibold">Relation</td>
                   <td>{selectedEdge.relation || 'n/a'}</td>
                 </tr>
                 <tr>
-                  <td className="text-muted fw-semibold">출발지</td>
+                  <td className="text-muted fw-semibold">Source</td>
                   <td>{`${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`}</td>
                 </tr>
                 <tr>
-                  <td className="text-muted fw-semibold">도착지</td>
+                  <td className="text-muted fw-semibold">Target</td>
                   <td>{`${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`}</td>
                 </tr>
                 <tr>
-                  <td className="text-muted fw-semibold">레이블</td>
+                  <td className="text-muted fw-semibold">Label</td>
                   <td>{selectedEdge.label || selectedEdge.id}</td>
                 </tr>
                 <tr>
-                  <td className="text-muted fw-semibold">이유</td>
+                  <td className="text-muted fw-semibold">Reason</td>
                   <td style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{selectedEdge.reason || 'n/a'}</td>
                 </tr>
               </tbody>
@@ -645,6 +729,42 @@ const AttackPathDetailPage: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body">
+          <h2 className="h6 mb-3">Attack Path Graph</h2>
+          {pathGraphElements.length === 0 ? (
+            <div className="text-muted small">This path does not contain enough ordered graph data to render a path-only graph.</div>
+          ) : (
+            <div style={{ minHeight: 300, height: 320 }}>
+              <GraphView
+                elements={pathGraphElements}
+                layout={attackPathLayout}
+                stylesheet={attackPathGraphStylesheet}
+                selectedPathNodeIds={[]}
+                selectedPathEdgeIds={[]}
+                selectedNodeId={selectedNodeId}
+                selectedEdgeId={selectedEdgeId}
+                showLabels
+                onNodeClick={(node) => {
+                  const clicked = selectedNodeLookup.get(node.id) ?? node;
+                  setSelectedNode(clicked);
+                  setSelectedNodeId(clicked.id);
+                  setSelectedEdge(null);
+                  setSelectedEdgeId(null);
+                }}
+                onEdgeClick={(edge) => {
+                  const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+                  setSelectedEdge(clicked);
+                  setSelectedEdgeId(clicked.id);
+                  setSelectedNode(null);
+                  setSelectedNodeId(null);
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
