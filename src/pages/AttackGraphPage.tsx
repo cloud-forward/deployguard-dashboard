@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import GraphView from '../components/graph/GraphView';
->>>>>>> feature/selly
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
@@ -92,61 +91,6 @@ const toDisplayLabel = (key: string) =>
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-<<<<<<< HEAD
-=======
-const normalizeIdentifier = (value?: string | null) =>
-  typeof value === 'string' ? value.trim().toLowerCase().replace(/[\s_-]+/g, '') : '';
-
-const toIdentifierCandidates = (...values: Array<string | null | undefined>) =>
-  values
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    .flatMap((value) => {
-      const trimmed = value.trim();
-      const normalized = normalizeIdentifier(trimmed);
-      return normalized && normalized !== trimmed ? [trimmed, normalized] : [trimmed];
-    });
-
-const isNodeMatchingFocusTarget = (node: AttackGraphNode, target: GraphFocusTarget) => {
-  const rawMetadata =
-    typeof node.raw.metadata === 'object' && node.raw.metadata !== null
-      ? (node.raw.metadata as Record<string, unknown>)
-      : undefined;
-  const nodeIdentifiers = new Set(
-    toIdentifierCandidates(
-      node.id,
-      node.label,
-      node.details.asset_id,
-      node.details.node_id,
-      node.details.name,
-      typeof node.raw.id === 'string' ? node.raw.id : null,
-      typeof node.raw.asset_id === 'string' ? node.raw.asset_id : null,
-      typeof node.raw.node_id === 'string' ? node.raw.node_id : null,
-      typeof node.raw.name === 'string' ? node.raw.name : null,
-      typeof rawMetadata?.asset_id === 'string' ? rawMetadata.asset_id : null,
-      typeof rawMetadata?.node_id === 'string' ? rawMetadata.node_id : null,
-      typeof rawMetadata?.name === 'string' ? rawMetadata.name : null,
-    ),
-  );
-  const targetNodeIdentifiers = toIdentifierCandidates(target.nodeId);
-  const targetAssetIdentifiers = toIdentifierCandidates(target.assetId);
-  const targetAssetType = normalizeIdentifier(target.assetType);
-
-  if (targetNodeIdentifiers.some((identifier) => nodeIdentifiers.has(identifier))) {
-    return true;
-  }
-
-  if (targetAssetIdentifiers.length === 0 || !targetAssetIdentifiers.some((identifier) => nodeIdentifiers.has(identifier))) {
-    return false;
-  }
-
-  if (!targetAssetType) {
-    return true;
-  }
-
-  return normalizeIdentifier(node.resourceType) === targetAssetType;
-};
-
->>>>>>> feature/selly
 const coerceAttackGraphApiResponse = (value: unknown): AttackGraphApiResponse => {
   if (!value || typeof value !== 'object') {
     return EMPTY_ATTACK_GRAPH;
