@@ -74,3 +74,9 @@ jobs:
             -p 3000:80 \
             --name deployguard-dashboard \
             $IMAGE
+
+      - name: Clean up Docker resources
+        if: always()
+        run: |
+          docker image prune -af
+          docker system prune -f

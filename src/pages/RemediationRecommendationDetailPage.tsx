@@ -253,7 +253,6 @@ const WhyItMattersSection: React.FC<{ rec: RemediationRecommendationDetailRespon
 
 const KpiSection: React.FC<{ rec: RemediationRecommendationDetailResponse }> = ({ rec }) => {
   const pathCount = blockedPathCount(rec);
-  const reductionPct = clampPercent(rec.cumulative_risk_reduction);
   const cost =
     typeof rec.fix_cost === 'number' && !Number.isNaN(rec.fix_cost)
       ? costLabel(rec.fix_cost)

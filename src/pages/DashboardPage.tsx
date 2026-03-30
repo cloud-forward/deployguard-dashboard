@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import type { ElementDefinition } from 'cytoscape';
 import { useNavigate } from 'react-router-dom';
 import { useGetMyAssetsApiV1MeAssetsGet, useGetMyOverviewApiV1MeOverviewGet } from '../api/generated/auth/auth';
@@ -11,8 +11,8 @@ import {
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
-import GraphView from '../components/graph/GraphView';
 import { attackGraphStylesheet } from '../components/graph/attackGraph';
+import PageLoader from '../components/layout/PageLoader';
 import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
@@ -27,6 +27,8 @@ import type {
 } from '../api/model';
 import RecommendationOverviewCard from '../components/dashboard/RecommendationOverviewCard';
 import StatCard from '../components/dashboard/StatCard';
+
+const GraphView = React.lazy(() => import('../components/graph/GraphView'));
 
 const getDomainBadgeClass = (domain?: string | null) => {
   if (domain === 'k8s') {
@@ -436,19 +438,21 @@ const DashboardAttackPathSection: React.FC<{
             <span className="text-muted small">선택한 공격 경로를 그래프로 표시할 수 없습니다.</span>
           ) : (
             <div style={{ width: '100%', height: '100%' }}>
-              <GraphView
-                elements={graphElements}
-                layout={attackPathLayout}
-                stylesheet={dashboardAttackPathStylesheet}
-                viewportRefreshKey={`${selectedClusterId}:${selectedPathId}:${graphElements.length}`}
-                selectedPathNodeIds={[]}
-                selectedPathEdgeIds={[]}
-                selectedNodeId={null}
-                selectedEdgeId={null}
-                showLabels
-                onNodeClick={() => {}}
-                onEdgeClick={() => {}}
-              />
+              <Suspense fallback={<PageLoader label="그래프 뷰를 준비하는 중..." minHeight="100%" compact />}>
+                <GraphView
+                  elements={graphElements}
+                  layout={attackPathLayout}
+                  stylesheet={dashboardAttackPathStylesheet}
+                  viewportRefreshKey={`${selectedClusterId}:${selectedPathId}:${graphElements.length}`}
+                  selectedPathNodeIds={[]}
+                  selectedPathEdgeIds={[]}
+                  selectedNodeId={null}
+                  selectedEdgeId={null}
+                  showLabels
+                  onNodeClick={() => {}}
+                  onEdgeClick={() => {}}
+                />
+              </Suspense>
             </div>
           )}
         </div>
