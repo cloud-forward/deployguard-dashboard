@@ -339,10 +339,10 @@ const AttackPathDetailPage: React.FC = () => {
   const envelope = isAttackPathDetailEnvelope(query.data) ? query.data : null;
   const path = envelope?.path ?? null;
   const orderedEdges = Array.isArray(path?.edges)
-    ? [...path.edges].sort((left, right) => left.edge_index - right.edge_index)
+    ? [...(path?.edges ?? [])].sort((left, right) => left.edge_index - right.edge_index)
     : [];
-  const nodeIds = Array.isArray(path?.node_ids) ? path.node_ids : [];
-  const edgeIds = Array.isArray(path?.edge_ids) ? path.edge_ids : [];
+  const nodeIds = Array.isArray(path?.node_ids) ? (path?.node_ids ?? []) : [];
+  const edgeIds = Array.isArray(path?.edge_ids) ? (path?.edge_ids ?? []) : [];
   const selectedNodeLookup = useMemo(() => {
     const map = new Map<string, NodeData>();
 

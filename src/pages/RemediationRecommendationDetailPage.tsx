@@ -292,9 +292,9 @@ const RemediationRecommendationDetailPage: React.FC = () => {
 
   const envelope = isRemediationRecommendationEnvelope(query.data) ? query.data : null;
   const recommendation = envelope?.recommendation ?? null;
-  const blockedPathIds = Array.isArray(recommendation?.blocked_path_ids) ? recommendation.blocked_path_ids : [];
+  const blockedPathIds = Array.isArray(recommendation?.blocked_path_ids) ? (recommendation?.blocked_path_ids ?? []) : [];
   const blockedPathIndices = Array.isArray(recommendation?.blocked_path_indices)
-    ? recommendation.blocked_path_indices
+    ? (recommendation?.blocked_path_indices ?? [])
     : [];
   const explanationPrimaryText = useMemo(
     () => explanation?.final_explanation?.trim() || explanation?.base_explanation?.trim() || '',
