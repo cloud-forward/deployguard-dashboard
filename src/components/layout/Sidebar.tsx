@@ -20,13 +20,19 @@ const Sidebar: React.FC = () => {
   const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
   const clustersMatch = useMatch('/clusters');
   const scansMatch = useMatch('/scans');
+  const riskOptimizationMatch = useMatch('/risk-optimization');
   const riskMatch = useMatch('/risk');
   const clusterRiskMatch = useMatch('/clusters/:clusterId/risk');
   const remediationMatch = useMatch('/remediation');
   const isInventoryActive = inventoryMatch !== null;
-  const isWorkloadSecurityActive = clustersMatch !== null || scansMatch !== null;
+  const workloadSecurityMatch = useMatch('/workload-security');
+  const isWorkloadSecurityActive =
+    workloadSecurityMatch !== null || clustersMatch !== null || scansMatch !== null;
   const isRiskOptimizationActive =
-    riskMatch !== null || clusterRiskMatch !== null || remediationMatch !== null;
+    riskOptimizationMatch !== null ||
+    riskMatch !== null ||
+    clusterRiskMatch !== null ||
+    remediationMatch !== null;
 
   const { data: clustersResponse } = useListClustersApiV1ClustersGet();
   const firstClusterId = useMemo(() => {
@@ -76,7 +82,7 @@ const Sidebar: React.FC = () => {
     {
       badge: 'WS',
       label: 'Workload Security',
-      path: '/clusters',
+      path: '/workload-security',
       exact: true,
       forceActive: isWorkloadSecurityActive,
       children: [
@@ -88,7 +94,7 @@ const Sidebar: React.FC = () => {
     {
       badge: 'RO',
       label: 'Risk Optimization',
-      path: '/risk',
+      path: '/risk-optimization',
       exact: true,
       forceActive: isRiskOptimizationActive,
       children: [
@@ -161,10 +167,22 @@ const Sidebar: React.FC = () => {
           display: flex;
           flex-direction: column;
           gap: 1px;
+          border: none;
+          box-shadow: none;
+          background: transparent;
         }
         .dg-sidebar-group-row {
           display: flex;
           align-items: stretch;
+          border: none;
+          box-shadow: none;
+          position: relative;
+        }
+        .dg-sidebar-group-row::before,
+        .dg-sidebar-group-row::after,
+        .dg-sidebar-item-children::before,
+        .dg-sidebar-item-children::after {
+          content: none;
         }
         .dg-sidebar-group-row .dg-sidebar-link {
           flex: 1;
@@ -198,10 +216,12 @@ const Sidebar: React.FC = () => {
           width: 2.2rem;
           margin-left: auto;
           border: 0;
-          border-left: 1px solid rgba(148, 163, 184, 0.08);
+          border-left: none;
+          border-right: none;
           background: transparent;
           color: rgba(148, 163, 184, 0.72);
           opacity: 0;
+          box-shadow: none;
           transition: background 0.15s ease, color 0.15s ease, opacity 0.18s ease;
         }
         .dg-sidebar-group-row:hover .dg-sidebar-toggle,
