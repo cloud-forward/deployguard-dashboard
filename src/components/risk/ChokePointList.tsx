@@ -42,6 +42,14 @@ const formatRisk = (value?: number | null): string => {
   return value.toLocaleString('ko-KR', { maximumFractionDigits: 4 });
 };
 
+const normalizeLlmStatus = (value?: string | null): 'not_generated' | 'generated' | 'failed' => {
+  if (value === 'generated' || value === 'failed') {
+    return value;
+  }
+
+  return 'not_generated';
+};
+
 interface Props {
   clusterId: string;
 }
@@ -125,6 +133,9 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
           item.fix_description
             ? item.fix_description
             : `${abbreviate(item.edge_source)} → ${abbreviate(item.edge_target)}`;
+        const llmStatus = normalizeLlmStatus(item.llm_status);
+        const llmExplanationPreview =
+          llmStatus === 'generated' ? abbreviate(item.llm_explanation, 88) : null;
 
         return (
           <div key={item.recommendation_id} className="col-12 col-md-6 col-lg-4">
@@ -148,6 +159,24 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
                     <span className="text-muted small">누적 위험 감소</span>
                     <span className="fw-bold text-success">
                       {formatRisk(item.cumulative_risk_reduction)}
+                    </span>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="text-muted small">AI 설명</span>
+                    <span
+                      className={`dg-badge ${
+                        llmStatus === 'generated'
+                          ? 'dg-badge--high'
+                          : llmStatus === 'failed'
+                            ? 'dg-badge--low'
+                            : 'dg-badge--tag'
+                      }`}
+                    >
+                      {llmStatus === 'generated'
+                        ? '생성됨'
+                        : llmStatus === 'failed'
+                          ? '실패'
+                          : '미생성'}
                     </span>
                   </div>
                   {item.fix_cost != null && (
@@ -183,6 +212,16 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
                     )}
                   </div>
                 )}
+                {llmExplanationPreview ? (
+                  <div className="mt-3 pt-3 border-top border-secondary-subtle">
+                    <div className="text-muted small mb-1">AI 설명 미리보기</div>
+                    <div className="small text-break">{llmExplanationPreview}</div>
+                  </div>
+                ) : llmStatus === 'failed' && item.llm_error_message ? (
+                  <div className="alert alert-danger mt-3 mb-0 py-2 small" role="alert">
+                    {abbreviate(item.llm_error_message, 96)}
+                  </div>
+                ) : null}
               </div>
               <div className="card-footer bg-transparent border-0 pt-0">
                 <Link

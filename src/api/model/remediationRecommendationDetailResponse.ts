@@ -49,4 +49,10 @@ export interface RemediationRecommendationDetailResponse {
   cumulative_risk_reduction?: number | null;
   /** Persisted recommendation metadata */
   metadata?: RemediationRecommendationDetailResponseMetadata;
+  llm_explanation?: string | null;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_status?: string | null;
+  llm_generated_at?: string | null;
+  llm_error_message?: string | null;
 }
