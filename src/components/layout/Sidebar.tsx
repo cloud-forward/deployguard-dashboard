@@ -18,9 +18,10 @@ type SidebarItem = SidebarLeafItem & {
 
 const Sidebar: React.FC = () => {
   const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
+  const clustersMatch = useMatch('/clusters');
+  const scansMatch = useMatch('/scans');
   const isInventoryActive = inventoryMatch !== null;
-  const isWorkloadSecurityActive =
-    useMatch('/clusters') !== null || useMatch('/scans') !== null;
+  const isWorkloadSecurityActive = clustersMatch !== null || scansMatch !== null;
 
   const { data: clustersResponse } = useListClustersApiV1ClustersGet();
   const firstClusterId = useMemo(() => {

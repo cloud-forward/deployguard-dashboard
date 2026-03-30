@@ -132,7 +132,7 @@ const ActivityPage: React.FC = () => {
   const cloudtrailResponse = isCloudTrailEventListResponse(cloudtrailQuery.data) ? cloudtrailQuery.data : undefined;
 
   const runtimeItems = useMemo(() => {
-    const items = Array.isArray(runtimeResponse?.items) ? [...runtimeResponse.items] : [];
+    const items = Array.isArray(runtimeResponse?.items) ? [...(runtimeResponse?.items ?? [])] : [];
 
     return items.sort((left, right) => {
       const notableDelta = Number(Boolean(right.notable)) - Number(Boolean(left.notable));
@@ -147,7 +147,7 @@ const ActivityPage: React.FC = () => {
   const cloudtrailItems = useMemo(
     () =>
       Array.isArray(cloudtrailResponse?.items)
-        ? [...cloudtrailResponse.items].sort(
+        ? [...(cloudtrailResponse?.items ?? [])].sort(
             (left, right) => new Date(right.event_time).getTime() - new Date(left.event_time).getTime(),
           )
         : [],
