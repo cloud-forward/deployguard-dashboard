@@ -43,9 +43,11 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
   }
 
   return (
-    <div className="d-flex align-items-center gap-1">
-      <span className="text-white small">{name}</span>
+    <div className="dg-scan-pill" aria-label={`${name} ${statusText}`}>
+      <span className="dg-scan-pill-name">{name}</span>
+      <span className="dg-scan-pill-sep" aria-hidden="true">•</span>
       <span
+        className="dg-scan-pill-dot"
         aria-hidden="true"
         style={{
           width: 8,
@@ -55,7 +57,7 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
           backgroundColor: dotColor,
         }}
       />
-      <span className="small" style={{ color: dotColor }}>{statusText}</span>
+      <span className="dg-scan-pill-status" style={{ color: dotColor }}>{statusText}</span>
     </div>
   );
 };
@@ -179,6 +181,14 @@ const Navbar: React.FC = () => {
           color: rgba(148, 163, 184, 0.7);
           white-space: nowrap;
           line-height: 1.4;
+          cursor: default;
+          user-select: none;
+          transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .dg-scan-pill:hover {
+          background: rgba(255,255,255,0.065);
+          border-color: rgba(148, 163, 184, 0.22);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
         .dg-scan-pill-name {
           color: rgba(226, 232, 240, 0.92);

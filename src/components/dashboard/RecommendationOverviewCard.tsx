@@ -47,16 +47,13 @@ const RecommendationOverviewCard: React.FC<RecommendationOverviewCardProps> = ({
   const topRecommendation = recommendations[0] ?? null;
   const summaryLine = buildSummaryLine(recommendations);
   const detailDisabled = !topRecommendation || isLoading || isError;
-  const listDisabled = recommendations.length === 0 || isLoading || isError;
 
   const handleCardClick = () => {
-    if (!listDisabled) {
-      onOpenList();
-    }
+    onOpenList();
   };
 
   const handleCardKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
-    if ((event.key === 'Enter' || event.key === ' ') && !listDisabled) {
+    if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onOpenList();
     }
@@ -65,10 +62,10 @@ const RecommendationOverviewCard: React.FC<RecommendationOverviewCardProps> = ({
   return (
     <div
       className={`card border-0 shadow-sm h-100 dg-dashboard-bottom-card dg-dashboard-bottom-panel ${
-        listDisabled ? '' : 'dg-dashboard-recommendation-card--interactive'
+        'dg-dashboard-recommendation-card--interactive'
       }`}
-      role={listDisabled ? undefined : 'button'}
-      tabIndex={listDisabled ? -1 : 0}
+      role="button"
+      tabIndex={0}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
     >
@@ -133,7 +130,6 @@ const RecommendationOverviewCard: React.FC<RecommendationOverviewCardProps> = ({
               event.stopPropagation();
               onOpenList();
             }}
-            disabled={listDisabled}
           >
             권고사항 전체 보기
           </button>
