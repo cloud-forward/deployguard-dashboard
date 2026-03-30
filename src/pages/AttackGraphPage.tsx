@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import GraphView from '../components/graph/GraphView';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
