@@ -53,8 +53,7 @@ const DashboardLayout: React.FC = () => {
           margin: 0 auto;
           padding: clamp(1rem, 1.45vw, 1.35rem) clamp(1rem, 1.7vw, 1.7rem) clamp(1.15rem, 1.75vw, 1.55rem);
           min-height: calc(100vh - 54px - 2.5rem);
-          max-height: calc(100vh - 54px - 2.5rem);
-          overflow-y: auto;
+          overflow-y: visible;
           box-shadow: 0 18px 35px -32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.03);
           backdrop-filter: blur(8px);
         }
