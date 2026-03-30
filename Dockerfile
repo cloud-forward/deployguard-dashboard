@@ -8,7 +8,7 @@ RUN npm install -g pnpm
 
 # dependency install
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+RUN pnpm install --ignore-scripts=false
 
 # source copy
 COPY . .
