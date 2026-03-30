@@ -2,45 +2,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGet } from '../../api/generated/clusters/clusters';
 import type { RemediationRecommendationListItemResponse } from '../../api/model';
-
-const formatFixType = (fixType?: string | null): string => {
-  if (!fixType) return '조치 필요';
-  const map: Record<string, string> = {
-    change_service_account: '서비스 어카운트 변경',
-    remove_role_binding: '권한 바인딩 제거',
-    delete_role_binding: '권한 바인딩 삭제',
-    remove_cluster_role_binding: '클러스터 권한 바인딩 제거',
-    rotate_secret: 'Secret 자격 증명 교체',
-    restrict_pod_security: 'Pod 보안 정책 강화',
-    remove_permission: '권한 제거',
-    add_network_policy: '네트워크 정책 추가',
-  };
-  return map[fixType] ?? fixType.replace(/_/g, ' ');
-};
-
-const formatEdgeType = (edgeType?: string | null): string => {
-  if (!edgeType) return '-';
-  const map: Record<string, string> = {
-    bound_to: '바인딩',
-    has_secret: 'Secret 보유',
-    can_exec: '실행 가능',
-    can_mount: '마운트 가능',
-    has_permission: '권한 보유',
-    can_assume: '역할 위임',
-  };
-  return map[edgeType] ?? edgeType.replace(/_/g, ' ');
-};
-
-const abbreviate = (value?: string | null, maxLen = 28): string => {
-  if (!value) return '-';
-  if (value.length <= maxLen) return value;
-  return `${value.slice(0, maxLen - 1)}…`;
-};
-
-const formatRisk = (value?: number | null): string => {
-  if (value == null) return '-';
-  return value.toLocaleString('ko-KR', { maximumFractionDigits: 4 });
-};
+import {
+  blockedPathCount,
+  clampPercent,
+  costLabel,
+  formatCoveredRisk,
+  formatFixType,
+  formatReduction,
+  formatResource,
+} from './recommendationFormatters';
 
 const normalizeLlmStatus = (value?: string | null): 'not_generated' | 'generated' | 'failed' => {
   if (value === 'generated' || value === 'failed') {
@@ -66,8 +36,6 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
   )
     ? ((data as { items?: RemediationRecommendationListItemResponse[] }).items ?? [])
     : [];
-
-  const maxCoveredRisk = Math.max(...items.map((item) => item.covered_risk ?? 0), 1);
 
   if (!clusterId) {
     return (
@@ -120,108 +88,107 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
         .dg-recommendation-list-card:hover {
           background: rgba(255, 255, 255, 0.04);
         }
+        .dg-recommendation-progress {
+          height: 8px;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .dg-recommendation-metric {
+          min-width: 0;
+          padding: 0.75rem;
+          border: 1px solid var(--border-subtle);
+          border-radius: 0.75rem;
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .dg-recommendation-metric-value {
+          font-size: 1rem;
+          font-weight: 700;
+          line-height: 1.1;
+        }
+        .dg-recommendation-target {
+          font-size: 0.92rem;
+          line-height: 1.35;
+        }
       `}</style>
       <div className="row g-3">
       {items.map((item) => {
-        const riskPct =
-          maxCoveredRisk > 0
-            ? Math.round(((item.covered_risk ?? 0) / maxCoveredRisk) * 100)
-            : 0;
-
         const title = formatFixType(item.fix_type);
-        const summary =
-          item.fix_description
-            ? item.fix_description
-            : `${abbreviate(item.edge_source)} → ${abbreviate(item.edge_target)}`;
+        const sourceLabel = item.edge_source ? formatResource(item.edge_source) : '-';
+        const targetLabel = item.edge_target ? formatResource(item.edge_target) : '-';
+        const reductionPercent = clampPercent(item.cumulative_risk_reduction);
+        const pathCount = blockedPathCount(item);
         const llmStatus = normalizeLlmStatus(item.llm_status);
-        const llmExplanationPreview =
-          llmStatus === 'generated' ? abbreviate(item.llm_explanation, 88) : null;
+        const costBadge =
+          typeof item.fix_cost === 'number' && !Number.isNaN(item.fix_cost)
+            ? costLabel(item.fix_cost)
+            : '-';
 
         return (
           <div key={item.recommendation_id} className="col-12 col-md-6 col-lg-4">
             <div className="card h-100 border-0 shadow-sm border-start border-primary border-4 dg-recommendation-list-card">
-              <div className="card-body">
-                {item.recommendation_rank != null && (
-                  <span className="dg-badge dg-badge--tag mb-2">#{item.recommendation_rank + 1}</span>
-                )}
-                <h5 className="card-title text-primary mb-1">{title}</h5>
-                <p className="text-muted small mb-3" style={{ minHeight: '2.5rem' }}>
-                  {summary}
-                </p>
-                <div className="d-flex flex-column gap-2 mb-3">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-muted small">커버된 위험</span>
-                    <span className="dg-badge dg-badge--high">
-                      {formatRisk(item.covered_risk)}
-                    </span>
+              <div className="card-body d-flex flex-column gap-3">
+                <div className="d-flex justify-content-between align-items-start gap-3">
+                  <div className="min-w-0">
+                    {item.recommendation_rank != null && (
+                      <div className="text-muted small mb-1">#{item.recommendation_rank + 1}</div>
+                    )}
+                    <h5 className="card-title text-primary mb-0">{title}</h5>
                   </div>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-muted small">누적 위험 감소</span>
-                    <span className="fw-bold text-success">
-                      {formatRisk(item.cumulative_risk_reduction)}
-                    </span>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-muted small">AI 설명</span>
-                    <span
-                      className={`dg-badge ${
-                        llmStatus === 'generated'
-                          ? 'dg-badge--high'
-                          : llmStatus === 'failed'
-                            ? 'dg-badge--low'
-                            : 'dg-badge--tag'
-                      }`}
-                    >
-                      {llmStatus === 'generated'
-                        ? '생성됨'
-                        : llmStatus === 'failed'
-                          ? '실패'
-                          : '미생성'}
-                    </span>
-                  </div>
-                  {item.fix_cost != null && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-muted small">조치 비용</span>
-                      <span className="text-muted small">{formatRisk(item.fix_cost)}</span>
-                    </div>
-                  )}
                 </div>
-                <div className="mb-2">
-                  <div className="progress" style={{ height: '6px' }}>
+
+                <div className="dg-recommendation-target text-muted">
+                  <span className="fw-semibold text-body">{sourceLabel}</span>
+                  <span className="mx-2">→</span>
+                  <span className="fw-semibold text-body">{targetLabel}</span>
+                </div>
+
+                <div className="row g-2">
+                  <div className="col-4">
+                    <div className="dg-recommendation-metric h-100">
+                      <div className="text-muted small mb-1">차단 경로</div>
+                      <div className="dg-recommendation-metric-value">{pathCount}</div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="dg-recommendation-metric h-100">
+                      <div className="text-muted small mb-1">커버 위험</div>
+                      <div className="dg-recommendation-metric-value">{formatCoveredRisk(item.covered_risk)}</div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="dg-recommendation-metric h-100">
+                      <div className="text-muted small mb-1">누적 감소</div>
+                      <div className="dg-recommendation-metric-value text-success">
+                        {formatReduction(item.cumulative_risk_reduction)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <span className="text-muted small">누적 위험 감소</span>
+                    <span className="small fw-semibold text-success">
+                      {formatReduction(item.cumulative_risk_reduction)}
+                    </span>
+                  </div>
+                  <div className="progress dg-recommendation-progress">
                     <div
                       className="progress-bar bg-success"
                       role="progressbar"
-                      style={{ width: `${riskPct}%` }}
-                      aria-valuenow={riskPct}
+                      style={{ width: `${reductionPercent}%` }}
+                      aria-valuenow={reductionPercent}
                       aria-valuemin={0}
                       aria-valuemax={100}
                     />
                   </div>
                 </div>
-                {(item.edge_type || item.edge_source || item.edge_target) && (
-                  <div className="d-flex flex-wrap gap-2 mt-2">
-                    {item.edge_type && (
-                      <span className="dg-badge dg-badge--low">
-                        {formatEdgeType(item.edge_type)}
-                      </span>
-                    )}
-                    {(item.edge_source || item.edge_target) && (
-                      <span className="text-muted" style={{ fontSize: '0.7rem' }}>
-                        {abbreviate(item.edge_source, 18)} → {abbreviate(item.edge_target, 18)}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {llmExplanationPreview ? (
-                  <div className="mt-3 pt-3 border-top border-secondary-subtle">
-                    <div className="text-muted small mb-1">AI 설명 미리보기</div>
-                    <div className="small text-break">{llmExplanationPreview}</div>
-                  </div>
-                ) : llmStatus === 'failed' && item.llm_error_message ? (
-                  <div className="alert alert-danger mt-3 mb-0 py-2 small" role="alert">
-                    {abbreviate(item.llm_error_message, 96)}
-                  </div>
-                ) : null}
+
+                <div className="d-flex flex-wrap gap-2">
+                  <span className="dg-badge dg-badge--tag">비용 {costBadge}</span>
+                  <span className="dg-badge dg-badge--tag">
+                    {llmStatus === 'generated' ? 'AI 설명 있음' : 'AI 설명 없음'}
+                  </span>
+                </div>
               </div>
               <div className="card-footer bg-transparent border-0 pt-0">
                 <Link

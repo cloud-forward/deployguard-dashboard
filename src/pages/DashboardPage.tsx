@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ElementDefinition } from 'cytoscape';
+import { useNavigate } from 'react-router-dom';
 import { useGetMyAssetsApiV1MeAssetsGet, useGetMyOverviewApiV1MeOverviewGet } from '../api/generated/auth/auth';
+import {
+  useGetAnalysisResultApiV1AnalysisJobIdResultGet,
+  useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet,
+} from '../api/generated/analysis/analysis';
 import {
   useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
@@ -12,11 +17,15 @@ import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
   AttackPathListItemResponse,
+  AnalysisJobSummaryResponse,
+  AnalysisResultResponse,
   ClusterResponse,
   MeAssetInventoryItemResponse,
   MeAssetInventoryListResponse,
+  RemediationRecommendationListItemResponse,
   UserOverviewResponse,
 } from '../api/model';
+import RecommendationOverviewCard from '../components/dashboard/RecommendationOverviewCard';
 import StatCard from '../components/dashboard/StatCard';
 
 const getDomainBadgeClass = (domain?: string | null) => {
@@ -63,6 +72,12 @@ const isMeAssetInventoryListResponse = (value: unknown): value is MeAssetInvento
 
 const isAttackPathDetailEnvelope = (value: unknown): value is AttackPathDetailEnvelopeResponse =>
   Boolean(value && typeof value === 'object' && 'cluster_id' in value);
+
+const isAnalysisJobSummary = (value: unknown): value is AnalysisJobSummaryResponse =>
+  Boolean(value && typeof value === 'object' && 'job_id' in value && 'status' in value);
+
+const isAnalysisResultResponse = (value: unknown): value is AnalysisResultResponse =>
+  Boolean(value && typeof value === 'object' && 'job' in value && 'links' in value);
 
 const buildCountMap = (
   assets: MeAssetInventoryItemResponse[],
@@ -223,7 +238,8 @@ const dashboardAttackPathStylesheet = [
 
 const DashboardAttackPathSection: React.FC<{
   clusterCounts: Array<{ label: string; count: number }>;
-}> = ({ clusterCounts }) => {
+  onClusterChange?: (clusterId: string) => void;
+}> = ({ clusterCounts, onClusterChange }) => {
   const [selectedClusterId, setSelectedClusterId] = useState('');
   const [selectedPathId, setSelectedPathId] = useState('');
   const clustersQuery = useListClustersApiV1ClustersGet({
@@ -259,6 +275,10 @@ const DashboardAttackPathSection: React.FC<{
     const firstEksCluster = sortedClusters.find((cluster) => cluster.cluster_type === 'eks');
     setSelectedClusterId(firstEksCluster?.id ?? sortedClusters[0].id);
   }, [selectedClusterId, sortedClusters]);
+
+  useEffect(() => {
+    onClusterChange?.(selectedClusterId);
+  }, [onClusterChange, selectedClusterId]);
 
   const attackPathsQuery = useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet(selectedClusterId, {
     query: {
@@ -438,6 +458,7 @@ const DashboardAttackPathSection: React.FC<{
 };
 
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const overviewQuery = useGetMyOverviewApiV1MeOverviewGet({
     query: {
       retry: false,
@@ -453,6 +474,7 @@ const DashboardPage: React.FC = () => {
   const overview = isUserOverviewResponse(overviewQuery.data) ? overviewQuery.data : null;
   const assetList = isMeAssetInventoryListResponse(assetsQuery.data) ? assetsQuery.data : null;
   const assets = Array.isArray(assetList?.items) ? (assetList?.items ?? []) : [];
+  const [dashboardClusterId, setDashboardClusterId] = useState('');
 
   const statAccentMap: Record<string, string> = {
     '전체 자산': '#22d3ee',
@@ -484,6 +506,64 @@ const DashboardPage: React.FC = () => {
     () => buildCountMap(assets, (asset) => asset.cluster_name).slice(0, 6),
     [assets],
   );
+
+  const analysisJobsQuery = useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet(
+    dashboardClusterId,
+    undefined,
+    {
+      query: {
+        enabled: Boolean(dashboardClusterId),
+        retry: false,
+      },
+    },
+  );
+
+  const analysisJobItems = Array.isArray((analysisJobsQuery.data as { items?: unknown[] } | undefined)?.items)
+    ? ((analysisJobsQuery.data as { items?: unknown[] }).items ?? []).filter(isAnalysisJobSummary)
+    : [];
+
+  const latestCompletedJob = useMemo(
+    () =>
+      [...analysisJobItems]
+        .filter((item) => item.status === 'completed')
+        .sort((left, right) => {
+          const leftTime = new Date(left.completed_at ?? left.created_at).getTime();
+          const rightTime = new Date(right.completed_at ?? right.created_at).getTime();
+          return rightTime - leftTime;
+        })[0] ?? null,
+    [analysisJobItems],
+  );
+
+  const analysisResultQuery = useGetAnalysisResultApiV1AnalysisJobIdResultGet(latestCompletedJob?.job_id ?? '', {
+    query: {
+      enabled: Boolean(latestCompletedJob?.job_id),
+      retry: false,
+    },
+  });
+
+  const analysisResult = isAnalysisResultResponse(analysisResultQuery.data) ? analysisResultQuery.data : null;
+  const remediationRecommendations: RemediationRecommendationListItemResponse[] = Array.isArray(
+    analysisResult?.remediation_preview,
+  )
+    ? (analysisResult?.remediation_preview ?? [])
+    : [];
+
+  const openRecommendationList = () => {
+    if (!dashboardClusterId) {
+      return;
+    }
+
+    navigate(`/clusters/${dashboardClusterId}/risk`);
+  };
+
+  const openRecommendationDetail = (recommendationId: string) => {
+    if (!dashboardClusterId || !recommendationId) {
+      return;
+    }
+
+    navigate(`/clusters/${dashboardClusterId}/recommendations/${recommendationId}`);
+  };
+
   return (
     <div className="dg-page-shell dg-dashboard-page">
       <style>{`
@@ -647,6 +727,75 @@ const DashboardPage: React.FC = () => {
           border-color: rgba(148, 163, 184, 0.28);
           color: #e2e8f0;
         }
+        .dg-dashboard-recommendation-card--interactive {
+          cursor: pointer;
+        }
+        .dg-dashboard-recommendation-card--interactive:focus-visible {
+          outline: 2px solid var(--border-accent-blue);
+          outline-offset: 2px;
+        }
+        .dg-dashboard-recommendation-summary {
+          padding: 0.8rem 0.9rem;
+          border-radius: 0.85rem;
+          background: rgba(59, 130, 246, 0.12);
+          border: 1px solid rgba(59, 130, 246, 0.22);
+          font-size: 0.93rem;
+          font-weight: 600;
+          line-height: 1.35;
+        }
+        .dg-dashboard-recommendation-preview {
+          padding: 0.9rem;
+          border-radius: 0.85rem;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.42);
+        }
+        .dg-dashboard-recommendation-actions {
+          margin-top: 1rem;
+          padding-top: 0.15rem;
+        }
+        .dg-dashboard-action-btn {
+          min-height: 2.25rem;
+          padding: 0.45rem 0.9rem;
+          border-radius: 0.8rem;
+          font-size: 0.84rem;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+        .dg-dashboard-action-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+        }
+        .dg-dashboard-action-btn:focus-visible {
+          outline: none;
+          box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18);
+        }
+        .dg-dashboard-action-btn:disabled {
+          opacity: 0.5;
+        }
+        .dg-dashboard-action-btn--primary {
+          color: #eff6ff;
+          background: linear-gradient(180deg, rgba(30, 64, 175, 0.34) 0%, rgba(15, 23, 42, 0.78) 100%);
+          border: 1px solid rgba(96, 165, 250, 0.28);
+          box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08), 0 0 18px rgba(37, 99, 235, 0.12);
+        }
+        .dg-dashboard-action-btn--primary:hover:not(:disabled) {
+          color: #ffffff;
+          background: linear-gradient(180deg, rgba(37, 99, 235, 0.3) 0%, rgba(15, 23, 42, 0.82) 100%);
+          border-color: rgba(125, 211, 252, 0.36);
+          box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.12), 0 0 20px rgba(59, 130, 246, 0.16);
+        }
+        .dg-dashboard-action-btn--secondary {
+          color: #dbeafe;
+          background: rgba(15, 23, 42, 0.32);
+          border: 1px solid rgba(96, 165, 250, 0.2);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .dg-dashboard-action-btn--secondary:hover:not(:disabled) {
+          color: #eff6ff;
+          background: rgba(30, 41, 59, 0.55);
+          border-color: rgba(96, 165, 250, 0.3);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 14px rgba(59, 130, 246, 0.08);
+        }
         @media (min-width: 1200px) {
           .dg-dashboard-top {
             align-items: stretch;
@@ -670,6 +819,9 @@ const DashboardPage: React.FC = () => {
           }
           .dg-dashboard-chip-group.is-asset-type {
             max-height: none;
+          }
+          .dg-dashboard-recommendation-actions {
+            justify-content: flex-end !important;
           }
         }
       `}</style>
@@ -714,7 +866,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="col-12 col-xl-8">
-          <DashboardAttackPathSection clusterCounts={clusterCounts} />
+          <DashboardAttackPathSection clusterCounts={clusterCounts} onClusterChange={setDashboardClusterId} />
         </div>
       </div>
 
@@ -784,9 +936,13 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="col-12 col-xl-6">
-          <div className="card border-0 shadow-sm h-100 dg-dashboard-bottom-card dg-dashboard-bottom-panel" aria-hidden="true">
-            <div className="card-body" />
-          </div>
+          <RecommendationOverviewCard
+            recommendations={remediationRecommendations}
+            isLoading={analysisJobsQuery.isLoading || analysisResultQuery.isLoading}
+            isError={analysisJobsQuery.isError || analysisResultQuery.isError}
+            onOpenList={openRecommendationList}
+            onOpenDetail={openRecommendationDetail}
+          />
         </div>
       </div>
     </div>
