@@ -20,8 +20,13 @@ const Sidebar: React.FC = () => {
   const inventoryMatch = useMatch('/clusters/:clusterId/inventory');
   const clustersMatch = useMatch('/clusters');
   const scansMatch = useMatch('/scans');
+  const riskMatch = useMatch('/risk');
+  const clusterRiskMatch = useMatch('/clusters/:clusterId/risk');
+  const remediationMatch = useMatch('/remediation');
   const isInventoryActive = inventoryMatch !== null;
   const isWorkloadSecurityActive = clustersMatch !== null || scansMatch !== null;
+  const isRiskOptimizationActive =
+    riskMatch !== null || clusterRiskMatch !== null || remediationMatch !== null;
 
   const { data: clustersResponse } = useListClustersApiV1ClustersGet();
   const firstClusterId = useMemo(() => {
@@ -35,14 +40,20 @@ const Sidebar: React.FC = () => {
       ? `/clusters/${firstClusterId}/inventory`
       : '/clusters';
   const [isLlmSettingsOpen, setIsLlmSettingsOpen] = useState(false);
-  const [isWorkloadSecurityOpen, setIsWorkloadSecurityOpen] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ WS: true, RO: true });
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   useEffect(() => {
     if (isWorkloadSecurityActive) {
-      setIsWorkloadSecurityOpen(true);
+      setOpenGroups((prev) => ({ ...prev, WS: true }));
     }
   }, [isWorkloadSecurityActive]);
+
+  useEffect(() => {
+    if (isRiskOptimizationActive) {
+      setOpenGroups((prev) => ({ ...prev, RO: true }));
+    }
+  }, [isRiskOptimizationActive]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767.98px)');
@@ -74,7 +85,17 @@ const Sidebar: React.FC = () => {
       ],
     },
     { badge: 'AG', label: 'Attack Graph',     path: '/attack-graph', exact: true },
-    { badge: 'RO', label: 'Risk Optimaztion', path: '/risk',         exact: true },
+    {
+      badge: 'RO',
+      label: 'Risk Optimization',
+      path: '/risk',
+      exact: true,
+      forceActive: isRiskOptimizationActive,
+      children: [
+        { badge: 'AN', label: 'Analysis',    path: '/risk',         exact: true },
+        { badge: 'RE', label: 'Remediation', path: '/remediation',  exact: true },
+      ],
+    },
     { badge: 'IV', label: 'Inventory',        path: inventoryHref,   exact: false, forceActive: isInventoryActive },
     { badge: 'RM', label: 'Runtime Monitoring', path: '/activity',   exact: true },
   ];
@@ -311,13 +332,18 @@ const Sidebar: React.FC = () => {
                     <button
                       type="button"
                       className="dg-sidebar-toggle"
-                      aria-label={`${isWorkloadSecurityOpen ? 'Collapse' : 'Expand'} Workload Security`}
-                      aria-expanded={isWorkloadSecurityOpen}
-                      aria-controls="workload-security-submenu"
-                      onClick={() => setIsWorkloadSecurityOpen((current) => !current)}
+                      aria-label={`${(openGroups[item.badge] ?? true) ? 'Collapse' : 'Expand'} ${item.label}`}
+                      aria-expanded={openGroups[item.badge] ?? true}
+                      aria-controls={`${item.badge.toLowerCase()}-submenu`}
+                      onClick={() =>
+                        setOpenGroups((prev) => ({
+                          ...prev,
+                          [item.badge]: !(prev[item.badge] ?? true),
+                        }))
+                      }
                     >
                       {isSidebarExpanded ? (
-                        isWorkloadSecurityOpen ? (
+                        (openGroups[item.badge] ?? true) ? (
                           <ChevronUp size={14} aria-hidden="true" />
                         ) : (
                           <ChevronDown size={14} aria-hidden="true" />
@@ -325,8 +351,8 @@ const Sidebar: React.FC = () => {
                       ) : null}
                     </button>
                   </div>
-                  {isWorkloadSecurityOpen ? (
-                    <ul className="dg-sidebar-item-children" id="workload-security-submenu">
+                  {(openGroups[item.badge] ?? true) ? (
+                    <ul className="dg-sidebar-item-children" id={`${item.badge.toLowerCase()}-submenu`}>
                       {item.children.map((child) => (
                         <li key={child.badge}>
                           <NavLink
