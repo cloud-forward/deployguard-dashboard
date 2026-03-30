@@ -1,27 +1,34 @@
+import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { PublicOnlyRoute, RequireAuth } from '../components/auth/RouteGuards';
-import DashboardLayout from '../components/layout/DashboardLayout';
-import LoginPage from '../pages/LoginPage';
-import SignupPage from '../pages/SignupPage';
-import DashboardPage from '../pages/DashboardPage';
-import AttackGraphPage from '../pages/AttackGraphPage';
-import AttackPathDetailPage from '../pages/AttackPathDetailPage';
-import ClustersPage from '../pages/ClustersPage';
-import RemediationRecommendationDetailPage from '../pages/RemediationRecommendationDetailPage';
-import ScansPage from '../pages/ScansPage';
-import RiskPage from '../pages/RiskPage';
-import RemediationPage from '../pages/RemediationPage';
-import RiskOptimizationPage from '../pages/RiskOptimizationPage';
-import WorkloadSecurityPage from '../pages/WorkloadSecurityPage';
-import InventoryPage from '../pages/InventoryPage';
-import ActivityPage from '../pages/ActivityPage';
+import PageLoader from '../components/layout/PageLoader';
+
+const DashboardLayout = React.lazy(() => import('../components/layout/DashboardLayout'));
+const LoginPage = React.lazy(() => import('../pages/LoginPage'));
+const SignupPage = React.lazy(() => import('../pages/SignupPage'));
+const DashboardPage = React.lazy(() => import('../pages/DashboardPage'));
+const AttackGraphPage = React.lazy(() => import('../pages/AttackGraphPage'));
+const AttackPathDetailPage = React.lazy(() => import('../pages/AttackPathDetailPage'));
+const ClustersPage = React.lazy(() => import('../pages/ClustersPage'));
+const RemediationRecommendationDetailPage = React.lazy(() => import('../pages/RemediationRecommendationDetailPage'));
+const ScansPage = React.lazy(() => import('../pages/ScansPage'));
+const RiskPage = React.lazy(() => import('../pages/RiskPage'));
+const RemediationPage = React.lazy(() => import('../pages/RemediationPage'));
+const RiskOptimizationPage = React.lazy(() => import('../pages/RiskOptimizationPage'));
+const WorkloadSecurityPage = React.lazy(() => import('../pages/WorkloadSecurityPage'));
+const InventoryPage = React.lazy(() => import('../pages/InventoryPage'));
+const ActivityPage = React.lazy(() => import('../pages/ActivityPage'));
+
+const withFallback = (element: React.ReactNode, label: string) => (
+  <Suspense fallback={<PageLoader label={label} minHeight="100vh" />}>{element}</Suspense>
+);
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: (
       <PublicOnlyRoute>
-        <LoginPage />
+        {withFallback(<LoginPage />, '로그인 페이지를 불러오는 중...')}
       </PublicOnlyRoute>
     ),
   },
@@ -29,7 +36,7 @@ export const router = createBrowserRouter([
     path: '/signup',
     element: (
       <PublicOnlyRoute>
-        <SignupPage />
+        {withFallback(<SignupPage />, '회원가입 페이지를 불러오는 중...')}
       </PublicOnlyRoute>
     ),
   },
@@ -37,7 +44,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: (
       <RequireAuth>
-        <DashboardLayout />
+        {withFallback(<DashboardLayout />, '대시보드 레이아웃을 준비하는 중...')}
       </RequireAuth>
     ),
     children: [

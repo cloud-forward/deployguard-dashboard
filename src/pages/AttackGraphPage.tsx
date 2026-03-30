@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import GraphView from '../components/graph/GraphView';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
+import PageLoader from '../components/layout/PageLoader';
 import {
   useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
@@ -26,6 +26,8 @@ import {
   type AttackGraphRiskSeverity,
 } from '../components/graph/attackGraph';
 
+const GraphView = React.lazy(() => import('../components/graph/GraphView'));
+
 const LARGE_GRAPH_THRESHOLD = 180;
 const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
   nodes: [],
@@ -45,12 +47,6 @@ interface EdgeData {
   reason?: string;
   sourceLabel?: string;
   targetLabel?: string;
-}
-
-interface GraphFocusTarget {
-  assetId?: string | null;
-  nodeId?: string | null;
-  assetType?: string | null;
 }
 
 const mapLegacyTypeToAttackGraphType = (nodeType: string): string => {
@@ -84,41 +80,6 @@ const toDisplayLabel = (key: string) =>
     .replace(/_/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (character) => character.toUpperCase());
-
-const normalizeIdentifier = (value?: string | null) =>
-  typeof value === 'string' ? value.trim().toLowerCase().replace(/[\s_-]+/g, '') : '';
-
-const isNodeMatchingFocusTarget = (node: AttackGraphNode, target: GraphFocusTarget) => {
-  const targetNodeId = normalizeIdentifier(target.nodeId);
-  const targetAssetId = normalizeIdentifier(target.assetId);
-  const targetAssetType = normalizeIdentifier(target.assetType);
-
-  if (targetNodeId && normalizeIdentifier(node.id) === targetNodeId) {
-    return true;
-  }
-
-  const rawMetadata =
-    typeof node.raw.metadata === 'object' && node.raw.metadata !== null
-      ? (node.raw.metadata as Record<string, unknown>)
-      : undefined;
-  const candidateAssetIds = [
-    node.details.asset_id,
-    typeof node.raw.asset_id === 'string' ? node.raw.asset_id : null,
-    typeof rawMetadata?.asset_id === 'string' ? rawMetadata.asset_id : null,
-  ]
-    .map((value) => normalizeIdentifier(value))
-    .filter(Boolean);
-
-  if (!targetAssetId || !candidateAssetIds.includes(targetAssetId)) {
-    return false;
-  }
-
-  if (!targetAssetType) {
-    return true;
-  }
-
-  return normalizeIdentifier(node.resourceType) === targetAssetType;
-};
 
 const coerceAttackGraphApiResponse = (value: unknown): AttackGraphApiResponse => {
   if (!value || typeof value !== 'object') {
@@ -173,7 +134,6 @@ interface AttackGraphContentProps {
   payload: AttackGraphApiResponse;
   filters: AttackGraphFilters;
   onFiltersChange: React.Dispatch<React.SetStateAction<AttackGraphFilters>>;
-  focusTarget?: GraphFocusTarget | null;
   emptyStateTitle?: string;
   emptyStateBody?: string;
   liveSummary?: string | null;
@@ -471,7 +431,6 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
   onFiltersChange,
-  focusTarget,
   emptyStateTitle = '어택 그래프 데이터 없음.',
   emptyStateBody = '현재 선택에 사용 가능한 노드 또는 엣지가 없습니다.',
   liveSummary,
@@ -525,25 +484,6 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const visibleNodeIds = useMemo(() => new Set(renderedGraph.nodes.map((node) => node.id)), [renderedGraph.nodes]);
   const visibleEdgeIds = useMemo(() => new Set(renderedGraph.edges.map((edge) => edge.id)), [renderedGraph.edges]);
   const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
-  const pendingFocusNodeId = useMemo(() => {
-    if (!focusTarget) {
-      return null;
-    }
-
-    return renderedGraph.nodes.find((node) => isNodeMatchingFocusTarget(node, focusTarget))?.id ?? null;
-  }, [focusTarget, renderedGraph.nodes]);
-  const focusRequestKey = useMemo(() => {
-    if (!focusTarget || !pendingFocusNodeId) {
-      return null;
-    }
-
-    return [
-      pendingFocusNodeId,
-      focusTarget.assetId ?? '',
-      focusTarget.nodeId ?? '',
-      focusTarget.assetType ?? '',
-    ].join(':');
-  }, [focusTarget, pendingFocusNodeId]);
 
   useEffect(() => {
     if (selectedPathId && !validPathIds.has(selectedPathId)) {
@@ -679,36 +619,36 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         style={{ position: 'relative', overflow: 'hidden' }}
       >
         {hasRenderableGraph ? (
-          <GraphView
-            showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
-            elements={filteredElements}
-            layout={attackGraphDefaultLayout}
-            focusNodeId={pendingFocusNodeId}
-            focusRequestKey={focusRequestKey}
-            selectedPathNodeIds={selectedPathNodeIds}
-            selectedPathEdgeIds={selectedPathEdgeIds}
-            selectedNodeId={selectedNodeId}
-            selectedEdgeId={selectedEdgeId}
-            onNodeClick={(node) => {
-              const nextNodeId = node.id ? String(node.id) : null;
-              const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
-              setSelectedNode(clicked);
-              setSelectedNodeId(nextNodeId);
-              setSelectedEdgeId(null);
-              setSelectedEdge(null);
-              setSelectedPathId(null);
-              setSelectedMode(nextNodeId ? 'node' : 'none');
-            }}
-            onEdgeClick={(edge) => {
-              const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
-              setSelectedEdge(clicked);
-              setSelectedEdgeId(clicked.id);
-              setSelectedNodeId(null);
-              setSelectedNode(null);
-              setSelectedPathId(null);
-              setSelectedMode('edge');
-            }}
-          />
+          <Suspense fallback={<PageLoader label="공격 그래프를 준비하는 중..." minHeight="100%" compact />}>
+            <GraphView
+              showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
+              elements={filteredElements}
+              layout={attackGraphDefaultLayout}
+              selectedPathNodeIds={selectedPathNodeIds}
+              selectedPathEdgeIds={selectedPathEdgeIds}
+              selectedNodeId={selectedNodeId}
+              selectedEdgeId={selectedEdgeId}
+              onNodeClick={(node) => {
+                const nextNodeId = node.id ? String(node.id) : null;
+                const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
+                setSelectedNode(clicked);
+                setSelectedNodeId(nextNodeId);
+                setSelectedEdgeId(null);
+                setSelectedEdge(null);
+                setSelectedPathId(null);
+                setSelectedMode(nextNodeId ? 'node' : 'none');
+              }}
+              onEdgeClick={(edge) => {
+                const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+                setSelectedEdge(clicked);
+                setSelectedEdgeId(clicked.id);
+                setSelectedNodeId(null);
+                setSelectedNode(null);
+                setSelectedPathId(null);
+                setSelectedMode('edge');
+              }}
+            />
+          </Suspense>
         ) : (
           <div className="d-flex flex-column justify-content-center align-items-center h-100 text-center px-4">
             <strong className="mb-2">{emptyStateTitle}</strong>
@@ -804,25 +744,9 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
 const AttackGraphPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
-  const location = useLocation();
   const [activeTab, setActiveTab] = useState<AttackGraphInnerTab>('graph');
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState('');
-  const focusTarget = useMemo<GraphFocusTarget | null>(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const stateValue =
-      location.state && typeof location.state === 'object' && 'focusAsset' in location.state
-        ? (location.state.focusAsset as GraphFocusTarget | undefined)
-        : undefined;
-
-    const target: GraphFocusTarget = {
-      assetId: stateValue?.assetId ?? searchParams.get('asset_id'),
-      nodeId: stateValue?.nodeId ?? searchParams.get('node_id'),
-      assetType: stateValue?.assetType ?? searchParams.get('asset_type'),
-    };
-
-    return target.assetId || target.nodeId ? target : null;
-  }, [location.search, location.state]);
 
   const {
     data: clustersResponse,
@@ -953,7 +877,6 @@ const AttackGraphPage: React.FC = () => {
           payload={livePayload}
           filters={liveFilters}
           onFiltersChange={setLiveFilters}
-          focusTarget={focusTarget}
           liveSummary={livePayload.summary ?? null}
           liveEvidenceCount={livePayload.evidence_count ?? null}
           emptyStateTitle={
