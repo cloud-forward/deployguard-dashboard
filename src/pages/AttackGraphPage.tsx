@@ -5,11 +5,10 @@ import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import PageLoader from '../components/layout/PageLoader';
 import {
-  useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
-import type { AttackPathListItemResponse } from '../api/model';
+import type { AttackPathListItemResponse, AttackPathListResponse } from '../api/model';
 import { useGetClusterAttackGraph } from '../api/attackGraph';
 import {
   attackGraphDefaultLayout,
@@ -26,13 +25,9 @@ import {
   type AttackGraphRiskSeverity,
 } from '../components/graph/attackGraph';
 import {
-  getNodeTypeMeta,
-  getThreatLabel,
-  getRiskSortOrder,
   NodeTypeBadge,
   parseAttackPathNode,
   RiskLevelBadge,
-  ThreatTypeBadge,
 } from '../components/graph/attackPathVisuals';
 
 const GraphView = React.lazy(() => import('../components/graph/GraphView'));
@@ -149,12 +144,39 @@ interface AttackGraphContentProps {
   liveEvidenceCount?: number | null;
 }
 
-const formatNumber = (value?: number | null) => {
+const formatRiskScore = (value?: number | null) => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '-';
   }
 
-  return value.toLocaleString();
+  return value.toFixed(3);
+};
+
+const toNumericRiskScore = (value?: number | null) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
+};
+
+const toNumericHopCount = (value?: number | null) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
+};
+
+const toAttackPathItems = (value: unknown): AttackPathListItemResponse[] => {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+
+  const response = value as AttackPathListResponse;
+  return Array.isArray(response.items) ? response.items : [];
 };
 
 const getHopColor = (count?: number | null) => {
@@ -162,24 +184,15 @@ const getHopColor = (count?: number | null) => {
     return '#94a3b8';
   }
 
-  if (count >= 2 && count <= 3) return '#ef4444';
-  if (count === 4) return '#f59e0b';
+  if (count <= 2) return '#ef4444';
   return '#9ca3af';
-};
-
-const getThreatAccentBorder = (target?: string | null) => {
-  const parsed = parseAttackPathNode(target);
-  const threatTypes = new Set(['iam', 's3', 'rds']);
-  return threatTypes.has(parsed.type) ? getNodeTypeMeta(parsed.type).background : 'transparent';
 };
 
 const PathNodeText: React.FC<{
   value?: string | null;
   compact?: boolean;
-  showThreat?: boolean;
-}> = ({ value, compact = false, showThreat = false }) => {
+}> = ({ value, compact = false }) => {
   const parsed = parseAttackPathNode(value);
-  const threatLabel = showThreat ? getThreatLabel(parsed.type) : null;
 
   return (
     <div className="d-flex align-items-start gap-2" title={parsed.raw} style={{ minWidth: 0 }}>
@@ -199,169 +212,8 @@ const PathNodeText: React.FC<{
         >
           {parsed.name}
         </span>
-        {threatLabel ? <span className="small text-muted">{threatLabel}</span> : null}
       </div>
     </div>
-  );
-};
-
-const AttackPathDetailPanel: React.FC<{
-  clusterId: string;
-  pathId: string | null;
-  enabled: boolean;
-  onClose: () => void;
-}> = ({ clusterId, pathId, enabled, onClose }) => {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId ?? '', {
-    query: {
-      enabled,
-      retry: false,
-    },
-  });
-
-  const detail =
-    data && typeof data === 'object' && 'path' in data
-      ? data.path ?? null
-      : null;
-  const entryNode = parseAttackPathNode(detail?.entry_node_id);
-  const targetNode = parseAttackPathNode(detail?.target_node_id);
-  const threatAccent = getThreatAccentBorder(detail?.target_node_id);
-  const visibleNodeIds = Array.isArray(detail?.node_ids) ? detail.node_ids.filter((item) => item?.trim()) : [];
-  const visibleEdgeIds = Array.isArray(detail?.edge_ids) ? detail.edge_ids.filter((item) => item?.trim()) : [];
-  const riskScore = formatNumber(detail?.risk_score);
-  const rawFinalRisk = formatNumber(detail?.raw_final_risk);
-
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="Close attack path detail panel"
-        className="border-0"
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.45)', zIndex: 1040 }}
-      />
-      <aside
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: 'min(460px, 100vw)',
-          height: '100vh',
-          zIndex: 1050,
-          overflowY: 'auto',
-          background: '#0f172a',
-          borderLeft: '1px solid rgba(148, 163, 184, 0.18)',
-          boxShadow: '-18px 0 50px rgba(15, 23, 42, 0.4)',
-        }}
-      >
-        <div className="p-4 border-bottom d-flex justify-content-between align-items-start gap-3">
-          <div className="w-100">
-            <div className="small text-uppercase text-muted mb-2">Attack Path Detail</div>
-            {detail ? (
-              <div className="d-flex flex-wrap align-items-center gap-2 text-white">
-                <RiskLevelBadge level={detail.risk_level} />
-                <ThreatTypeBadge type={targetNode.type} />
-                <span className="text-muted small">|</span>
-                <span className="small text-muted">Entry</span>
-                <NodeTypeBadge type={entryNode.type} />
-                <span className="fw-semibold text-break">{entryNode.name}</span>
-                <span className="small text-muted">Target</span>
-                <NodeTypeBadge type={targetNode.type} />
-                <span className="fw-semibold text-break">{targetNode.name}</span>
-              </div>
-            ) : (
-              <h2 className="h4 mb-0 text-white text-break">{pathId ?? 'Selected Path'}</h2>
-            )}
-          </div>
-          <button type="button" className="btn-close btn-close-white" onClick={onClose} />
-        </div>
-
-        <div className="p-4 d-flex flex-column gap-4 text-light">
-          {isLoading ? (
-            <div className="text-muted">Persisted attack path detail loading...</div>
-          ) : isError ? (
-            <div>
-              <div className="alert alert-danger mb-3" role="alert">
-                {toErrorMessage(error, 'Persisted attack path detail could not be loaded.')}
-              </div>
-              <button type="button" className="btn btn-outline-light btn-sm" onClick={() => refetch()}>
-                Retry
-              </button>
-            </div>
-          ) : !detail ? (
-            <div className="text-muted">No persisted attack path detail found.</div>
-          ) : (
-            <>
-              <div
-                className="rounded-4 p-3"
-                style={{
-                  background: 'rgba(15, 23, 42, 0.84)',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  borderLeft: `2px solid ${threatAccent}`,
-                }}
-              >
-                <div className="small text-muted mb-1">Path ID</div>
-                <code className="d-block small text-break user-select-all" style={{ color: '#cbd5e1' }}>
-                  {detail.path_id}
-                </code>
-              </div>
-
-              <div className="row g-3">
-                <div className="col-12 col-sm-6">
-                  <div className="small text-muted mb-1">Hop Count</div>
-                  <div className="fw-semibold" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                    {detail.hop_count ?? '-'}
-                  </div>
-                </div>
-                {riskScore !== '-' ? (
-                  <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">Risk Score</div>
-                    <div className="fw-semibold">{riskScore}</div>
-                  </div>
-                ) : null}
-                {rawFinalRisk !== '-' ? (
-                  <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">Raw Final Risk</div>
-                    <div className="fw-semibold">{rawFinalRisk}</div>
-                  </div>
-                ) : null}
-              </div>
-
-              {visibleNodeIds.length > 0 ? (
-                <div>
-                  <h3 className="h6 mb-2">Node IDs</h3>
-                  <ol className="mb-0 ps-3 small">
-                    {visibleNodeIds.map((item) => (
-                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
-
-              {visibleEdgeIds.length > 0 ? (
-                <div>
-                  <h3 className="h6 mb-2">{`Edge IDs (${visibleEdgeIds.length}개)`}</h3>
-                  <ol className="mb-0 ps-3 small">
-                    {visibleEdgeIds.map((item) => (
-                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </aside>
-    </>
   );
 };
 
@@ -369,7 +221,6 @@ const AttackPathsPanel: React.FC<{
   clusterId: string;
   enabled: boolean;
 }> = ({ clusterId, enabled }) => {
-  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const {
     data,
     isLoading,
@@ -385,42 +236,21 @@ const AttackPathsPanel: React.FC<{
 
   const items = useMemo(
     () =>
-      (
-        Array.isArray((data as { items?: AttackPathListItemResponse[] } | undefined)?.items)
-          ? ((data as { items?: AttackPathListItemResponse[] }).items ?? [])
-          : []
-      ).slice().sort((left, right) => {
-        const riskGap = getRiskSortOrder(left.risk_level) - getRiskSortOrder(right.risk_level);
-        if (riskGap !== 0) {
-          return riskGap;
+      [...toAttackPathItems(data)].sort((left, right) => {
+        const scoreDelta = toNumericRiskScore(right.risk_score) - toNumericRiskScore(left.risk_score);
+        if (scoreDelta !== 0) {
+          return scoreDelta;
         }
 
-        return (left.hop_count ?? 0) - (right.hop_count ?? 0);
+        const hopDelta = toNumericHopCount(right.hop_count) - toNumericHopCount(left.hop_count);
+        if (hopDelta != 0) {
+          return hopDelta;
+        }
+
+        return left.path_id.localeCompare(right.path_id);
       }),
     [data],
   );
-  const shouldLoadDetail = enabled && Boolean(clusterId) && Boolean(selectedPathId);
-  const isAttackPathDetailOpen = Boolean(selectedPathId);
-
-  useEffect(() => {
-    if (!enabled) {
-      setSelectedPathId(null);
-      return;
-    }
-
-    if (items.length === 0) {
-      setSelectedPathId(null);
-      return;
-    }
-
-    if (selectedPathId && items.some((item) => item.path_id === selectedPathId)) {
-      return;
-    }
-
-    if (selectedPathId && !items.some((item) => item.path_id === selectedPathId)) {
-      setSelectedPathId(null);
-    }
-  }, [enabled, items, selectedPathId]);
 
   if (isLoading) {
     return (
@@ -457,59 +287,62 @@ const AttackPathsPanel: React.FC<{
   }
 
   return (
-    <>
-      <div className="card border-0 shadow-sm">
+    <div className="card border-0 shadow-sm">
         <div className="card-body py-3">
           <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
             <div>
               <h2 className="h5 mb-1">Persisted Attack Paths</h2>
-              <p className="text-muted mb-0 small">{items.length} paths</p>
+              <p className="text-muted mb-0 small">{items.length} paths sorted by risk score</p>
             </div>
           </div>
           <div className="table-responsive">
             <table className="table align-middle mb-0 small dg-attack-paths-table">
               <thead className="table-light">
                 <tr>
-                  <th>Risk</th>
+                  <th style={{ width: 92 }}>Risk</th>
+                  <th style={{ width: 110 }}>Risk Score</th>
                   <th>Entry</th>
                   <th>Target</th>
-                  <th>Hop</th>
-                  <th>Open</th>
+                  <th style={{ width: 72 }}>Hop</th>
+                  <th style={{ width: 88 }}>Open</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const isSelected = item.path_id === selectedPathId;
                   const entryNode = parseAttackPathNode(item.entry_node_id);
                   const targetNode = parseAttackPathNode(item.target_node_id);
-                  const hopCount = item.hop_count ?? item.node_ids?.length ?? null;
-                  const threatAccent = getThreatAccentBorder(item.target_node_id);
-                  const isHighRisk = item.risk_level?.toLowerCase() === 'high';
+                  const hopCount = item.hop_count ?? null;
+                  const isHighRisk = item.risk_level?.toLowerCase() === 'high' || item.risk_level?.toLowerCase() === 'critical';
 
                   return (
                     <tr
                       key={item.path_id}
-                      role="button"
-                      className={isSelected ? 'dg-attack-path-row table-active' : 'dg-attack-path-row'}
-                      onClick={() => setSelectedPathId(item.path_id)}
+                      className="dg-attack-path-row"
                       style={{
-                        cursor: 'pointer',
                         backgroundColor: isHighRisk ? 'rgba(239, 68, 68, 0.05)' : undefined,
-                        boxShadow: `inset 2px 0 0 ${threatAccent}`,
                         transition: 'background-color 160ms ease',
                       }}
                     >
                       <td style={{ width: 92 }}>
                         <RiskLevelBadge level={item.risk_level} />
                       </td>
-                      <td style={{ maxWidth: 240 }}>
+                      <td>
+                        <span
+                          className="fw-semibold"
+                          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+                          title={item.risk_score != null ? String(item.risk_score) : undefined}
+                        >
+                          {formatRiskScore(item.risk_score)}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: 220 }}>
                         <div title={entryNode.raw}>
                           <PathNodeText value={item.entry_node_id} compact />
                         </div>
                       </td>
-                      <td style={{ maxWidth: 260 }}>
+                      <td style={{ maxWidth: 240 }}>
                         <div title={targetNode.raw}>
-                          <PathNodeText value={item.target_node_id} compact showThreat />
+                          <PathNodeText value={item.target_node_id} compact />
                         </div>
                       </td>
                       <td
@@ -526,7 +359,6 @@ const AttackPathsPanel: React.FC<{
                         <Link
                           to={`/clusters/${clusterId}/attack-paths/${item.path_id}`}
                           className="btn btn-outline-secondary btn-sm"
-                          onClick={(event) => event.stopPropagation()}
                         >
                           Open
                         </Link>
@@ -539,15 +371,6 @@ const AttackPathsPanel: React.FC<{
           </div>
         </div>
       </div>
-      {isAttackPathDetailOpen ? (
-        <AttackPathDetailPanel
-          clusterId={clusterId}
-          pathId={selectedPathId}
-          enabled={shouldLoadDetail}
-          onClose={() => setSelectedPathId(null)}
-        />
-      ) : null}
-    </>
   );
 };
 

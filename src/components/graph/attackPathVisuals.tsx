@@ -10,15 +10,20 @@ export type ParsedAttackPathNode = {
   raw: string;
 };
 
-const NODE_TYPE_META: Record<
-  AttackPathVisualNodeType,
-  {
-    label: string;
-    background: string;
-    color: string;
-    glow?: string;
-  }
-> = {
+type NodeTypeMeta = {
+  label: string;
+  background: string;
+  color: string;
+  glow?: string;
+};
+
+type ThreatMeta = {
+  label: string;
+  description: string;
+  badgeClassName: string;
+};
+
+const NODE_TYPE_META: Record<AttackPathVisualNodeType, NodeTypeMeta> = {
   pod: { label: 'POD', background: '#1d4ed8', color: '#eff6ff' },
   service: { label: 'SVC', background: '#065f46', color: '#ecfdf5' },
   ingress: { label: 'ING', background: '#92400e', color: '#fff7ed' },
@@ -29,26 +34,25 @@ const NODE_TYPE_META: Record<
   unknown: { label: 'NODE', background: '#475569', color: '#f8fafc' },
 };
 
-const THREAT_LABELS: Partial<Record<AttackPathVisualNodeType, string>> = {
-  iam: '권한 탈취',
-  s3: '데이터 유출',
-  rds: 'DB 접근',
+const THREAT_META: Partial<Record<AttackPathVisualNodeType, ThreatMeta>> = {
+  iam: { label: 'Privilege Escalation', description: 'IAM privilege escalation path', badgeClassName: 'dg-badge dg-badge--high' },
+  s3: { label: 'Data Exfiltration', description: 'Access path to S3 data', badgeClassName: 'dg-badge dg-badge--notable' },
+  rds: { label: 'Database Access', description: 'Reachability to database asset', badgeClassName: 'dg-badge dg-badge--info' },
 };
 
 const RISK_META: Record<
   AttackPathRiskLevel,
   {
     label: string;
-    color: string;
     background: string;
     order: number;
   }
 > = {
-  critical: { label: 'CRIT', color: '#dc2626', background: '#dc2626', order: 0 },
-  high: { label: 'HIGH', color: '#ef4444', background: '#ef4444', order: 1 },
-  medium: { label: 'MED', color: '#f59e0b', background: '#f59e0b', order: 2 },
-  low: { label: 'LOW', color: '#22c55e', background: '#22c55e', order: 3 },
-  unknown: { label: '-', color: '#6b7280', background: '#6b7280', order: 4 },
+  critical: { label: 'CRIT', background: '#dc2626', order: 0 },
+  high: { label: 'HIGH', background: '#ef4444', order: 1 },
+  medium: { label: 'MED', background: '#f59e0b', order: 2 },
+  low: { label: 'LOW', background: '#22c55e', order: 3 },
+  unknown: { label: '-', background: '#6b7280', order: 4 },
 };
 
 const normalizeNodeType = (rawType: string): AttackPathVisualNodeType => {
@@ -80,7 +84,8 @@ export const formatEdgeTypeLabel = (value?: string | null) => {
   return raw.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
-export const getThreatLabel = (type: AttackPathVisualNodeType) => THREAT_LABELS[type] ?? null;
+export const getThreatMeta = (type: AttackPathVisualNodeType) => THREAT_META[type] ?? null;
+export const getThreatLabel = (type: AttackPathVisualNodeType) => THREAT_META[type]?.label ?? null;
 export const getNodeTypeMeta = (type: AttackPathVisualNodeType) => NODE_TYPE_META[type];
 
 export const normalizeRiskLevel = (level?: string | null): AttackPathRiskLevel => {
@@ -119,28 +124,15 @@ export const NodeTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> = ({ ty
 };
 
 export const ThreatTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> = ({ type }) => {
-  const label = getThreatLabel(type);
-  if (!label) {
+  const meta = getThreatMeta(type);
+  if (!meta) {
     return null;
   }
 
-  const meta = getNodeTypeMeta(type);
-
   return (
-    <span
-      className="d-inline-flex align-items-center"
-      style={{
-        color: meta.background,
-        background: `${meta.background}20`,
-        border: `1px solid ${meta.background}33`,
-        borderRadius: 999,
-        padding: '3px 8px',
-        fontSize: 12,
-        fontWeight: 700,
-        lineHeight: 1.2,
-      }}
-    >
-      {label}
+    <span className="d-inline-flex align-items-center gap-2">
+      <span className={meta.badgeClassName}>{meta.label}</span>
+      <span className="small text-muted">{meta.description}</span>
     </span>
   );
 };
@@ -154,7 +146,7 @@ export const NodeIdentity: React.FC<{
   threatAsBadge?: boolean;
 }> = ({ value, compact = false, showThreat = false, showGlow = false, showRaw = false, threatAsBadge = false }) => {
   const parsed = parseAttackPathNode(value);
-  const threatLabel = showThreat ? getThreatLabel(parsed.type) : null;
+  const threatMeta = showThreat ? getThreatMeta(parsed.type) : null;
   const meta = NODE_TYPE_META[parsed.type];
 
   return (
@@ -183,8 +175,8 @@ export const NodeIdentity: React.FC<{
         >
           {parsed.name}
         </span>
-        {threatLabel && !threatAsBadge ? <span className="small text-muted">{threatLabel}</span> : null}
-        {threatLabel && threatAsBadge ? <ThreatTypeBadge type={parsed.type} /> : null}
+        {threatMeta && !threatAsBadge ? <span className="small text-muted">{threatMeta.label}</span> : null}
+        {threatMeta && threatAsBadge ? <ThreatTypeBadge type={parsed.type} /> : null}
         {showRaw ? <span className="small text-muted text-break">{parsed.raw}</span> : null}
       </div>
     </div>
