@@ -40,6 +40,10 @@ const getLayoutPadding = (layout: LayoutOptions): number => {
   return typeof rawPadding === 'number' ? rawPadding : 24;
 };
 
+const FOCUS_BLINK_INTERVAL_MS = 600;
+const FOCUS_BLINK_DURATION_MS = 6000;
+const FOCUS_TARGET_ZOOM = 1.1;
+
 const normalizeSelectionSet = (ids: string[] | null | undefined): Set<string> => {
   return new Set(Array.isArray(ids) ? ids : []);
 };
@@ -104,8 +108,11 @@ const GraphView: React.FC<GraphViewProps> = ({
   const resizeFrameRef = useRef<number | null>(null);
   const focusTimeoutRef = useRef<number | null>(null);
   const focusPulseIntervalRef = useRef<number | null>(null);
+  const focusAnimationDelayRef = useRef<number | null>(null);
   const focusedNodeIdRef = useRef<string | null>(null);
   const handledFocusKeyRef = useRef<string | null>(null);
+  const completedFocusKeyRef = useRef<string | null>(null);
+  const isLayoutRunningRef = useRef(false);
   const [hoveredEdge, setHoveredEdge] = useState<{
     edge: EdgeData;
     position: { x: number; y: number };
@@ -142,6 +149,11 @@ const GraphView: React.FC<GraphViewProps> = ({
       focusPulseIntervalRef.current = null;
     }
 
+    if (focusAnimationDelayRef.current != null) {
+      window.clearTimeout(focusAnimationDelayRef.current);
+      focusAnimationDelayRef.current = null;
+    }
+
     if (!graph || !focusedNodeIdRef.current) {
       focusedNodeIdRef.current = null;
       return;
@@ -169,14 +181,47 @@ const GraphView: React.FC<GraphViewProps> = ({
       focusedNodeIdRef.current = nodeId;
       node.addClass('focus-target focus-target-emphasis');
 
-      const nextZoom = Math.min(cy.maxZoom(), Math.max(cy.minZoom(), Math.max(cy.zoom(), 1.2)));
-      cy.stop();
-      cy.animate({
-        center: { eles: node },
-        zoom: nextZoom,
-        duration: 700,
-        easing: 'ease-in-out-cubic',
-      });
+      const runFocusAnimation = () => {
+        if (focusAnimationDelayRef.current != null) {
+          window.clearTimeout(focusAnimationDelayRef.current);
+        }
+
+        focusAnimationDelayRef.current = window.setTimeout(() => {
+          const freshNode = cy.getElementById(nodeId);
+          if (freshNode.empty() || freshNode.removed()) {
+            return;
+          }
+
+          console.log('[AttackGraph focus]', {
+            requestedNodeId: nodeId,
+            elementId: freshNode.id(),
+            data: freshNode.data(),
+          });
+
+          const freshPosition = freshNode.position();
+          const nextZoom = Math.min(cy.maxZoom(), Math.max(cy.minZoom(), FOCUS_TARGET_ZOOM));
+          const nextPan = {
+            x: cy.width() / 2 - freshPosition.x * nextZoom,
+            y: cy.height() / 2 - freshPosition.y * nextZoom,
+          };
+
+          cy.stop();
+          cy.animate({
+            pan: nextPan,
+            zoom: nextZoom,
+            duration: 600,
+            easing: 'ease-in-out-cubic',
+          });
+          completedFocusKeyRef.current = requestKey;
+          focusAnimationDelayRef.current = null;
+        }, 200);
+      };
+
+      if (isLayoutRunningRef.current) {
+        cy.one('layoutstop', runFocusAnimation);
+      } else {
+        runFocusAnimation();
+      }
 
       let isEmphasized = true;
       focusPulseIntervalRef.current = window.setInterval(() => {
@@ -187,11 +232,15 @@ const GraphView: React.FC<GraphViewProps> = ({
 
         isEmphasized = !isEmphasized;
         node.toggleClass('focus-target-emphasis', isEmphasized);
-      }, 320);
+      }, FOCUS_BLINK_INTERVAL_MS);
 
       focusTimeoutRef.current = window.setTimeout(() => {
-        clearFocusedNode(cy);
-      }, 3200);
+        if (focusPulseIntervalRef.current != null) {
+          window.clearInterval(focusPulseIntervalRef.current);
+          focusPulseIntervalRef.current = null;
+        }
+        node.addClass('focus-target focus-target-emphasis');
+      }, FOCUS_BLINK_DURATION_MS);
 
       onFocusHandled?.({ found: true, nodeId });
       return true;
@@ -375,8 +424,14 @@ const GraphView: React.FC<GraphViewProps> = ({
       }
 
       cy.resize();
+      if (focusNodeId && focusRequestKey && completedFocusKeyRef.current === focusRequestKey) {
+        return;
+      }
+
       const layoutInstance = cy.layout(layout);
+      isLayoutRunningRef.current = true;
       layoutInstance.one('layoutstop', () => {
+        isLayoutRunningRef.current = false;
         onLayoutComplete?.(cy);
         cy.fit(undefined, getLayoutPadding(layout));
 
@@ -417,11 +472,23 @@ const GraphView: React.FC<GraphViewProps> = ({
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || !focusNodeId || !focusRequestKey) {
+      completedFocusKeyRef.current = null;
       return;
     }
 
+    const runFocus = () => {
+      window.setTimeout(() => {
+        applyFocusHighlight(cy, focusNodeId, focusRequestKey);
+      }, 0);
+    };
+
     const frame = window.requestAnimationFrame(() => {
-      applyFocusHighlight(cy, focusNodeId, focusRequestKey);
+      if (isLayoutRunningRef.current) {
+        cy.one('layoutstop', runFocus);
+        return;
+      }
+
+      runFocus();
     });
 
     return () => {
