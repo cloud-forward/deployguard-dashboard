@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
+  getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryKey,
+  getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryKey,
   useExplainRemediationRecommendationApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdExplanationPost,
   useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet,
 } from '../api/generated/clusters/clusters';
@@ -58,15 +61,6 @@ const isRemediationRecommendationEnvelope = (
   value: unknown,
 ): value is RemediationRecommendationDetailEnvelopeResponse =>
   Boolean(value && typeof value === 'object' && 'cluster_id' in value);
-
-const isRecommendationExplanationResponse = (value: unknown): value is RecommendationExplanationResponse =>
-  Boolean(
-    value &&
-      typeof value === 'object' &&
-      'cluster_id' in value &&
-      'recommendation_id' in value &&
-      'explanation_status' in value,
-  );
 
 const SummaryField: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="col-12 col-md-6 col-xl-3">
@@ -177,17 +171,35 @@ const StatusBadge: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
   </span>
 );
 
+const normalizeLlmStatus = (value?: string | null): 'not_generated' | 'generated' | 'failed' => {
+  if (value === 'generated' || value === 'failed') {
+    return value;
+  }
+
+  return 'not_generated';
+};
+
 const ExplanationSection: React.FC<{
   recommendation: RemediationRecommendationDetailResponse;
-  explanation: RecommendationExplanationResponse | null;
-  hasRequestedExplanation: boolean;
   isGenerating: boolean;
   errorMessage: string | null;
   onGenerate: () => void;
-}> = ({ recommendation, explanation, hasRequestedExplanation, isGenerating, errorMessage, onGenerate }) => {
-  const displayedExplanation = explanation?.final_explanation?.trim() || explanation?.base_explanation?.trim() || '';
-  const baseExplanation = explanation?.base_explanation?.trim() || recommendation.fix_description?.trim() || '';
-  const providerModel = [explanation?.provider, explanation?.model].filter(Boolean).join(' / ');
+  latestExplanation: RecommendationExplanationResponse | null;
+}> = ({ recommendation, isGenerating, errorMessage, onGenerate, latestExplanation }) => {
+  const llmStatus = normalizeLlmStatus(recommendation.llm_status);
+  const displayedExplanation =
+    recommendation.llm_explanation?.trim() ||
+    latestExplanation?.final_explanation?.trim() ||
+    latestExplanation?.base_explanation?.trim() ||
+    '';
+  const baseExplanation = recommendation.fix_description?.trim() || latestExplanation?.base_explanation?.trim() || '';
+  const providerModel = [recommendation.llm_provider, recommendation.llm_model]
+    .filter(Boolean)
+    .join(' / ');
+  const generatedAt = recommendation.llm_generated_at ? formatDateTime(recommendation.llm_generated_at) : '-';
+  const persistedErrorMessage = llmStatus === 'failed' ? recommendation.llm_error_message?.trim() || null : null;
+  const effectiveErrorMessage = errorMessage || persistedErrorMessage;
+  const showGenerateButton = llmStatus !== 'generated' || Boolean(persistedErrorMessage);
 
   return (
     <DetailSection title="설명">
@@ -199,14 +211,16 @@ const ExplanationSection: React.FC<{
               선택한 remediation recommendation에 대해 AI 설명을 생성하고 결과를 이 영역에 표시합니다.
             </div>
           </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={onGenerate} disabled={isGenerating}>
-            {isGenerating ? 'AI 설명 생성 중…' : 'AI 설명 생성'}
-          </button>
+          {showGenerateButton ? (
+            <button type="button" className="btn btn-primary btn-sm" onClick={onGenerate} disabled={isGenerating}>
+              {isGenerating ? 'AI 설명 생성 중…' : llmStatus === 'failed' ? 'AI 설명 다시 생성' : 'AI 설명 생성'}
+            </button>
+          ) : null}
         </div>
 
-        {errorMessage ? (
+        {effectiveErrorMessage ? (
           <div className="alert alert-danger mb-0 py-2" role="alert">
-            {errorMessage}
+            {effectiveErrorMessage}
           </div>
         ) : null}
 
@@ -215,7 +229,7 @@ const ExplanationSection: React.FC<{
             <div className="border rounded-3 p-3 h-100 bg-light">
               <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
                 <div className="fw-semibold">기본 설명</div>
-                {explanation?.base_explanation ? <span className="text-muted small">API 반환값</span> : null}
+                {latestExplanation?.base_explanation ? <span className="text-muted small">API 반환값</span> : null}
               </div>
               {baseExplanation ? (
                 <div className="mb-0 text-break" style={{ whiteSpace: 'pre-wrap' }}>
@@ -228,15 +242,31 @@ const ExplanationSection: React.FC<{
           </div>
           <div className="col-12 col-xl-6">
             <div className="border rounded-3 p-3 h-100 bg-card-surface">
-              <div className="fw-semibold mb-2">AI 설명</div>
-              {displayedExplanation ? (
+              <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <div className="fw-semibold">AI 설명</div>
+                <span
+                  className={`dg-badge ${
+                    llmStatus === 'generated'
+                      ? 'dg-badge--high'
+                      : llmStatus === 'failed'
+                        ? 'dg-badge--low'
+                        : 'dg-badge--tag'
+                  }`}
+                >
+                  {llmStatus}
+                </span>
+              </div>
+              {isGenerating ? (
+                <div className="d-flex align-items-center gap-2 text-muted small">
+                  <div className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                  설명을 생성하고 있습니다. 잠시 후 자동으로 새로고침됩니다.
+                </div>
+              ) : llmStatus === 'generated' && displayedExplanation ? (
                 <div className="mb-0 text-break" style={{ whiteSpace: 'pre-wrap' }}>
                   {displayedExplanation}
                 </div>
-              ) : hasRequestedExplanation ? (
-                <div className="text-muted small">
-                  생성된 설명이 없어서 표시할 내용을 찾지 못했습니다.
-                </div>
+              ) : llmStatus === 'failed' ? (
+                <div className="text-muted small">설명 생성에 실패했습니다. 다시 시도해 주세요.</div>
               ) : (
                 <div className="text-muted small">아직 생성된 AI 설명이 없습니다.</div>
               )}
@@ -244,25 +274,21 @@ const ExplanationSection: React.FC<{
           </div>
         </div>
 
-        {explanation ? (
-          <div className="border rounded-3 p-3 bg-light">
-            <div className="fw-semibold mb-2">상태 / 메타 정보</div>
-            <div className="d-flex flex-wrap gap-2 mb-2">
-              <StatusBadge label="status" value={explanation.explanation_status || '-'} />
-              <StatusBadge label="used_llm" value={explanation.used_llm ? 'yes' : 'no'} />
-              {providerModel ? <StatusBadge label="provider/model" value={providerModel} /> : null}
-            </div>
-            {explanation.fallback_reason ? (
-              <div className="small text-muted">
-                fallback_reason: {explanation.fallback_reason}
-              </div>
-            ) : !explanation.used_llm ? (
-              <div className="small text-muted">
-                LLM이 사용되지 않았습니다. 기본 설명 또는 fallback 결과가 표시될 수 있습니다.
-              </div>
-            ) : null}
+        <div className="border rounded-3 p-3 bg-light">
+          <div className="fw-semibold mb-2">상태 / 메타 정보</div>
+          <div className="d-flex flex-wrap gap-2 mb-2">
+            <StatusBadge label="status" value={llmStatus} />
+            {providerModel ? <StatusBadge label="provider/model" value={providerModel} /> : null}
+            {recommendation.llm_generated_at ? <StatusBadge label="generated_at" value={generatedAt} /> : null}
           </div>
-        ) : null}
+          {llmStatus === 'not_generated' ? (
+            <div className="small text-muted">아직 저장된 AI 설명이 없습니다. 생성 버튼으로 설명을 요청할 수 있습니다.</div>
+          ) : llmStatus === 'generated' ? (
+            <div className="small text-muted">생성된 설명이 recommendation 상세에 저장되어 표시됩니다.</div>
+          ) : (
+            <div className="small text-muted">마지막 설명 생성 요청이 실패했습니다.</div>
+          )}
+        </div>
       </div>
     </DetailSection>
   );
@@ -270,9 +296,10 @@ const ExplanationSection: React.FC<{
 
 const RemediationRecommendationDetailPage: React.FC = () => {
   const { clusterId = '', recommendationId = '' } = useParams();
-  const [explanation, setExplanation] = useState<RecommendationExplanationResponse | null>(null);
-  const [hasRequestedExplanation, setHasRequestedExplanation] = useState(false);
+  const queryClient = useQueryClient();
+  const [latestExplanation, setLatestExplanation] = useState<RecommendationExplanationResponse | null>(null);
   const [explanationError, setExplanationError] = useState<string | null>(null);
+  const [isRefreshingExplanation, setIsRefreshingExplanation] = useState(false);
   const query = useGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGet(
     clusterId,
     recommendationId,
@@ -296,26 +323,24 @@ const RemediationRecommendationDetailPage: React.FC = () => {
   const blockedPathIndices = Array.isArray(recommendation?.blocked_path_indices)
     ? (recommendation?.blocked_path_indices ?? [])
     : [];
-  const explanationPrimaryText = useMemo(
-    () => explanation?.final_explanation?.trim() || explanation?.base_explanation?.trim() || '',
-    [explanation],
-  );
+  const explanationPrimaryText = useMemo(() => recommendation?.llm_explanation?.trim() || '', [recommendation?.llm_explanation]);
   const resetExplanationMutation = explainMutation.reset;
 
   useEffect(() => {
-    setExplanation(null);
-    setHasRequestedExplanation(false);
+    setLatestExplanation(null);
     setExplanationError(null);
+    setIsRefreshingExplanation(false);
     resetExplanationMutation();
   }, [clusterId, recommendationId, resetExplanationMutation]);
 
   const handleGenerateExplanation = async () => {
-    if (!clusterId || !recommendationId || explainMutation.isPending) {
+    if (!clusterId || !recommendationId || explainMutation.isPending || isRefreshingExplanation) {
       return;
     }
 
-    setHasRequestedExplanation(true);
     setExplanationError(null);
+    setLatestExplanation(null);
+    setIsRefreshingExplanation(true);
 
     try {
       const response = await explainMutation.mutateAsync({
@@ -323,15 +348,37 @@ const RemediationRecommendationDetailPage: React.FC = () => {
         recommendationId,
         data: {},
       });
-
-      if (!isRecommendationExplanationResponse(response)) {
-        throw new Error('설명 응답 형식을 확인할 수 없습니다.');
-      }
-
-      setExplanation(response);
+      setLatestExplanation(response as RecommendationExplanationResponse);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey:
+            getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryKey(
+              clusterId,
+              recommendationId,
+            ),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryKey(clusterId),
+        }),
+      ]);
+      await Promise.all([
+        queryClient.refetchQueries({
+          queryKey:
+            getGetRemediationRecommendationDetailApiV1ClustersClusterIdRemediationRecommendationsRecommendationIdGetQueryKey(
+              clusterId,
+              recommendationId,
+            ),
+          type: 'active',
+        }),
+        queryClient.refetchQueries({
+          queryKey: getGetRemediationRecommendationsApiV1ClustersClusterIdRemediationRecommendationsGetQueryKey(clusterId),
+          type: 'active',
+        }),
+      ]);
     } catch (error) {
-      setExplanation(null);
       setExplanationError(toErrorMessage(error, 'AI 설명 생성에 실패했습니다. 다시 시도해 주세요.'));
+    } finally {
+      setIsRefreshingExplanation(false);
     }
   };
 
@@ -417,9 +464,8 @@ const RemediationRecommendationDetailPage: React.FC = () => {
         <RecommendationNarrative recommendation={recommendation} />
         <ExplanationSection
           recommendation={recommendation}
-          explanation={explanation}
-          hasRequestedExplanation={hasRequestedExplanation}
-          isGenerating={explainMutation.isPending}
+          latestExplanation={latestExplanation}
+          isGenerating={explainMutation.isPending || isRefreshingExplanation}
           errorMessage={explanationError}
           onGenerate={handleGenerateExplanation}
         />
@@ -440,7 +486,7 @@ const RemediationRecommendationDetailPage: React.FC = () => {
           </div>
         </div>
         <MetadataSection metadata={recommendation.metadata} />
-        {explanation && !explanationPrimaryText ? (
+        {normalizeLlmStatus(recommendation.llm_status) === 'generated' && !explanationPrimaryText ? (
           <div className="alert alert-warning mb-0" role="alert">
             설명 요청은 성공했지만 표시할 설명 본문이 없습니다.
           </div>
