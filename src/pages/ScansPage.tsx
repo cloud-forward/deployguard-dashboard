@@ -17,30 +17,11 @@ import {
   useGetScanStatusApiV1ScansScanIdStatusGet,
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
+import StatusChip from '../components/StatusChip';
 
 type ClusterOption = {
   id: string;
   name: string;
-};
-
-const statusBadgeClass: Record<string, string> = {
-  queued: 'dg-badge dg-badge--low',
-  created: 'dg-badge dg-badge--low',
-  running: 'dg-badge dg-badge--info',
-  processing: 'dg-badge dg-badge--info',
-  uploading: 'dg-badge dg-badge--notable',
-  completed: 'dg-badge dg-badge--status-success',
-  failed: 'dg-badge dg-badge--status-error',
-};
-
-const statusLabel: Record<string, string> = {
-  queued: '대기 중',
-  created: '대기 중',
-  running: '실행 중',
-  processing: '처리 중',
-  uploading: '업로드 중',
-  completed: '완료',
-  failed: '실패',
 };
 
 const scannerBadgeStyle: Record<string, React.CSSProperties> = {
@@ -85,37 +66,6 @@ const scannerBadgeStyle: Record<string, React.CSSProperties> = {
     background: 'rgba(168, 85, 247, 0.15)',
     color: '#d8b4fe',
     border: '1px solid rgba(168, 85, 247, 0.6)',
-  },
-};
-
-const statusBadgeStyle: Record<string, React.CSSProperties> = {
-  completed: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '0.2em 0.6em',
-    fontSize: '0.72rem',
-    fontWeight: 600,
-    lineHeight: 1.4,
-    borderRadius: '999px',
-    whiteSpace: 'nowrap',
-    letterSpacing: '0.01em',
-    background: 'rgba(34, 197, 94, 0.15)',
-    color: '#86efac',
-    border: '1px solid rgba(34, 197, 94, 0.6)',
-  },
-  failed: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '0.2em 0.6em',
-    fontSize: '0.72rem',
-    fontWeight: 600,
-    lineHeight: 1.4,
-    borderRadius: '999px',
-    whiteSpace: 'nowrap',
-    letterSpacing: '0.01em',
-    background: 'rgba(239, 68, 68, 0.15)',
-    color: '#fca5a5',
-    border: '1px solid rgba(239, 68, 68, 0.6)',
   },
 };
 
@@ -174,26 +124,6 @@ const isRawScanResultUrlResponse = (value: unknown): value is RawScanResultUrlRe
 
 const canManuallyFailScan = (status: string) =>
   status === 'created' || status === 'processing' || status === 'uploading';
-
-const renderStatusBadge = (status?: string) => {
-  const normalizedStatus = status ?? '';
-  const badgeText = (statusLabel[normalizedStatus] ?? normalizedStatus) || '-';
-  const badgeStyle = statusBadgeStyle[normalizedStatus];
-
-  if (badgeStyle) {
-    return (
-      <span style={badgeStyle}>
-        {badgeText}
-      </span>
-    );
-  }
-
-  return (
-    <span className={statusBadgeClass[normalizedStatus] ?? 'dg-badge dg-badge--low'}>
-      {badgeText}
-    </span>
-  );
-};
 
 const renderScannerBadge = (scannerType?: string) => {
   const normalizedScannerType = scannerType ?? '';
@@ -497,7 +427,7 @@ const ScansPage: React.FC = () => {
                               {renderScannerBadge(scan.scanner_type)}
                             </td>
                             <td>
-                              {renderStatusBadge(scan.status)}
+                              <StatusChip status={scan.status} />
                             </td>
                             <td className="text-nowrap">{formatDateTime(scan.created_at)}</td>
                             <td className="text-nowrap">{formatDateTime(scan.completed_at)}</td>
@@ -547,7 +477,7 @@ const ScansPage: React.FC = () => {
                                       </p>
                                     </div>
                                     <div className="d-flex gap-2">
-                                      {renderStatusBadge(effectiveStatus || '알 수 없음')}
+                                      <StatusChip status={effectiveStatus || '알 수 없음'} />
                                       <button
                                         type="button"
                                         className="btn btn-sm btn-outline-primary"
@@ -582,7 +512,7 @@ const ScansPage: React.FC = () => {
                                     </div>
                                     <div className="col-12 col-md-6">
                                       <div className="text-muted mb-1">상태</div>
-                                      <div>{renderStatusBadge(effectiveStatus)}</div>
+                                      <div><StatusChip status={effectiveStatus} /></div>
                                     </div>
                                     <div className="col-12 col-md-6">
                                       <div className="text-muted mb-1">클러스터 ID</div>

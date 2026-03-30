@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { createPortal } from 'react-dom';
 import {
   getListLlmProviderConfigsApiV1LlmProviderConfigsGetQueryKey,
   useListLlmProviderConfigsApiV1LlmProviderConfigsGet,
@@ -115,7 +116,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
     });
   };
 
-  return (
+  return createPortal(
     <>
       <div className="modal-backdrop fade show" onClick={onClose} />
       <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true">
@@ -212,7 +213,8 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 };
 
