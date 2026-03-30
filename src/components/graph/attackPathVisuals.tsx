@@ -1,6 +1,18 @@
 import React from 'react';
 
-export type AttackPathVisualNodeType = 'pod' | 'service' | 'ingress' | 'sa' | 'iam' | 's3' | 'rds' | 'unknown';
+export type AttackPathVisualNodeType =
+  | 'pod'
+  | 'service'
+  | 'ingress'
+  | 'sa'
+  | 'iam'
+  | 's3'
+  | 'rds'
+  | 'cluster_role'
+  | 'role'
+  | 'secret'
+  | 'node'
+  | 'unknown';
 export type AttackPathRiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
 
 export type ParsedAttackPathNode = {
@@ -31,6 +43,10 @@ const NODE_TYPE_META: Record<AttackPathVisualNodeType, NodeTypeMeta> = {
   iam: { label: 'IAM', background: '#991b1b', color: '#fef2f2', glow: '0 0 24px rgba(220, 38, 38, 0.2)' },
   s3: { label: 'S3', background: '#92400e', color: '#fff7ed', glow: '0 0 24px rgba(146, 64, 14, 0.2)' },
   rds: { label: 'RDS', background: '#581c87', color: '#faf5ff', glow: '0 0 24px rgba(88, 28, 135, 0.2)' },
+  cluster_role: { label: 'CR', background: '#c2410c', color: '#fff7ed' },
+  role: { label: 'ROLE', background: '#ea580c', color: '#fff7ed' },
+  secret: { label: 'SECRET', background: '#be123c', color: '#fff1f2' },
+  node: { label: 'NODE', background: '#475569', color: '#f8fafc' },
   unknown: { label: 'NODE', background: '#475569', color: '#f8fafc' },
 };
 
@@ -61,6 +77,10 @@ const normalizeNodeType = (rawType: string): AttackPathVisualNodeType => {
   if (normalized === 'service') return 'service';
   if (normalized === 'ingress') return 'ingress';
   if (normalized === 'sa' || normalized === 'serviceaccount' || normalized === 'service_account') return 'sa';
+  if (normalized === 'clusterrole' || normalized === 'cluster_role') return 'cluster_role';
+  if (normalized === 'role') return 'role';
+  if (normalized === 'secret') return 'secret';
+  if (normalized === 'node') return 'node';
   if (normalized.startsWith('iam')) return 'iam';
   if (normalized.startsWith('s3')) return 's3';
   if (normalized.startsWith('rds')) return 'rds';
