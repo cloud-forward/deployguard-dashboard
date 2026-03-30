@@ -45,7 +45,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
     },
   });
 
-  const configItems = Array.isArray(providerConfigs?.items) ? providerConfigs.items : [];
+  const configItems = Array.isArray(providerConfigs?.items) ? (providerConfigs?.items ?? []) : [];
 
   const selectedConfig = useMemo(
     () => configItems.find((item) => item.provider === selectedProvider) ?? null,

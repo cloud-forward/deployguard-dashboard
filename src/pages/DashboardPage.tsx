@@ -452,7 +452,7 @@ const DashboardPage: React.FC = () => {
 
   const overview = isUserOverviewResponse(overviewQuery.data) ? overviewQuery.data : null;
   const assetList = isMeAssetInventoryListResponse(assetsQuery.data) ? assetsQuery.data : null;
-  const assets = Array.isArray(assetList?.items) ? assetList.items : [];
+  const assets = Array.isArray(assetList?.items) ? (assetList?.items ?? []) : [];
 
   const statAccentMap: Record<string, string> = {
     '전체 자산': '#22d3ee',

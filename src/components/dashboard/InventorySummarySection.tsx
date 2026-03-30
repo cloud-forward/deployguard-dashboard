@@ -138,7 +138,7 @@ const InventorySummarySection: React.FC = () => {
   const scannerStatus = isInventoryScannerStatusResponse(scannerStatusResponse)
     ? scannerStatusResponse
     : null;
-  const scanners = Array.isArray(scannerStatus?.scanners) ? scannerStatus.scanners : [];
+  const scanners = Array.isArray(scannerStatus?.scanners) ? (scannerStatus?.scanners ?? []) : [];
 
   const totalAssets = summary?.total_node_count ?? 0;
   const k8sAssets = sumResourceCounts(summary?.k8s_resources);

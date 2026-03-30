@@ -254,9 +254,9 @@ const InventoryPage: React.FC = () => {
   const summary = isSummaryResponse(summaryQuery.data) ? summaryQuery.data : undefined;
   const assetList = isAssetListResponse(assetsQuery.data) ? assetsQuery.data : undefined;
   const spotlight = isRiskSpotlightResponse(spotlightQuery.data) ? spotlightQuery.data : undefined;
-  const assets = Array.isArray(assetList?.assets) ? assetList.assets : [];
-  const entryPoints = Array.isArray(spotlight?.entry_points) ? spotlight.entry_points : [];
-  const crownJewels = Array.isArray(spotlight?.crown_jewels) ? spotlight.crown_jewels : [];
+  const assets = Array.isArray(assetList?.assets) ? (assetList?.assets ?? []) : [];
+  const entryPoints = Array.isArray(spotlight?.entry_points) ? (spotlight?.entry_points ?? []) : [];
+  const crownJewels = Array.isArray(spotlight?.crown_jewels) ? (spotlight?.crown_jewels ?? []) : [];
 
   const scannerTypes = useMemo(() => {
     const merged = new Set<string>(DEFAULT_SCANNERS);

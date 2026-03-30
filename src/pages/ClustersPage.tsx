@@ -274,7 +274,7 @@ const ClustersPage: React.FC = () => {
             },
             {
                 onSuccess: (response) => {
-                    const createdScans = Array.isArray(response?.scans) ? response.scans : [];
+                    const createdScans = Array.isArray(response?.scans) ? (response?.scans ?? []) : [];
                     const scannerTypes = createdScans
                         .map((scan) => scan.scanner_type)
                         .filter((value): value is string => Boolean(value));
