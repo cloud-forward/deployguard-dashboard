@@ -11,6 +11,8 @@ import RemediationRecommendationDetailPage from '../pages/RemediationRecommendat
 import ScansPage from '../pages/ScansPage';
 import RiskPage from '../pages/RiskPage';
 import RemediationPage from '../pages/RemediationPage';
+import RiskOptimizationPage from '../pages/RiskOptimizationPage';
+import WorkloadSecurityPage from '../pages/WorkloadSecurityPage';
 import InventoryPage from '../pages/InventoryPage';
 import ActivityPage from '../pages/ActivityPage';
 
@@ -64,12 +66,20 @@ export const router = createBrowserRouter([
         element: <RemediationRecommendationDetailPage />,
       },
       {
+        path: 'workload-security',
+        element: <WorkloadSecurityPage />,
+      },
+      {
         path: 'clusters',
         element: <ClustersPage />,
       },
       {
         path: 'scans',
         element: <ScansPage />,
+      },
+      {
+        path: 'risk-optimization',
+        element: <RiskOptimizationPage />,
       },
       {
         path: 'risk',

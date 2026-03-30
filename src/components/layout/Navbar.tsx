@@ -42,8 +42,33 @@ const ClusterScanPill: React.FC<ClusterOption> = ({ id, name }) => {
     statusText = '스캔중';
   }
 
+  const swallowPointerIntent = (
+    event:
+      | React.MouseEvent<HTMLDivElement>
+      | React.PointerEvent<HTMLDivElement>
+      | React.UIEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if ('nativeEvent' in event && typeof event.nativeEvent === 'object') {
+      const nativeEvent = event.nativeEvent as Event & { stopImmediatePropagation?: () => void };
+      nativeEvent.stopImmediatePropagation?.();
+    }
+  };
+
   return (
-    <div className="dg-scan-pill" aria-label={`${name} ${statusText}`}>
+    <div
+      className="dg-scan-pill"
+      aria-label={`${name} ${statusText}`}
+      role="presentation"
+      onClickCapture={swallowPointerIntent}
+      onClick={swallowPointerIntent}
+      onMouseDownCapture={swallowPointerIntent}
+      onMouseUpCapture={swallowPointerIntent}
+      onAuxClickCapture={swallowPointerIntent}
+      onPointerDownCapture={swallowPointerIntent}
+      onPointerUpCapture={swallowPointerIntent}
+    >
       <span className="dg-scan-pill-name">{name}</span>
       <span className="dg-scan-pill-sep" aria-hidden="true">•</span>
       <span
