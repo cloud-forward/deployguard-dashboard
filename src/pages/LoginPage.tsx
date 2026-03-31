@@ -105,11 +105,12 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary px-3">
-      <div className="card shadow-sm border-0" style={{ width: '100%', maxWidth: 440 }}>
+    <div className="dg-login-shell min-vh-100 d-flex align-items-center justify-content-center px-3">
+      <div className="card" style={{ width: '100%', maxWidth: 440 }}>
         <div className="card-body p-4 p-md-5">
-          <div className="mb-4">
-            <h1 className="h3 mb-2 fw-bold">DeployGuard 로그인</h1>
+          <div className="mb-4 text-center">
+            <h1 className="dg-login-brand">DeployGuard</h1>
+            <p className="dg-login-page-title">로그인</p>
             <p className="text-muted mb-0">대시보드에 접근하려면 로그인해야 합니다.</p>
           </div>
 
@@ -182,7 +183,7 @@ const LoginPage: React.FC = () => {
 
           <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
             <span className="text-muted small">계정이 없나요?</span>
-            <Link to="/signup" className="btn btn-outline-secondary btn-sm">
+            <Link to="/signup" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
               회원가입
             </Link>
           </div>
