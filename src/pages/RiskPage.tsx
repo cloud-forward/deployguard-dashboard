@@ -15,12 +15,8 @@ import {
   useGetAnalysisJobApiV1AnalysisJobsJobIdGet,
   useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet,
 } from '../api/generated/analysis/analysis';
+import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import {
-  getListClustersApiV1ClustersGetQueryKey,
-  useListClustersApiV1ClustersGet,
-} from '../api/generated/clusters/clusters';
-import {
-  getListClusterScansApiV1ClustersClusterIdScansGetQueryKey,
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
 import ClusterFlowNav from '../components/layout/ClusterFlowNav';
@@ -291,23 +287,6 @@ const RiskPage: React.FC = () => {
       ...current,
       [field]: current[field] === scanId ? null : scanId,
     }));
-  };
-
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({
-      queryKey: getListClustersApiV1ClustersGetQueryKey(),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(selectedClusterId),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey(selectedClusterId),
-    });
-    if (activeJobId) {
-      queryClient.invalidateQueries({
-        queryKey: getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryKey(activeJobId),
-      });
-    }
   };
 
   const handleCreateAndExecute = () => {
