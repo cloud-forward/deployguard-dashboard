@@ -254,10 +254,10 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
               className="small text-uppercase fw-semibold"
               style={{ letterSpacing: '0.08em', color: '#bfdbfe' }}
             >
-              Graph Controls
+              그래프 컨트롤
             </div>
             <div className="small" style={{ color: '#9fb0ca' }}>
-              {collapsed ? 'Drag to move. Expand to search and filter.' : 'Filter, search, and focus the live attack graph.'}
+              {collapsed ? '드래그로 이동하고 펼쳐서 검색 및 필터를 사용합니다.' : '라이브 공격 그래프를 필터링하고 검색하며 포커스를 이동합니다.'}
             </div>
           </div>
         </div>
@@ -274,14 +274,14 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
                 background: 'rgba(15, 23, 42, 0.38)',
               }}
             >
-              Reset
+              초기화
             </button>
           ) : null}
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expand graph controls' : 'Collapse graph controls'}
+            aria-label={collapsed ? '그래프 컨트롤 펼치기' : '그래프 컨트롤 접기'}
             onClick={onToggleCollapsed}
             style={{
               borderRadius: 999,
@@ -307,13 +307,13 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
       >
       <div className="d-flex flex-column gap-2">
         <label className="small fw-semibold" style={{ color: '#cbd5e1' }}>
-          Search
+          검색
         </label>
         <input
           type="search"
           className="form-control form-control-sm"
           value={filters.search ?? ''}
-          placeholder="Search nodes, edges, paths"
+          placeholder="노드, 엣지, 경로 검색"
           onChange={(evt) => updateSearch(evt.target.value)}
           style={{
             minHeight: 40,
@@ -330,7 +330,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
           </div>
         ) : (
           <div className="small" style={{ color: '#7f8da5' }}>
-            Search highlights matching nodes, edges, and path segments in-place.
+            검색 결과는 일치하는 노드, 엣지, 경로 구간을 현재 그래프에서 강조합니다.
           </div>
         )}
         {searchNavigator && searchNavigator.total > 0 ? (
@@ -348,7 +348,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
                 {`${searchNavigator.current} / ${searchNavigator.total}`}
               </div>
               <div className="small text-truncate" style={{ color: '#93a8c7' }}>
-                {searchNavigator.currentLabel ?? 'Focused search result'}
+                {searchNavigator.currentLabel ?? '포커스된 검색 결과'}
               </div>
             </div>
             <div className="d-flex align-items-center gap-2 flex-shrink-0">
@@ -357,7 +357,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={onPreviousSearchResult}
                 disabled={searchNavigator.total <= 1}
-                aria-label="Previous search result"
+                aria-label="이전 검색 결과"
                 style={{
                   borderRadius: 999,
                   minWidth: 34,
@@ -373,7 +373,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={onNextSearchResult}
                 disabled={searchNavigator.total <= 1}
-                aria-label="Next search result"
+                aria-label="다음 검색 결과"
                 style={{
                   borderRadius: 999,
                   minWidth: 34,
@@ -391,7 +391,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
 
       <div className="d-flex flex-column gap-2">
         <div className="small fw-semibold" style={{ color: '#cbd5e1' }}>
-          Resource Type
+          리소스 유형
         </div>
         <div className="d-flex flex-wrap gap-2">{firstRowResourceTypes.map(renderResourceButton)}</div>
         {secondRowResourceTypes.length > 0 ? (
@@ -401,7 +401,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
 
       <div className="d-flex flex-column gap-2">
         <div className="small fw-semibold" style={{ color: '#cbd5e1' }}>
-          Risk Border
+          위험도 테두리
         </div>
         <div className="d-flex flex-wrap gap-2">
           {availableSeverities.map((severity) => {
@@ -444,7 +444,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
 
       <div className="d-flex flex-column gap-2">
         <div className="small fw-semibold" style={{ color: '#cbd5e1' }}>
-          Edge Relation
+          엣지 관계
         </div>
         <div className="d-flex flex-wrap gap-2">
           {edgeRelationOptions.map((relation) => {

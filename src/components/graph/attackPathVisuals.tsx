@@ -51,9 +51,9 @@ const NODE_TYPE_META: Record<AttackPathVisualNodeType, NodeTypeMeta> = {
 };
 
 const THREAT_META: Partial<Record<AttackPathVisualNodeType, ThreatMeta>> = {
-  iam: { label: 'Privilege Escalation', description: 'IAM privilege escalation path', badgeClassName: 'dg-badge dg-badge--high' },
-  s3: { label: 'Data Exfiltration', description: 'Access path to S3 data', badgeClassName: 'dg-badge dg-badge--notable' },
-  rds: { label: 'Database Access', description: 'Reachability to database asset', badgeClassName: 'dg-badge dg-badge--info' },
+  iam: { label: '권한 상승', description: 'IAM 권한 상승 경로', badgeClassName: 'dg-badge dg-badge--high' },
+  s3: { label: '데이터 유출', description: 'S3 데이터 접근 경로', badgeClassName: 'dg-badge dg-badge--notable' },
+  rds: { label: '데이터베이스 접근', description: '데이터베이스 자산 도달 경로', badgeClassName: 'dg-badge dg-badge--info' },
 };
 
 const RISK_META: Record<

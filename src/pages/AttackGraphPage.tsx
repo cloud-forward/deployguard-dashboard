@@ -42,6 +42,14 @@ const LARGE_GRAPH_THRESHOLD = 180;
 const GRAPH_CONTROLS_MIN_X = 12;
 const GRAPH_CONTROLS_MIN_Y = 12;
 const GRAPH_CONTROLS_DEFAULT_POSITION = { x: 16, y: 12 };
+const DETAIL_PANEL_MIN_X = 12;
+const DETAIL_PANEL_MIN_Y = 12;
+const DETAIL_PANEL_DEFAULT_TOP = 12;
+const DETAIL_PANEL_DEFAULT_RIGHT_MARGIN = 16;
+const DETAIL_PANEL_EXPANDED_WIDTH = 340;
+const DETAIL_PANEL_COLLAPSED_WIDTH = 252;
+const DETAIL_PANEL_EXPANDED_HEIGHT = 360;
+const DETAIL_PANEL_COLLAPSED_HEIGHT = 72;
 const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
   nodes: [],
   edges: [],
@@ -212,6 +220,19 @@ const toDetailValue = (value: unknown): AttackGraphDetailValue => {
   return String(value);
 };
 
+const getSearchResultKindLabel = (kind: SearchResultKind) => {
+  if (kind === 'node') return '노드';
+  if (kind === 'edge') return '엣지';
+  return '경로';
+};
+
+const getSelectionModeLabel = (mode: SelectionMode) => {
+  if (mode === 'node') return '노드';
+  if (mode === 'edge') return '엣지';
+  if (mode === 'path') return '경로';
+  return '없음';
+};
+
 const toAttackGraphDetailMap = (node: AttackGraphNode | null): Record<string, AttackGraphDetailValue> => {
   if (!node) return {};
 
@@ -358,10 +379,10 @@ const AttackPathDetailPanel: React.FC<{
     <>
       <button
         type="button"
-        aria-label="Close attack path detail panel"
+        aria-label="공격 경로 상세 패널 닫기"
         className="border-0"
         onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.45)', zIndex: 1040 }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.3)', zIndex: 1040 }}
       />
       <aside
         style={{
@@ -372,58 +393,59 @@ const AttackPathDetailPanel: React.FC<{
           height: '100vh',
           zIndex: 1050,
           overflowY: 'auto',
-          background: '#0f172a',
+          background: 'rgba(15, 23, 42, 0.8)',
           borderLeft: '1px solid rgba(148, 163, 184, 0.18)',
           boxShadow: '-18px 0 50px rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(18px)',
         }}
       >
         <div className="p-4 border-bottom d-flex justify-content-between align-items-start gap-3">
           <div className="w-100">
-            <div className="small text-uppercase text-muted mb-2">Attack Path Detail</div>
+            <div className="small text-uppercase text-muted mb-2">공격 경로 상세</div>
             {detail ? (
               <div className="d-flex flex-wrap align-items-center gap-2 text-white">
                 <RiskLevelBadge level={detail.risk_level} />
                 <ThreatTypeBadge type={targetNode.type} />
                 <span className="text-muted small">|</span>
-                <span className="small text-muted">Entry</span>
+                <span className="small text-muted">시작</span>
                 <NodeTypeBadge type={entryNode.type} />
                 <span className="fw-semibold text-break">{entryNode.name}</span>
-                <span className="small text-muted">Target</span>
+                <span className="small text-muted">목표</span>
                 <NodeTypeBadge type={targetNode.type} />
                 <span className="fw-semibold text-break">{targetNode.name}</span>
               </div>
             ) : (
-              <h2 className="h4 mb-0 text-white text-break">{pathId ?? 'Selected Path'}</h2>
+              <h2 className="h4 mb-0 text-white text-break">{pathId ?? '선택한 경로'}</h2>
             )}
           </div>
-          <button type="button" className="btn-close btn-close-white" onClick={onClose} />
+          <button type="button" className="btn-close btn-close-white" aria-label="닫기" onClick={onClose} />
         </div>
 
         <div className="p-4 d-flex flex-column gap-4 text-light">
           {isLoading ? (
-            <div className="text-muted">Persisted attack path detail loading...</div>
+            <div className="text-muted">저장된 공격 경로 상세 정보를 불러오는 중입니다...</div>
           ) : isError ? (
             <div>
               <div className="alert alert-danger mb-3" role="alert">
-                {toErrorMessage(error, 'Persisted attack path detail could not be loaded.')}
+                {toErrorMessage(error, '저장된 공격 경로 상세 정보를 불러오지 못했습니다.')}
               </div>
               <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
-                Retry
+                다시 시도
               </button>
             </div>
           ) : !detail ? (
-            <div className="text-muted">No persisted attack path detail found.</div>
+            <div className="text-muted">저장된 공격 경로 상세 정보가 없습니다.</div>
           ) : (
             <>
               <div
                 className="rounded-4 p-3"
                 style={{
-                  background: 'rgba(15, 23, 42, 0.84)',
+                  background: 'rgba(15, 23, 42, 0.6)',
                   border: '1px solid rgba(148, 163, 184, 0.18)',
                   borderLeft: `2px solid ${threatAccent}`,
                 }}
               >
-                <div className="small text-muted mb-1">Path ID</div>
+                <div className="small text-muted mb-1">경로 ID</div>
                 <code className="d-block small text-break user-select-all" style={{ color: '#cbd5e1' }}>
                   {detail.path_id}
                 </code>
@@ -431,7 +453,7 @@ const AttackPathDetailPanel: React.FC<{
 
               <div className="row g-3">
                 <div className="col-12 col-sm-6">
-                  <div className="small text-muted mb-1">Hop Count</div>
+                  <div className="small text-muted mb-1">경유 수</div>
                   <div className="fw-semibold" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
                     {detail.hop_count ?? '-'}
                   </div>
@@ -444,7 +466,7 @@ const AttackPathDetailPanel: React.FC<{
                 ) : null}
                 {rawFinalRisk !== '-' ? (
                   <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">Raw Final Risk</div>
+                    <div className="small text-muted mb-1">최종 위험도 원시값</div>
                     <div className="fw-semibold">{rawFinalRisk}</div>
                   </div>
                 ) : null}
@@ -452,7 +474,7 @@ const AttackPathDetailPanel: React.FC<{
 
               {visibleNodeIds.length > 0 ? (
                 <div>
-                  <h3 className="h6 mb-2">Node IDs</h3>
+                  <h3 className="h6 mb-2">노드 ID</h3>
                   <ol className="mb-0 ps-3 small">
                     {visibleNodeIds.map((item) => (
                       <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
@@ -465,7 +487,7 @@ const AttackPathDetailPanel: React.FC<{
 
               {visibleEdgeIds.length > 0 ? (
                 <div>
-                  <h3 className="h6 mb-2">{`Edge IDs (${visibleEdgeIds.length}개)`}</h3>
+                  <h3 className="h6 mb-2">{`엣지 ID (${visibleEdgeIds.length}개)`}</h3>
                   <ol className="mb-0 ps-3 small">
                     {visibleEdgeIds.map((item) => (
                       <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
@@ -591,7 +613,7 @@ const AttackPathsPanel: React.FC<{
                       onClick={() =>
                         setRiskScoreSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
                       }
-                      aria-label={`Sort risk score ${riskScoreSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                      aria-label={`위험도 점수 ${riskScoreSortDirection === 'desc' ? '오름차순' : '내림차순'} 정렬`}
                     >
                       <span>위험도 점수</span>
                       <span className="dg-table-sort-indicator" aria-hidden="true">
@@ -695,7 +717,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
   onFiltersChange,
-  emptyStateTitle = '어택 그래프 데이터 없음.',
+  emptyStateTitle = '공격 그래프 데이터가 없습니다.',
   emptyStateBody = '현재 선택에 사용 가능한 노드 또는 엣지가 없습니다.',
   liveSummary,
   liveEvidenceCount,
@@ -710,10 +732,17 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [controlsPosition, setControlsPosition] = useState(GRAPH_CONTROLS_DEFAULT_POSITION);
   const [controlsMaxHeight, setControlsMaxHeight] = useState<number>();
+  const [detailPanelCollapsed, setDetailPanelCollapsed] = useState(false);
+  const [detailPanelPosition, setDetailPanelPosition] = useState({ x: 16, y: DETAIL_PANEL_DEFAULT_TOP });
+  const [detailPanelMaxHeight, setDetailPanelMaxHeight] = useState<number>();
   const graphCardRef = useRef<HTMLDivElement | null>(null);
   const graphControlsRef = useRef<HTMLDivElement | null>(null);
+  const detailPanelRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const detailPanelDragOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const controlsPositionRef = useRef(controlsPosition);
+  const detailPanelPositionRef = useRef(detailPanelPosition);
+  const previousDetailPanelModeRef = useRef<SelectionMode>('none');
   const searchStepFocusOnlyRef = useRef(false);
   const attackGraphViewModel = useMemo(() => toAttackGraphViewModel(payload), [payload]);
   const searchTokens = useMemo(() => toSearchTokens(filters.search), [filters.search]);
@@ -790,7 +819,6 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         node.label,
         node.resourceType,
         node.namespace,
-        ...Object.values(node.details ?? {}),
       );
 
       if (matchesTokens(searchable)) {
@@ -806,11 +834,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     }
 
     for (const edge of renderedGraph.edges) {
-      const rawMetadata =
-        typeof edge.raw.metadata === 'object' && edge.raw.metadata !== null
-          ? JSON.stringify(edge.raw.metadata)
-          : '';
-      const searchable = toSearchableString(edge.id, edge.label, edge.relationType, rawMetadata);
+      const searchable = toSearchableString(edge.id, edge.label, edge.relationType);
 
       if (matchesTokens(searchable)) {
         matchedEdgeIds.add(edge.id);
@@ -831,10 +855,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       const searchable = toSearchableString(
         path.id,
         path.label,
-        path.severity,
         typeof rawPath.path_id === 'string' ? rawPath.path_id : '',
-        typeof rawPath.title === 'string' ? rawPath.title : '',
-        typeof rawPath.summary === 'string' ? rawPath.summary : '',
       );
 
       if (matchesTokens(searchable)) {
@@ -872,10 +893,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
     const summary =
       matchedNodeIds.size === 0 && matchedEdgeIds.size === 0 && matchedPathIds.size === 0
-        ? `No live graph matches for "${filters.search?.trim()}".`
-        : `${matchedNodeIds.size} node${matchedNodeIds.size === 1 ? '' : 's'}, ${matchedEdgeIds.size} edge${
-            matchedEdgeIds.size === 1 ? '' : 's'
-          }, ${matchedPathIds.size} path${matchedPathIds.size === 1 ? '' : 's'} matched.`;
+        ? `라이브 그래프에서 "${filters.search?.trim()}"와 일치하는 항목이 없습니다.`
+        : `노드 ${matchedNodeIds.size}개, 엣지 ${matchedEdgeIds.size}개, 경로 ${matchedPathIds.size}개가 일치합니다.`;
 
     return {
       matchedNodeIds: [...matchedNodeIds],
@@ -974,11 +993,11 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     }
 
     const edgeDetails: Record<string, AttackGraphDetailValue> = {
-      Relation: selectedEdge.relation || 'n/a',
-      Source: `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`,
-      Target: `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`,
-      Label: selectedEdge.label || selectedEdge.id,
-      Reason: selectedEdge.reason || 'n/a',
+      관계: selectedEdge.relation || '-',
+      출발: `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`,
+      도착: `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`,
+      레이블: selectedEdge.label || selectedEdge.id,
+      사유: selectedEdge.reason || '-',
     };
 
     return edgeDetails;
@@ -1019,7 +1038,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     ? {
         current: resolvedSearchResultIndex + 1,
         total: searchState.searchResults.length,
-        currentLabel: `${activeSearchResult.kind} · ${activeSearchResult.label}`,
+        currentLabel: `${getSearchResultKindLabel(activeSearchResult.kind)} · ${activeSearchResult.label}`,
       }
     : null;
   const focusRequestKey =
@@ -1058,6 +1077,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     (node: NodeData) => {
       searchStepFocusOnlyRef.current = false;
       const nextNodeId = node.id ? String(node.id) : null;
+      setDetailPanelCollapsed(false);
       setSelectedNodeId((current) => (current === nextNodeId ? null : nextNodeId));
       setSelectedEdgeId(null);
       setSelectedPathId(null);
@@ -1066,6 +1086,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   );
   const handleGraphEdgeClick = useCallback((edge: EdgeData) => {
     searchStepFocusOnlyRef.current = false;
+    setDetailPanelCollapsed(false);
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedPathId(null);
@@ -1085,6 +1106,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
       setSelectedPathId(null);
       setSelectedEdgeId(null);
+      setDetailPanelCollapsed(false);
       setSelectedNodeId((current) => (current === nodeId ? current : nodeId));
     },
     [resolvedSelectedPathId, searchTokens.length],
@@ -1120,10 +1142,53 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     },
     [controlsCollapsed],
   );
+  const detailPanelMode: SelectionMode =
+    shouldShowNodeDetails ? 'node' : shouldShowEdgeDetails ? 'edge' : 'none';
+  const clampDetailPanelPosition = useCallback(
+    (
+      nextPosition: { x: number; y: number },
+      options?: {
+        cardWidth?: number;
+        cardHeight?: number;
+        overlayWidth?: number;
+        overlayHeight?: number;
+      },
+    ) => {
+      const card = graphCardRef.current;
+      const overlay = detailPanelRef.current;
+      const cardWidth = options?.cardWidth ?? card?.clientWidth ?? 0;
+      const cardHeight = options?.cardHeight ?? card?.clientHeight ?? 0;
+      const overlayWidth =
+        options?.overlayWidth ??
+        overlay?.offsetWidth ??
+        (detailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_WIDTH : DETAIL_PANEL_EXPANDED_WIDTH);
+      const overlayHeight =
+        options?.overlayHeight ??
+        overlay?.offsetHeight ??
+        (detailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : DETAIL_PANEL_EXPANDED_HEIGHT);
+
+      if (cardWidth <= 0 || cardHeight <= 0) {
+        return nextPosition;
+      }
+
+      const maxX = Math.max(DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - DETAIL_PANEL_MIN_X);
+      const maxY = Math.max(DETAIL_PANEL_MIN_Y, cardHeight - overlayHeight - DETAIL_PANEL_MIN_Y);
+
+      return {
+        x: Math.min(Math.max(DETAIL_PANEL_MIN_X, nextPosition.x), maxX),
+        y: Math.min(Math.max(DETAIL_PANEL_MIN_Y, nextPosition.y), maxY),
+      };
+    },
+    [detailPanelCollapsed],
+  );
 
   useEffect(() => {
     controlsPositionRef.current = controlsPosition;
   }, [controlsPosition]);
+
+  useEffect(() => {
+    detailPanelPositionRef.current = detailPanelPosition;
+  }, [detailPanelPosition]);
 
   useEffect(() => {
     const card = graphCardRef.current;
@@ -1176,24 +1241,136 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   }, [controlsPosition.y]);
 
   useEffect(() => {
+    const previousMode = previousDetailPanelModeRef.current;
+    previousDetailPanelModeRef.current = detailPanelMode;
+
+    if (detailPanelMode === 'none') {
+      return;
+    }
+
+    if (previousMode !== 'none') {
+      return;
+    }
+
+    const card = graphCardRef.current;
+    const overlay = detailPanelRef.current;
+    if (!card) {
+      return;
+    }
+
+    const overlayWidth = overlay?.offsetWidth ?? DETAIL_PANEL_EXPANDED_WIDTH;
+    const overlayHeight = overlay?.offsetHeight ?? DETAIL_PANEL_EXPANDED_HEIGHT;
+    const next = clampDetailPanelPosition(
+      {
+        x: card.clientWidth - overlayWidth - DETAIL_PANEL_DEFAULT_RIGHT_MARGIN,
+        y: DETAIL_PANEL_DEFAULT_TOP,
+      },
+      {
+        cardWidth: card.clientWidth,
+        cardHeight: card.clientHeight,
+        overlayWidth,
+        overlayHeight,
+      },
+    );
+
+    setDetailPanelPosition(next);
+  }, [clampDetailPanelPosition, detailPanelMode]);
+
+  useEffect(() => {
+    if (detailPanelMode === 'none') {
+      return;
+    }
+
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const updateOverlayBounds = () => {
+      const overlay = detailPanelRef.current;
+      const cardWidth = card.clientWidth;
+      const cardHeight = card.clientHeight;
+      const overlayWidth =
+        overlay?.offsetWidth ??
+        (detailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_WIDTH : DETAIL_PANEL_EXPANDED_WIDTH);
+      const overlayHeight =
+        overlay?.offsetHeight ??
+        (detailPanelCollapsed ? DETAIL_PANEL_COLLAPSED_HEIGHT : DETAIL_PANEL_EXPANDED_HEIGHT);
+      const clamped = clampDetailPanelPosition(detailPanelPositionRef.current, {
+        cardWidth,
+        cardHeight,
+        overlayWidth,
+        overlayHeight,
+      });
+
+      setDetailPanelPosition((current) =>
+        current.x === clamped.x && current.y === clamped.y ? current : clamped,
+      );
+      setDetailPanelMaxHeight(Math.max(120, cardHeight - clamped.y - DETAIL_PANEL_MIN_Y));
+    };
+
+    updateOverlayBounds();
+
+    const observer = new ResizeObserver(() => {
+      updateOverlayBounds();
+    });
+
+    observer.observe(card);
+    if (detailPanelRef.current) {
+      observer.observe(detailPanelRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [clampDetailPanelPosition, detailPanelCollapsed, detailPanelMode]);
+
+  useEffect(() => {
+    if (detailPanelMode === 'none') {
+      return;
+    }
+
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    setDetailPanelMaxHeight(Math.max(120, card.clientHeight - detailPanelPosition.y - DETAIL_PANEL_MIN_Y));
+  }, [detailPanelMode, detailPanelPosition.y]);
+
+  useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       const card = graphCardRef.current;
       const dragOffset = dragOffsetRef.current;
-      if (!card || !dragOffset) {
+      const detailDragOffset = detailPanelDragOffsetRef.current;
+      if (!card || (!dragOffset && !detailDragOffset)) {
         return;
       }
 
       const rect = card.getBoundingClientRect();
-      const next = clampControlsPosition({
-        x: event.clientX - rect.left - dragOffset.x,
-        y: event.clientY - rect.top - dragOffset.y,
-      });
 
-      setControlsPosition(next);
+      if (dragOffset) {
+        const next = clampControlsPosition({
+          x: event.clientX - rect.left - dragOffset.x,
+          y: event.clientY - rect.top - dragOffset.y,
+        });
+
+        setControlsPosition(next);
+      }
+
+      if (detailDragOffset) {
+        const next = clampDetailPanelPosition({
+          x: event.clientX - rect.left - detailDragOffset.x,
+          y: event.clientY - rect.top - detailDragOffset.y,
+        });
+
+        setDetailPanelPosition(next);
+      }
     };
 
     const handleMouseUp = () => {
       dragOffsetRef.current = null;
+      detailPanelDragOffsetRef.current = null;
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -1203,7 +1380,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [clampControlsPosition]);
+  }, [clampControlsPosition, clampDetailPanelPosition]);
 
   const handleControlsDragStart = useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
     if (event.button !== 0) {
@@ -1222,6 +1399,23 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     };
     event.preventDefault();
   }, [controlsPosition.x, controlsPosition.y]);
+  const handleDetailPanelDragStart = useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const rect = card.getBoundingClientRect();
+    detailPanelDragOffsetRef.current = {
+      x: event.clientX - rect.left - detailPanelPosition.x,
+      y: event.clientY - rect.top - detailPanelPosition.y,
+    };
+    event.preventDefault();
+  }, [detailPanelPosition.x, detailPanelPosition.y]);
 
   return (
     <>
@@ -1230,12 +1424,12 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
           <div className="card-body py-1 px-2 d-flex flex-wrap gap-3 align-items-center small">
             {liveSummary ? (
               <span className="text-muted">
-                ?붿빟: <strong className="text-dark">{liveSummary}</strong>
+                요약: <strong className="text-dark">{liveSummary}</strong>
               </span>
             ) : null}
             {typeof liveEvidenceCount === 'number' ? (
               <span className="text-muted">
-                利앷굅 ?? <strong className="text-dark">{liveEvidenceCount}</strong>
+                증거 수: <strong className="text-dark">{liveEvidenceCount}</strong>
               </span>
             ) : null}
           </div>
@@ -1301,15 +1495,29 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
           />
         </div>
         {shouldShowNodeDetails ? (
-          <div style={{ position: 'absolute', top: 12, right: 16, bottom: 12, width: 340, zIndex: 10, display: 'flex', minHeight: 0 }}>
+          <div
+            ref={detailPanelRef}
+            style={{
+              position: 'absolute',
+              left: detailPanelPosition.x,
+              top: detailPanelPosition.y,
+              zIndex: 13,
+              display: 'flex',
+              minHeight: 0,
+            }}
+          >
             <NodeDetailPanel
               node={selectedNode}
               onClose={() => {
+                setDetailPanelCollapsed(false);
                 setSelectedNodeId(null);
               }}
               tone="dark"
-              panelTitle="Node Detail"
-              panelDescription="Selected node details"
+              collapsed={detailPanelCollapsed}
+              onToggleCollapsed={() => setDetailPanelCollapsed((current) => !current)}
+              onDragHandleMouseDown={handleDetailPanelDragStart}
+              panelTitle="노드 상세 정보"
+              panelDescription="선택한 노드의 세부 정보입니다."
               accentColor={selectedNodeVisual?.backgroundColor}
               icon={selectedAttackGraphNode ? ATTACK_GRAPH_RESOURCE_ICONS[selectedAttackGraphNode.resourceType] : undefined}
               typeLabel={selectedAttackGraphNode?.resourceType}
@@ -1318,33 +1526,45 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
                 position: 'relative',
                 top: 0,
                 right: 0,
-                height: '100%',
-                maxHeight: '100%',
+                maxHeight: detailPanelMaxHeight ? `${detailPanelMaxHeight}px` : 'calc(100vh - 7rem)',
               }}
             />
           </div>
         ) : null}
         {shouldShowEdgeDetails ? (
-          <div style={{ position: 'absolute', top: 12, right: 16, bottom: 12, width: 340, zIndex: 10, display: 'flex', minHeight: 0 }}>
+          <div
+            ref={detailPanelRef}
+            style={{
+              position: 'absolute',
+              left: detailPanelPosition.x,
+              top: detailPanelPosition.y,
+              zIndex: 13,
+              display: 'flex',
+              minHeight: 0,
+            }}
+          >
             <NodeDetailPanel
               node={selectedEdgePanelNode}
               onClose={() => {
+                setDetailPanelCollapsed(false);
                 setSelectedEdgeId(null);
               }}
               tone="dark"
-              panelTitle="Edge Detail"
-              panelDescription="Selected edge details"
+              collapsed={detailPanelCollapsed}
+              onToggleCollapsed={() => setDetailPanelCollapsed((current) => !current)}
+              onDragHandleMouseDown={handleDetailPanelDragStart}
+              panelTitle="엣지 상세 정보"
+              panelDescription="선택한 엣지의 세부 정보입니다."
               subjectLabel={selectedEdge?.relation || selectedEdge?.label || selectedEdge?.id}
               accentColor={selectedEdgeVisual?.lineColor ?? '#93c5fd'}
               icon="↗"
-              typeLabel="Relation"
+              typeLabel="관계"
               details={selectedEdgeDetails}
               style={{
                 position: 'relative',
                 top: 0,
                 right: 0,
-                height: '100%',
-                maxHeight: '100%',
+                maxHeight: detailPanelMaxHeight ? `${detailPanelMaxHeight}px` : 'calc(100vh - 7rem)',
               }}
             />
           </div>
@@ -1353,19 +1573,19 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
       <div className="mt-2 d-flex gap-3 flex-wrap">
         <span className="text-muted small">
-          <strong>{filteredGraph.nodes.length}</strong> nodes / <strong>{filteredGraph.edges.length}</strong> edges
+          <strong>{filteredGraph.nodes.length}</strong>개 노드 / <strong>{filteredGraph.edges.length}</strong>개 엣지
         </span>
         {searchTokens.length > 0 ? (
           <span className="text-muted small">
-            Search:
-            <strong>{` ${searchState.matchedNodeIds.length} node / ${searchState.matchedEdgeIds.length} edge / ${searchState.matchedPathIds.length} path`}</strong>
+            검색:
+            <strong>{` 노드 ${searchState.matchedNodeIds.length}개 / 엣지 ${searchState.matchedEdgeIds.length}개 / 경로 ${searchState.matchedPathIds.length}개`}</strong>
           </span>
         ) : null}
         <span className="text-muted small">
-          Mode: <strong>{selectedMode}</strong>
-          {selectedMode === 'node' && selectedNode ? ` / node ${selectedNode.label}` : null}
-          {selectedMode === 'edge' && selectedEdge ? ` / edge ${selectedEdge.id}` : null}
-          {selectedMode === 'path' && selectedPath ? ` / path ${selectedPath.label || selectedPath.id}` : null}
+          모드: <strong>{getSelectionModeLabel(selectedMode)}</strong>
+          {selectedMode === 'node' && selectedNode ? ` / 노드 ${selectedNode.label}` : null}
+          {selectedMode === 'edge' && selectedEdge ? ` / 엣지 ${selectedEdge.id}` : null}
+          {selectedMode === 'path' && selectedPath ? ` / 경로 ${selectedPath.label || selectedPath.id}` : null}
         </span>
       </div>
     </>
@@ -1457,8 +1677,8 @@ const AttackGraphPage: React.FC = () => {
       <div className="dg-attack-graph-page dg-page-shell">
       <div className="dg-page-header">
         <div className="dg-page-heading">
-          <h1 className="dg-page-title">Attack Graph</h1>
-          <p className="dg-page-description">Inspect connected resources and persisted attack paths across the selected cluster.</p>
+          <h1 className="dg-page-title">공격 그래프</h1>
+          <p className="dg-page-description">선택한 클러스터의 연결 자산과 저장된 공격 경로를 확인합니다.</p>
         </div>
       </div>
 
@@ -1471,7 +1691,7 @@ const AttackGraphPage: React.FC = () => {
                 className={`nav-link ${activeTab === 'graph' ? 'active' : ''}`}
                 onClick={() => setActiveTab('graph')}
               >
-                Graph
+                그래프
               </button>
             </li>
             <li className="nav-item">
@@ -1480,13 +1700,13 @@ const AttackGraphPage: React.FC = () => {
                 className={`nav-link ${activeTab === 'attack-paths' ? 'active' : ''}`}
                 onClick={() => setActiveTab('attack-paths')}
               >
-                Attack Paths
+                공격 경로
               </button>
             </li>
           </ul>
 
           <div className="d-flex align-items-center gap-2 ms-auto">
-            <span className="text-muted small text-nowrap">Cluster</span>
+            <span className="text-muted small text-nowrap">클러스터</span>
             <select
               id="attack-graph-cluster-select"
               className="form-select form-select-sm"
@@ -1499,7 +1719,7 @@ const AttackGraphPage: React.FC = () => {
               disabled={isClustersLoading || clusters.length === 0}
             >
               {clusters.length === 0 ? (
-                <option value="">No clusters available</option>
+                <option value="">사용 가능한 클러스터가 없습니다</option>
               ) : (
                 clusters.map((cluster) => (
                   <option key={cluster.id} value={cluster.id}>
@@ -1513,7 +1733,7 @@ const AttackGraphPage: React.FC = () => {
       </div>
       {isClustersError ? (
         <div className="alert alert-danger mb-1" role="alert">
-          {toErrorMessage(clustersError, 'Could not load clusters for the attack graph.')}
+          {toErrorMessage(clustersError, '공격 그래프용 클러스터를 불러오지 못했습니다.')}
         </div>
       ) : null}
       {activeTab === 'graph' ? (
@@ -1525,23 +1745,23 @@ const AttackGraphPage: React.FC = () => {
           liveEvidenceCount={livePayload.evidence_count ?? null}
           emptyStateTitle={
             isClustersLoading
-              ? 'Loading attack graph...'
+              ? '공격 그래프를 불러오는 중입니다...'
               : !activeClusterId
-                ? 'No cluster selected.'
+                ? '선택된 클러스터가 없습니다.'
                 : isLiveGraphError
-                  ? 'Attack graph is unavailable.'
-                  : 'No attack graph data available.'
+                  ? '공격 그래프를 사용할 수 없습니다.'
+                  : '공격 그래프 데이터가 없습니다.'
           }
           emptyStateBody={
             isClustersLoading
-              ? 'Loading cluster options for the attack graph.'
+              ? '공격 그래프용 클러스터 목록을 불러오는 중입니다.'
               : !activeClusterId
-                ? 'Select a cluster to request /api/v1/clusters/{cluster_id}/attack-graph.'
+                ? '클러스터를 선택하면 /api/v1/clusters/{cluster_id}/attack-graph 를 요청합니다.'
                 : isLiveGraphLoading
-                  ? 'Loading graph data from the backend.'
+                  ? '백엔드에서 그래프 데이터를 불러오는 중입니다.'
                   : isLiveGraphError
-                    ? toErrorMessage(liveGraphError, 'Attack graph request failed.')
-                    : 'The backend did not return any nodes or edges for the selected cluster.'
+                    ? toErrorMessage(liveGraphError, '공격 그래프 요청에 실패했습니다.')
+                    : '선택한 클러스터에 대해 백엔드가 노드 또는 엣지를 반환하지 않았습니다.'
           }
         />
       ) : null}

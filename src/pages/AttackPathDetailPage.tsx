@@ -755,7 +755,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                 <DetailField label="위험도 점수 (raw)" value={formatRawRisk(path.raw_final_risk)} />
                 <DetailField label="분석 시각" value={formatDateTime(envelope.generated_at)} />
                 <DetailField label="클러스터 ID" value={envelope.cluster_id} />
-                <DetailField label="Path ID" value={<code className="small text-break">{truncateMiddle(path.path_id, 60)}</code>} />
+                <DetailField label="경로 ID" value={<code className="small text-break">{truncateMiddle(path.path_id, 60)}</code>} />
                 <DetailField label="분석 실행 ID" value={envelope.analysis_run_id ?? '-'} />
               </div>
 
