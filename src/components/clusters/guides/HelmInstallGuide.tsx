@@ -66,7 +66,7 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
               </code>
               <button
                 type="button"
-                className="btn btn-outline-secondary btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={() => copyToClipboard(clusterId, setClusterIdCopied)}
               >
                 복사
@@ -81,7 +81,7 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
               </code>
               <button
                 type="button"
-                className="btn btn-outline-secondary btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={() => copyToClipboard(apiToken, setTokenCopied)}
               >
                 복사
@@ -104,7 +104,7 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             onClick={() => copyToClipboard(namespaceCommand, setNamespaceCopied)}
           >
             복사
@@ -120,7 +120,7 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
             onClick={() => copyToClipboard(helmCommand, setCommandCopied)}
           >
             복사

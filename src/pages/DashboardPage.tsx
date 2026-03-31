@@ -799,6 +799,18 @@ const DashboardPage: React.FC = () => {
           border-color: rgba(96, 165, 250, 0.3);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 14px rgba(59, 130, 246, 0.08);
         }
+        .dg-dashboard-action-btn--danger {
+          color: #fee2e2;
+          background: rgba(69, 10, 10, 0.34);
+          border: 1px solid rgba(248, 113, 113, 0.28);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 18px rgba(239, 68, 68, 0.08);
+        }
+        .dg-dashboard-action-btn--danger:hover:not(:disabled) {
+          color: #fff1f2;
+          background: rgba(127, 29, 29, 0.46);
+          border-color: rgba(248, 113, 113, 0.4);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 20px rgba(239, 68, 68, 0.14);
+        }
         @media (min-width: 1200px) {
           .dg-dashboard-top {
             align-items: stretch;

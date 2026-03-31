@@ -20,8 +20,11 @@ DeployGuard는 Kubernetes 및 AWS 인프라의 공격 경로를 분석하고 최
  */
 import type { AnalysisJobDetailResponse } from './analysisJobDetailResponse';
 import type { AnalysisResultLinksResponse } from './analysisResultLinksResponse';
+import type { AnalysisResultStatsResponse } from './analysisResultStatsResponse';
 import type { AnalysisResultSummaryResponse } from './analysisResultSummaryResponse';
+import type { AttackPathDetailResponse } from './attackPathDetailResponse';
 import type { AttackPathListItemResponse } from './attackPathListItemResponse';
+import type { RemediationRecommendationDetailResponse } from './remediationRecommendationDetailResponse';
 import type { RemediationRecommendationListItemResponse } from './remediationRecommendationListItemResponse';
 
 export interface AnalysisResultResponse {
@@ -29,5 +32,8 @@ export interface AnalysisResultResponse {
   summary: AnalysisResultSummaryResponse;
   attack_paths_preview?: AttackPathListItemResponse[];
   remediation_preview?: RemediationRecommendationListItemResponse[];
+  attack_paths?: AttackPathDetailResponse[];
+  remediation_recommendations?: RemediationRecommendationDetailResponse[];
   links: AnalysisResultLinksResponse;
+  stats?: AnalysisResultStatsResponse | null;
 }

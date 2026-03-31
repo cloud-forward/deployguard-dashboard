@@ -92,7 +92,7 @@ const AnalysisJobDetailPage: React.FC = () => {
           </div>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             onClick={() => query.refetch()}
           >
             다시 시도
@@ -111,7 +111,7 @@ const AnalysisJobDetailPage: React.FC = () => {
           <div className="py-5 text-center">
             <h1 className="h5 mb-2">분석 결과를 찾을 수 없습니다.</h1>
             <p className="text-muted small mb-3">이 작업에 대한 결과가 반환되지 않았습니다.</p>
-            <Link to="/risk" className="btn btn-outline-secondary btn-sm">
+            <Link to="/risk" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
               목록으로 돌아가기
             </Link>
           </div>
@@ -158,7 +158,7 @@ const AnalysisJobDetailPage: React.FC = () => {
                 {job.job_id}
               </code>
             </div>
-            <Link to={backTarget} className="btn btn-outline-secondary btn-sm flex-shrink-0">
+            <Link to={backTarget} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
               ← 목록으로
             </Link>
           </div>

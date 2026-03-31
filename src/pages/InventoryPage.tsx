@@ -144,7 +144,7 @@ const SectionError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
     <div className="alert alert-danger mb-3" role="alert">
       데이터를 불러오지 못했습니다
     </div>
-    <button type="button" className="btn btn-outline-light" onClick={onRetry}>
+    <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onRetry}>
       다시 시도
     </button>
   </div>
@@ -815,7 +815,7 @@ const InventoryPage: React.FC = () => {
               <div className="d-grid gap-2">
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                   onClick={() => {
                     const searchParams = new URLSearchParams({
                       node_id: selectedAsset.node_id,
@@ -834,7 +834,7 @@ const InventoryPage: React.FC = () => {
                 >
                   Attack Graph에서 보기
                 </button>
-                <button type="button" className="btn btn-outline-light" onClick={() => navigate(`/clusters/${clusterId}/risk`)}>
+                <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => navigate(`/clusters/${clusterId}/risk`)}>
                   Recommendations 보기
                 </button>
               </div>

@@ -479,14 +479,6 @@ const RiskPage: React.FC = () => {
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm"
-              onClick={handleRefresh}
-              disabled={!selectedClusterId}
-            >
-              새로 고침
-            </button>
           </div>
         )}
       </div>
@@ -595,7 +587,7 @@ const RiskPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm w-100"
+                    className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100"
                     onClick={handleCreateAndExecute}
                     disabled={
                       !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
@@ -812,7 +804,7 @@ const RiskPage: React.FC = () => {
                           <td className="small dg-risk-job-action">
                             <button
                               type="button"
-                              className="btn btn-outline-light btn-sm"
+                              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                               onClick={(event) => event.stopPropagation()}
                             >
                               상세 보기

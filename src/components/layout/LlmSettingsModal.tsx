@@ -198,12 +198,12 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>
                 Close
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
                 onClick={handleSave}
                 disabled={saveStatus === 'saving'}
               >

@@ -330,15 +330,15 @@ const ScansPage: React.FC = () => {
             }}
             disabled={isClustersLoading || clusters.length === 0}
           >
-            {clusters.length === 0 ? (
-              <option value="">사용 가능한 클러스터 없음</option>
-            ) : (
-              clusters.map((cluster) => (
-                <option key={cluster.id} value={cluster.id}>
-                  {cluster.name} ({cluster.id})
-                </option>
-              ))
-            )}
+                {clusters.length === 0 ? (
+                  <option value="">사용 가능한 클러스터 없음</option>
+                ) : (
+                  clusters.map((cluster) => (
+                    <option key={cluster.id} value={cluster.id}>
+                      {cluster.name}
+                    </option>
+                  ))
+                )}
           </select>
         </div>
       </div>
@@ -436,7 +436,7 @@ const ScansPage: React.FC = () => {
                                 {canManuallyFailScan(scan.status) && (
                                   <button
                                     type="button"
-                                    className="btn btn-sm btn-outline-danger"
+                                    className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--danger"
                                     onClick={() => handleFailScan(scan.scan_id)}
                                     disabled={isFailingScan && failingScanId === scan.scan_id}
                                   >
@@ -447,7 +447,7 @@ const ScansPage: React.FC = () => {
                                 )}
                                 <button
                                   type="button"
-                                  className={`btn btn-sm ${isExpanded ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                                   onClick={() => {
                                     setScanFeedback(null);
                                     if (isExpanded) {
@@ -480,7 +480,7 @@ const ScansPage: React.FC = () => {
                                       <StatusChip status={effectiveStatus || '알 수 없음'} />
                                       <button
                                         type="button"
-                                        className="btn btn-sm btn-outline-primary"
+                                        className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                                         onClick={() => setShouldLoadRawResult(true)}
                                         disabled={isRawResultLoading}
                                       >
@@ -557,7 +557,7 @@ const ScansPage: React.FC = () => {
                                         href={rawResult.download_url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="btn btn-sm btn-success"
+                                        className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                                       >
                                         원본 결과 열기
                                       </a>

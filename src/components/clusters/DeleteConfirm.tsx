@@ -24,8 +24,8 @@ const DeleteConfirm: React.FC<DeleteConfirmProps> = ({ isOpen, onClose, onConfir
             <p className="text-danger small">This action cannot be undone.</p>
           </div>
           <div className="modal-footer border-0">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="button" className="btn btn-danger" onClick={() => { onConfirm(); onClose(); }}>Delete</button>
+            <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--danger" onClick={() => { onConfirm(); onClose(); }}>Delete</button>
           </div>
         </div>
       </div>

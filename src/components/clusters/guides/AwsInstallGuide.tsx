@@ -71,7 +71,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
               </code>
               <button
                 type="button"
-                className="btn btn-outline-secondary btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={() => copyToClipboard(clusterId, setClusterIdCopied)}
               >
                 복사
@@ -86,7 +86,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
               </code>
               <button
                 type="button"
-                className="btn btn-outline-secondary btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={() => copyToClipboard(apiToken, setTokenCopied)}
               >
                 복사
@@ -110,7 +110,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             onClick={() => copyToClipboard(removeOldCommand, setRemoveCopied)}
           >
             복사
@@ -126,7 +126,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             onClick={() => copyToClipboard(loginCommand, setLoginCopied)}
           >
             복사
@@ -142,7 +142,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             onClick={() => copyToClipboard(pullCommand, setPullCopied)}
           >
             복사
@@ -158,7 +158,7 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           </pre>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
             onClick={() => copyToClipboard(runCommand, setRunCopied)}
           >
             복사
