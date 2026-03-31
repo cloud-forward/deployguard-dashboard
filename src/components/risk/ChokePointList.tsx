@@ -193,7 +193,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
               <div className="card-footer bg-transparent border-0 pt-0">
                 <Link
                   to={`/clusters/${clusterId}/recommendations/${item.recommendation_id}`}
-                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100"
                 >
                   자세히 보기
                 </Link>

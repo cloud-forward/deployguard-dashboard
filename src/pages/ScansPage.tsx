@@ -330,15 +330,15 @@ const ScansPage: React.FC = () => {
             }}
             disabled={isClustersLoading || clusters.length === 0}
           >
-            {clusters.length === 0 ? (
-              <option value="">사용 가능한 클러스터 없음</option>
-            ) : (
-              clusters.map((cluster) => (
-                <option key={cluster.id} value={cluster.id}>
-                  {cluster.name} ({cluster.id})
-                </option>
-              ))
-            )}
+                {clusters.length === 0 ? (
+                  <option value="">사용 가능한 클러스터 없음</option>
+                ) : (
+                  clusters.map((cluster) => (
+                    <option key={cluster.id} value={cluster.id}>
+                      {cluster.name}
+                    </option>
+                  ))
+                )}
           </select>
         </div>
       </div>

@@ -1447,7 +1447,7 @@ const AttackGraphPage: React.FC = () => {
               ) : (
                 clusters.map((cluster) => (
                   <option key={cluster.id} value={cluster.id}>
-                    {cluster.name} ({cluster.id})
+                    {cluster.name}
                   </option>
                 ))
               )}

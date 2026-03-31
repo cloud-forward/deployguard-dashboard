@@ -177,7 +177,7 @@ const RiskOptimizationPage: React.FC = () => {
               </div>
 
               <Link to="/risk" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary">
-                Analysis로 이동
+                바로가기
               </Link>
             </div>
           </div>
@@ -211,7 +211,7 @@ const RiskOptimizationPage: React.FC = () => {
               </div>
 
               <Link to="/remediation" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary">
-                Remediation으로 이동
+                바로가기
               </Link>
             </div>
           </div>
