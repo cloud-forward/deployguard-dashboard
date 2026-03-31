@@ -75,64 +75,72 @@ const KpiCard: React.FC<{ label: string; value: React.ReactNode; accent?: boolea
   </div>
 );
 
-const MetaBadge: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <span
-    className="small fw-semibold"
-    style={{
-      color: '#dbeafe',
-      background: 'rgba(255, 255, 255, 0.04)',
-      border: '1px solid rgba(148, 163, 184, 0.18)',
-      borderRadius: '999px',
-      padding: '0.28rem 0.72rem',
-    }}
-  >
-    {label} {value}
-  </span>
-);
-
-const DetailRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="d-flex flex-column gap-1 py-2">
-    <div className="text-muted small">{label}</div>
-    <div className="fw-semibold text-break">{value}</div>
-  </div>
-);
-
-const CodeValue: React.FC<{ value?: string | null }> = ({ value }) => {
+const CompactMetaValue: React.FC<{ value?: string | null }> = ({ value }) => {
   if (!value) {
     return <span className="text-muted">-</span>;
   }
 
   return (
     <code
-      className="d-inline-block mw-100"
+      className="d-block"
       title={value}
-      style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}
+      style={{
+        fontSize: '0.76rem',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
     >
       {value}
     </code>
   );
 };
 
+const CompactMetaRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="d-flex align-items-center gap-3 small">
+    <div
+      className="text-muted flex-shrink-0"
+      style={{ width: '5.5rem', lineHeight: 1.2 }}
+    >
+      {label}
+    </div>
+    <div className="flex-grow-1 min-w-0 overflow-hidden fw-semibold" style={{ lineHeight: 1.2 }}>
+      {value}
+    </div>
+  </div>
+);
+
 const AnalysisResultHeader: React.FC<{
   result: AnalysisResultResponse;
   backTarget: string;
 }> = ({ result, backTarget }) => {
-  const { job, summary } = result;
+  const { job } = result;
 
   return (
     <Card>
       <div className="d-flex flex-column gap-3">
         <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div className="min-w-0">
-            <div className="text-muted small text-uppercase mb-2">Analysis Result</div>
-            <h1 className="dg-page-title mb-2">분석 결과 상세</h1>
+            <div className="d-flex align-items-baseline gap-3 flex-wrap mb-2">
+              <h1 className="dg-page-title mb-0">분석 결과 상세</h1>
+              <span className="text-muted small">이번 분석 실행의 결과를 요약해 보여줍니다.</span>
+            </div>
             <div className="d-flex flex-wrap align-items-center gap-2">
               <StatusChip status={job.status} />
-              {summary.graph_status ? (
-                <MetaBadge label="그래프 상태" value={summary.graph_status} />
-              ) : null}
-              {summary.generated_at ? (
-                <MetaBadge label="생성 시각" value={formatDateTime(summary.generated_at)} />
+              {job.completed_at ? (
+                <span
+                  className="small fw-semibold"
+                  title={formatDateTime(job.completed_at)}
+                  style={{
+                    color: '#dbeafe',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(148, 163, 184, 0.18)',
+                    borderRadius: '999px',
+                    padding: '0.28rem 0.72rem',
+                  }}
+                >
+                  완료 {formatDateTime(job.completed_at)}
+                </span>
               ) : null}
             </div>
           </div>
@@ -144,45 +152,43 @@ const AnalysisResultHeader: React.FC<{
           </Link>
         </div>
 
-        <div className="row g-3">
-          <div className="col-12 col-xl-6">
-            <div
-              className="h-100 rounded-3 p-3"
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div className="text-muted small mb-2">작업 ID</div>
-              <code
-                className="d-block"
-                style={{ fontSize: '0.82rem', wordBreak: 'break-all' }}
+        <div
+          className="rounded-3 p-3"
+          style={{
+            width: '100%',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div className="text-muted small mb-2">실행 메타데이터</div>
+          <div className="row g-2 gx-2">
+            <div className="col-12 col-md-6">
+              <div
+                className="rounded-3 p-2 h-100"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(148, 163, 184, 0.14)',
+                }}
               >
-                {job.job_id}
-              </code>
+                <div className="d-flex flex-column gap-2">
+                  <CompactMetaRow label="작업 ID" value={<CompactMetaValue value={job.job_id} />} />
+                  <CompactMetaRow label="클러스터 ID" value={<CompactMetaValue value={job.cluster_id} />} />
+                  <CompactMetaRow label="그래프 ID" value={<CompactMetaValue value={job.graph_id} />} />
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="col-12 col-xl-6">
-            <div
-              className="h-100 rounded-3 p-3"
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div className="text-muted small mb-2">실행 정보</div>
-              <div className="d-flex flex-column gap-2 small">
-                <div className="d-flex justify-content-between gap-3">
-                  <span className="text-muted">생성 시각</span>
-                  <span className="fw-semibold text-end">{formatDateTime(job.created_at)}</span>
-                </div>
-                <div className="d-flex justify-content-between gap-3">
-                  <span className="text-muted">시작 시각</span>
-                  <span className="fw-semibold text-end">{formatDateTime(job.started_at)}</span>
-                </div>
-                <div className="d-flex justify-content-between gap-3">
-                  <span className="text-muted">완료 시각</span>
-                  <span className="fw-semibold text-end">{formatDateTime(job.completed_at)}</span>
+            <div className="col-12 col-md-6">
+              <div
+                className="rounded-3 p-2 h-100"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(148, 163, 184, 0.14)',
+                }}
+              >
+                <div className="d-flex flex-column gap-2">
+                  <CompactMetaRow label="K8s" value={<CompactMetaValue value={job.k8s_scan_id} />} />
+                  <CompactMetaRow label="AWS" value={<CompactMetaValue value={job.aws_scan_id} />} />
+                  <CompactMetaRow label="Image" value={<CompactMetaValue value={job.image_scan_id} />} />
                 </div>
               </div>
             </div>
@@ -211,7 +217,7 @@ const AnalysisResultSummaryCards: React.FC<{ result: AnalysisResultResponse }> =
       accent: true,
     },
     {
-      label: '크라운 주얼 수',
+      label: '핵심 자산 수',
       value: summary.crown_jewel_count ?? stats?.graph?.crown_jewels,
       accent: true,
     },
@@ -229,7 +235,7 @@ const AnalysisResultSummaryCards: React.FC<{ result: AnalysisResultResponse }> =
       value: stats?.facts?.total,
     },
     {
-      label: 'Paths total / returned',
+      label: '총 경로 수 / 반환 경로 수',
       value:
         typeof stats?.paths?.total === 'number' || typeof stats?.paths?.returned === 'number'
           ? `${formatNumber(stats?.paths?.total)} / ${formatNumber(stats?.paths?.returned)}`
@@ -467,77 +473,6 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
             </div>
           </Card>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const AnalysisResultDetails: React.FC<{ result: AnalysisResultResponse }> = ({ result }) => {
-  const { job } = result;
-
-  return (
-    <div className="row g-3">
-      <div className="col-12 col-xl-6">
-        <Card className="h-100">
-          <div className="d-flex flex-column gap-1">
-            <h2 className="h6 fw-semibold mb-2" style={{ color: 'var(--text-accent, #93c5fd)' }}>
-              작업 정보
-            </h2>
-
-            <DetailRow label="작업 ID" value={<CodeValue value={job.job_id} />} />
-            <DetailRow label="클러스터 ID" value={<CodeValue value={job.cluster_id} />} />
-            <DetailRow label="그래프 ID" value={<CodeValue value={job.graph_id} />} />
-            <DetailRow label="상태" value={<StatusChip status={job.status} />} />
-            {job.current_step ? (
-              <DetailRow label="현재 단계" value={<span>{job.current_step}</span>} />
-            ) : null}
-
-            {job.error_message ? (
-              <div
-                className="mt-2 rounded-3 p-3"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.26)',
-                }}
-              >
-                <div className="text-muted small mb-1">오류 메시지</div>
-                <div className="small fw-semibold" style={{ color: '#fca5a5', whiteSpace: 'pre-wrap' }}>
-                  {job.error_message}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </Card>
-      </div>
-
-      <div className="col-12 col-xl-6">
-        <Card className="h-100">
-          <div className="d-flex flex-column gap-1">
-            <h2 className="h6 fw-semibold mb-2" style={{ color: 'var(--text-accent, #93c5fd)' }}>
-              사용된 스캔
-            </h2>
-
-            <DetailRow
-              label="예상 스캔"
-              value={
-                job.expected_scans && job.expected_scans.length > 0 ? (
-                  <div className="d-flex flex-wrap gap-2">
-                    {job.expected_scans.map((scanType) => (
-                      <span key={scanType} className="dg-badge dg-badge--tag">
-                        {scanType}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-muted">-</span>
-                )
-              }
-            />
-            <DetailRow label="Kubernetes 스캔 ID" value={<CodeValue value={job.k8s_scan_id} />} />
-            <DetailRow label="AWS 스캔 ID" value={<CodeValue value={job.aws_scan_id} />} />
-            <DetailRow label="이미지 스캔 ID" value={<CodeValue value={job.image_scan_id} />} />
-          </div>
-        </Card>
       </div>
     </div>
   );
@@ -1126,7 +1061,6 @@ const AnalysisJobDetailPage: React.FC = () => {
         <AnalysisResultHeader result={result} backTarget={backTarget} />
         <AnalysisResultSummaryCards result={result} />
         <AnalysisMetricsSection result={result} />
-        <AnalysisResultDetails result={result} />
         <AnalysisResultTabbedSection result={result} />
       </div>
     </div>
