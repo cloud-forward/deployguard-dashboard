@@ -105,11 +105,34 @@ const normalizeRelationType = (value?: string | null): AttackGraphEdgeRelation =
   }
 };
 
+const toSearchableString = (value: unknown): string => {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toSearchableString(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable]';
+    }
+  }
+
+  return String(value);
+};
+
 const toStringRecord = (value: Record<string, unknown> | undefined): Record<string, string> => {
   if (!value) return {};
 
   return Object.fromEntries(
-    Object.entries(value).map(([key, rawValue]) => [key, rawValue == null ? '' : String(rawValue)]),
+    Object.entries(value).map(([key, rawValue]) => [key, toSearchableString(rawValue)]),
   ) as Record<string, string>;
 };
 
