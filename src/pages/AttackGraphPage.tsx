@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
@@ -266,6 +266,8 @@ interface AttackGraphContentProps {
   payload: AttackGraphApiResponse;
   filters: AttackGraphFilters;
   onFiltersChange: React.Dispatch<React.SetStateAction<AttackGraphFilters>>;
+  highlightName?: string | null;
+  onClearHighlight?: () => void;
   emptyStateTitle?: string;
   emptyStateBody?: string;
   liveSummary?: string | null;
@@ -717,6 +719,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
   onFiltersChange,
+  highlightName,
+  onClearHighlight,
   emptyStateTitle = '공격 그래프 데이터가 없습니다.',
   emptyStateBody = '현재 선택에 사용 가능한 노드 또는 엣지가 없습니다.',
   liveSummary,
@@ -745,7 +749,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const previousDetailPanelModeRef = useRef<SelectionMode>('none');
   const searchStepFocusOnlyRef = useRef(false);
   const attackGraphViewModel = useMemo(() => toAttackGraphViewModel(payload), [payload]);
-  const searchTokens = useMemo(() => toSearchTokens(filters.search), [filters.search]);
+  const effectiveSearchTerm = highlightName?.trim() || filters.search || '';
+  const searchTokens = useMemo(() => toSearchTokens(effectiveSearchTerm), [effectiveSearchTerm]);
 
   const attackGraph = useMemo(() => attackGraphViewModel.graph, [attackGraphViewModel.graph]);
 
@@ -906,7 +911,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       focusNodeId,
       summary,
     };
-  }, [filters.search, renderedGraph.edges, renderedGraph.nodes, renderedGraph.paths, searchTokens]);
+  }, [effectiveSearchTerm, renderedGraph.edges, renderedGraph.nodes, renderedGraph.paths, searchTokens]);
 
   const attackPaths = useMemo<AttackGraphPath[]>(() => renderedGraph.paths, [renderedGraph.paths]);
   const filteredElements = useMemo(() => toAttackGraphElements(renderedGraph), [renderedGraph]);
@@ -1021,8 +1026,8 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     [selectedEdge],
   );
   const searchNavigationKey = useMemo(
-    () => `${filters.search ?? ''}::${searchState.searchResults.map((result) => result.key).join('|')}`,
-    [filters.search, searchState.searchResults],
+    () => `${effectiveSearchTerm}::${searchState.searchResults.map((result) => result.key).join('|')}`,
+    [effectiveSearchTerm, searchState.searchResults],
   );
   const resolvedSearchResultIndex =
     searchState.searchResults.length === 0
@@ -1075,6 +1080,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   );
   const handleGraphNodeClick = useCallback(
     (node: NodeData) => {
+      onClearHighlight?.();
       searchStepFocusOnlyRef.current = false;
       const nextNodeId = node.id ? String(node.id) : null;
       setDetailPanelCollapsed(false);
@@ -1082,15 +1088,16 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       setSelectedEdgeId(null);
       setSelectedPathId(null);
     },
-    [],
+    [onClearHighlight],
   );
   const handleGraphEdgeClick = useCallback((edge: EdgeData) => {
+    onClearHighlight?.();
     searchStepFocusOnlyRef.current = false;
     setDetailPanelCollapsed(false);
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedPathId(null);
-  }, []);
+  }, [onClearHighlight]);
   const handleSearchFocusHandled = useCallback(
     ({ found, nodeId }: { found: boolean; nodeId: string }) => {
       const isNavigatorStepFocus = searchStepFocusOnlyRef.current;
@@ -1104,12 +1111,16 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         return;
       }
 
+      if (highlightName) {
+        return;
+      }
+
       setSelectedPathId(null);
       setSelectedEdgeId(null);
       setDetailPanelCollapsed(false);
       setSelectedNodeId((current) => (current === nodeId ? current : nodeId));
     },
-    [resolvedSelectedPathId, searchTokens.length],
+    [highlightName, resolvedSelectedPathId, searchTokens.length],
   );
   const clampControlsPosition = useCallback(
     (
@@ -1461,6 +1472,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
                 searchContextEdgeIds={searchState.contextEdgeIds}
                 onNodeClick={handleGraphNodeClick}
                 onEdgeClick={handleGraphEdgeClick}
+                onCanvasClick={onClearHighlight}
               />
             </Suspense>
           ) : (
@@ -1594,9 +1606,19 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
 const AttackGraphPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<AttackGraphInnerTab>('graph');
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState(routeClusterId);
+  const highlightName = searchParams.get('highlight');
+  const clearHighlight = useCallback(() => {
+    if (!searchParams.has('highlight')) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('highlight');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const {
     data: clustersResponse,
@@ -1741,6 +1763,8 @@ const AttackGraphPage: React.FC = () => {
           payload={livePayload}
           filters={liveFilters}
           onFiltersChange={setLiveFilters}
+          highlightName={highlightName}
+          onClearHighlight={clearHighlight}
           liveSummary={livePayload.summary ?? null}
           liveEvidenceCount={livePayload.evidence_count ?? null}
           emptyStateTitle={

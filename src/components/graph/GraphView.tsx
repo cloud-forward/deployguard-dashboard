@@ -39,6 +39,7 @@ interface GraphViewProps {
   showLabels?: boolean;
   onNodeClick: (node: NodeData) => void;
   onEdgeClick: (edge: EdgeData) => void;
+  onCanvasClick?: () => void;
 }
 
 const getLayoutPadding = (layout: LayoutOptions): number => {
@@ -47,7 +48,6 @@ const getLayoutPadding = (layout: LayoutOptions): number => {
 };
 
 const FOCUS_BLINK_INTERVAL_MS = 600;
-const FOCUS_BLINK_DURATION_MS = 6000;
 const FOCUS_TARGET_ZOOM = 1.08;
 const FOCUS_REPEAT_ZOOM_DELTA = 0.08;
 const FOCUS_MAX_KICK_ZOOM = 1.18;
@@ -180,6 +180,7 @@ const GraphView: React.FC<GraphViewProps> = ({
   showLabels = true,
   onNodeClick,
   onEdgeClick,
+  onCanvasClick,
 }) => {
   const graphStylesheet = useMemo(() => {
     if (showLabels) {
@@ -220,7 +221,6 @@ const GraphView: React.FC<GraphViewProps> = ({
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
-  const focusTimeoutRef = useRef<number | null>(null);
   const focusPulseIntervalRef = useRef<number | null>(null);
   const focusedNodeIdRef = useRef<string | null>(null);
   const handledFocusKeyRef = useRef<string | null>(null);
@@ -254,11 +254,6 @@ const GraphView: React.FC<GraphViewProps> = ({
 
   const clearFocusedNode = useCallback((cy?: cytoscape.Core | null) => {
     const graph = cy ?? cyRef.current;
-
-    if (focusTimeoutRef.current != null) {
-      window.clearTimeout(focusTimeoutRef.current);
-      focusTimeoutRef.current = null;
-    }
 
     if (focusPulseIntervalRef.current != null) {
       window.clearInterval(focusPulseIntervalRef.current);
@@ -338,14 +333,6 @@ const GraphView: React.FC<GraphViewProps> = ({
         isEmphasized = !isEmphasized;
         node.toggleClass('focus-target-emphasis', isEmphasized);
       }, FOCUS_BLINK_INTERVAL_MS);
-
-      focusTimeoutRef.current = window.setTimeout(() => {
-        if (focusPulseIntervalRef.current != null) {
-          window.clearInterval(focusPulseIntervalRef.current);
-          focusPulseIntervalRef.current = null;
-        }
-        node.addClass('focus-target focus-target-emphasis');
-      }, FOCUS_BLINK_DURATION_MS);
       return true;
     },
     [clearFocusedNode, onFocusHandled],
@@ -577,6 +564,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       cy.on('tap', (evt) => {
         if (evt.target === cy) {
           clearHoveredEdge();
+          onCanvasClick?.();
         }
       });
 
@@ -607,6 +595,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       searchContextEdges,
       clearHoveredEdge,
       updateSelectionState,
+      onCanvasClick,
     ],
   );
 
