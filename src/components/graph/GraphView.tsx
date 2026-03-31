@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CytoscapeComponent from 'react-cytoscapejs';
 import cytoscape, { type ElementDefinition, type LayoutOptions } from 'cytoscape';
 import fcose from 'cytoscape-fcose';
+import dagre from 'cytoscape-dagre';
 import type { NodeData } from './mockGraphData';
 import { attackGraphDefaultLayout, attackGraphStylesheet } from './attackGraph';
 
 cytoscape.use(fcose);
+cytoscape.use(dagre);
 
 interface EdgeData {
   id: string;
