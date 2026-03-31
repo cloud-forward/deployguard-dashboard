@@ -313,17 +313,17 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
 
   const pathItems = [
     {
-      label: 'stats.paths.total',
+      label: 'Total',
       value: stats?.paths?.total,
       description: '엔진이 계산한 전체 경로 수',
     },
     {
-      label: 'stats.paths.returned',
+      label: 'Returned',
       value: stats?.paths?.returned,
       description: '최종 결과에 포함된 경로 수',
     },
     {
-      label: 'summary.attack_path_count',
+      label: 'Attack Path Count',
       value: summary.attack_path_count,
       description: '요약 응답에 반영된 공격 경로 수',
     },
@@ -331,22 +331,22 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
 
   const riskItems = [
     {
-      label: 'max risk_score',
+      label: 'MAX Risk Score',
       value: attackPathScores.length > 0 ? Math.max(...attackPathScores) : null,
       description: 'risk_score: 경로의 종합 위험도 지표',
     },
     {
-      label: 'min risk_score',
+      label: 'MIN Risk Score',
       value: attackPathScores.length > 0 ? Math.min(...attackPathScores) : null,
       description: 'raw_final_risk와 함께 경로 위험 분포를 읽는 기준',
     },
     {
-      label: 'avg risk_score',
+      label: 'AVG Risk Score',
       value: averageRiskScore,
       description: '공격 경로 전반의 평균 위험 수준',
     },
     {
-      label: 'max covered_risk',
+      label: 'MAX Covered Risk',
       value: coveredRiskValues.length > 0 ? Math.max(...coveredRiskValues) : null,
       description: 'covered_risk: 해당 조치로 감소 가능한 위험 규모',
     },
@@ -358,7 +358,7 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
         <h2 className="h6 fw-semibold mb-1" style={{ color: 'var(--text-accent, #93c5fd)' }}>
           분석 해석
         </h2>
-        <p className="text-muted small mb-0">집계값과 경량 계산값으로 결과의 맥락을 짧게 읽습니다.</p>
+        <p className="text-muted small mb-0">집계값과 경량 계산값으로 결과의 맥락을 간략하게 읽습니다.</p>
       </div>
 
       <div className="row g-3">
@@ -393,12 +393,15 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
 
         <div className="col-12 col-xl-4">
           <Card className="h-100">
-            <div className="d-flex flex-column gap-3">
+            <div className="d-flex flex-column gap-3 h-100">
               <div>
                 <h3 className="h6 fw-semibold mb-1">Paths Insight</h3>
                 <p className="text-muted small mb-0">계산된 전체 경로와 실제 결과 반영 경로를 비교합니다.</p>
               </div>
-              <div className="d-flex flex-column gap-3">
+              <p className="text-muted small mb-0">
+                Total은 엔진이 계산한 전체 경로 수이고, Returned는 그중 최종 결과에 포함된 경로 수입니다. Attack Path Count는 현재 상세 화면과 후속 탭에 실제로 반영된 경로를 의미합니다.
+              </p>
+              <div className="d-flex flex-column gap-3 mt-3 mt-xl-5">
                 {pathItems.map((item) => (
                   <div
                     key={item.label}
@@ -416,30 +419,21 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
                   </div>
                 ))}
               </div>
-              <div
-                className="rounded-3 p-3"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div className="text-muted small">
-                  total은 엔진이 계산한 전체 경로 수이고, returned는 그중 최종 결과에 포함된 경로 수입니다.
-                  returned paths는 현재 상세 화면과 후속 탭에 실제로 반영된 경로를 의미합니다.
-                </div>
-              </div>
             </div>
           </Card>
         </div>
 
         <div className="col-12 col-xl-4">
           <Card className="h-100">
-            <div className="d-flex flex-column gap-3">
+            <div className="d-flex flex-column gap-3 h-100">
               <div>
                 <h3 className="h6 fw-semibold mb-1">Risk Signals</h3>
                 <p className="text-muted small mb-0">공격 경로와 선택 권고안에서 읽히는 위험 신호입니다.</p>
               </div>
-              <div className="d-flex flex-column gap-3">
+              <p className="text-muted small mb-0">
+                Risk Score는 경로의 종합 위험도 지표이고, Raw Final Risk는 최종 계산된 리스크 값입니다.
+              </p>
+              <div className="d-flex flex-column gap-3 mt-3 mt-xl-4">
                 {riskItems.map((item) => (
                   <div
                     key={item.label}
@@ -458,17 +452,6 @@ const AnalysisMetricsSection: React.FC<{ result: AnalysisResultResponse }> = ({ 
                     <div className="text-muted small mt-2">{item.description}</div>
                   </div>
                 ))}
-              </div>
-              <div
-                className="rounded-3 p-3"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div className="text-muted small">
-                  risk_score는 경로의 종합 위험도 지표이고, raw_final_risk는 최종 계산된 리스크 값입니다.
-                </div>
               </div>
             </div>
           </Card>
