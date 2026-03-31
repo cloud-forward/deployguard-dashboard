@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Chip from '@mui/material/Chip';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type {
   AnalysisJobDetailResponse,
   AnalysisJobSummaryResponse,
@@ -59,6 +59,8 @@ const isAnalysisJobDetail = (value: unknown): value is AnalysisJobDetailResponse
 
 const RiskPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: clustersData, isLoading: isLoadingClusters } = useListClustersApiV1ClustersGet();
   const clusters = (Array.isArray(clustersData) ? clustersData : []) as ClusterOption[];
@@ -92,6 +94,7 @@ const RiskPage: React.FC = () => {
   }, [selectedClusterId]);
 
   const selectedCluster = clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
+  const detailBackTarget = `${location.pathname}${location.search}${location.hash}`;
 
   const { data: scansData, isLoading: isLoadingScans } =
     useListClusterScansApiV1ClustersClusterIdScansGet(selectedClusterId);
@@ -784,7 +787,12 @@ const RiskPage: React.FC = () => {
                             <button
                               type="button"
                               className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
-                              onClick={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                navigate(`/analysis/jobs/${job.job_id}`, {
+                                  state: { from: detailBackTarget },
+                                });
+                              }}
                             >
                               상세 보기
                             </button>
