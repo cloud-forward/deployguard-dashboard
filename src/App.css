@@ -163,6 +163,86 @@
 }
 
 /* ========================================
+   Login Shell - Dark Theme Overrides
+   ======================================== */
+.dg-login-shell {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  --bs-body-bg: var(--bg-base);
+  --bs-body-color: var(--text-primary);
+  --bs-border-color: var(--border-default);
+  --bs-secondary-color: var(--text-secondary);
+}
+
+.dg-login-shell .card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default) !important;
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+}
+
+.dg-login-shell .form-label {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.dg-login-shell .form-control {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  border-radius: 8px;
+}
+
+.dg-login-shell .form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.dg-login-shell .form-control:focus {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--border-accent-blue);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.dg-login-shell .form-check-input {
+  background-color: rgba(15, 23, 42, 0.6);
+  border-color: var(--border-default);
+}
+
+.dg-login-shell .form-check-input:checked {
+  background-color: var(--status-info);
+  border-color: var(--border-accent-blue);
+}
+
+.dg-login-shell .form-check-label {
+  color: var(--text-secondary);
+}
+
+.dg-login-shell .alert-success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: var(--border-accent-green);
+  color: #86efac;
+}
+
+.dg-login-shell .alert-warning {
+  background: rgba(234, 179, 8, 0.1);
+  border-color: var(--border-accent-yellow);
+  color: #fde047;
+}
+
+.dg-login-shell .alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--border-accent-red);
+  color: #fca5a5;
+}
+
+.dg-login-shell .border-top {
+  border-color: var(--border-subtle) !important;
+}
+
+/* ========================================
    Dashboard Action Buttons - Global Styles
    ======================================== */
 .dg-dashboard-action-btn {
