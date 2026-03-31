@@ -108,8 +108,9 @@ const LoginPage: React.FC = () => {
     <div className="dg-login-shell min-vh-100 d-flex align-items-center justify-content-center px-3">
       <div className="card" style={{ width: '100%', maxWidth: 440 }}>
         <div className="card-body p-4 p-md-5">
-          <div className="mb-4">
-            <h1 className="h3 mb-2 fw-bold">DeployGuard 로그인</h1>
+          <div className="mb-4 text-center">
+            <h1 className="dg-login-brand">DeployGuard</h1>
+            <p className="dg-login-page-title">로그인</p>
             <p className="text-muted mb-0">대시보드에 접근하려면 로그인해야 합니다.</p>
           </div>
 
