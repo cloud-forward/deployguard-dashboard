@@ -760,11 +760,11 @@ const GraphView: React.FC<GraphViewProps> = ({
         >
           <div className="card-body p-2 small">
             <div className="fw-semibold mb-1">{hoveredEdge.edge.relation ?? hoveredEdge.edge.label ?? hoveredEdge.edge.id}</div>
-            <div style={{ color: '#93a8c7' }}>Source</div>
+            <div style={{ color: '#93a8c7' }}>출발</div>
             <div className="text-break mb-1">
               {hoveredEdge.edge.sourceLabel ?? hoveredEdge.edge.source} ({hoveredEdge.edge.source})
             </div>
-            <div style={{ color: '#93a8c7' }}>Target</div>
+            <div style={{ color: '#93a8c7' }}>도착</div>
             <div className="text-break">
               {hoveredEdge.edge.targetLabel ?? hoveredEdge.edge.target} ({hoveredEdge.edge.target})
             </div>
