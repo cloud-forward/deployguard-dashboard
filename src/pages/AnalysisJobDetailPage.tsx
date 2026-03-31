@@ -34,12 +34,52 @@ const normalizeLlmStatus = (value?: string | null) => {
   return value.replace(/_/g, ' ');
 };
 
+const subtleBlueAccent = '#bfdbfe';
+
 const isAttackPathDetail = (value: unknown): value is AttackPathDetailResponse => {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
   return 'edge_ids' in value || 'edges' in value;
+};
+
+const renderPathTitleSegments = (value?: string | null) => {
+  if (!value) {
+    return <span className="text-muted">-</span>;
+  }
+
+  const segments = value
+    .split('->')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    return <span className="text-muted">-</span>;
+  }
+
+  return (
+    <div className="d-flex flex-wrap align-items-center gap-2 small">
+      {segments.map((segment, index) => (
+        <React.Fragment key={`${segment}-${index}`}>
+          {index > 0 ? <span className="text-muted">→</span> : null}
+          <code
+            title={segment}
+            style={{
+              color: subtleBlueAccent,
+              fontSize: '0.76rem',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%',
+            }}
+          >
+            {segment}
+          </code>
+        </React.Fragment>
+      ))}
+    </div>
+  );
 };
 
 // ── micro-components ──────────────────────────────────────────────────────────
@@ -85,6 +125,7 @@ const CompactMetaValue: React.FC<{ value?: string | null }> = ({ value }) => {
       className="d-block"
       title={value}
       style={{
+        color: subtleBlueAccent,
         fontSize: '0.76rem',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
@@ -508,7 +549,7 @@ const OverviewAttackPathsPreview: React.FC<{ result: AnalysisResultResponse }> =
                   </div>
                   <div>
                     <div className="text-muted small mb-1">경로 ID</div>
-                    <code className="d-block" title={item.path_id} style={{ fontSize: '0.78rem', wordBreak: 'break-all' }}>
+                    <code className="d-block" title={item.path_id} style={{ color: subtleBlueAccent, fontSize: '0.78rem', wordBreak: 'break-all' }}>
                       {item.path_id}
                     </code>
                   </div>
@@ -525,13 +566,13 @@ const OverviewAttackPathsPreview: React.FC<{ result: AnalysisResultResponse }> =
                   <div className="d-flex flex-column gap-2 small">
                     <div>
                       <div className="text-muted mb-1">entry_node_id</div>
-                      <code className="d-block" title={item.entry_node_id ?? '-'} style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}>
+                      <code className="d-block" title={item.entry_node_id ?? '-'} style={{ color: subtleBlueAccent, fontSize: '0.76rem', wordBreak: 'break-all' }}>
                         {item.entry_node_id ?? '-'}
                       </code>
                     </div>
                     <div>
                       <div className="text-muted mb-1">target_node_id</div>
-                      <code className="d-block" title={item.target_node_id ?? '-'} style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}>
+                      <code className="d-block" title={item.target_node_id ?? '-'} style={{ color: subtleBlueAccent, fontSize: '0.76rem', wordBreak: 'break-all' }}>
                         {item.target_node_id ?? '-'}
                       </code>
                     </div>
@@ -609,12 +650,14 @@ const OverviewRecommendationsPreview: React.FC<{ result: AnalysisResultResponse 
 
 const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ result }) => {
   const [expandedPathIds, setExpandedPathIds] = React.useState<Record<string, boolean>>({});
+  const [showAll, setShowAll] = React.useState(false);
   const items =
     Array.isArray(result.attack_paths) && result.attack_paths.length > 0
       ? result.attack_paths
       : Array.isArray(result.attack_paths_preview) && result.attack_paths_preview.length > 0
         ? result.attack_paths_preview
         : [];
+  const visibleItems = showAll ? items : items.slice(0, 3);
 
   const toggleExpanded = (pathId: string) => {
     setExpandedPathIds((current) => ({
@@ -634,13 +677,32 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
 
   return (
     <div className="d-flex flex-column gap-3">
-      <div>
-        <h3 className="h6 fw-semibold mb-1">Attack Paths</h3>
-        <p className="text-muted small mb-0">이번 분석 실행에서 결과로 남은 공격 경로를 근거 중심으로 보여줍니다.</p>
+      <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+          <h3 className="h6 fw-semibold mb-1">Attack Paths</h3>
+          <p className="text-muted small mb-0">이번 분석 실행에서 결과로 남은 공격 경로를 근거 중심으로 보여줍니다.</p>
+        </div>
+        {showAll ? (
+          <button
+            type="button"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            onClick={() => setShowAll(false)}
+          >
+            접기
+          </button>
+        ) : items.length > 3 ? (
+          <button
+            type="button"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            onClick={() => setShowAll(true)}
+          >
+            더 보기 (+{items.length - 3}개)
+          </button>
+        ) : null}
       </div>
 
       <div className="d-flex flex-column gap-3">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const isExpanded = Boolean(expandedPathIds[item.path_id]);
           const detailItem = isAttackPathDetail(item) ? item : null;
           const hasDetail = Boolean(
@@ -659,18 +721,20 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                       <RiskLevelBadge level={item.risk_level} />
                       <span className="text-muted small">path_id</span>
                       <code
-                        className="d-inline-block mw-100"
+                        className="d-inline-block"
                         title={item.path_id}
-                        style={{ fontSize: '0.78rem', wordBreak: 'break-all' }}
+                        style={{
+                          color: subtleBlueAccent,
+                          fontSize: '0.78rem',
+                          maxWidth: '20rem',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
                       >
                         {item.path_id}
                       </code>
                     </div>
-                    {'title' in item && item.title ? (
-                      <div className="small fw-semibold text-truncate" title={item.title}>
-                        {item.title}
-                      </div>
-                    ) : null}
                   </div>
 
                   {hasDetail ? (
@@ -684,7 +748,7 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                   ) : null}
                 </div>
 
-                <div className="row g-3 small">
+                <div className="row g-2 small">
                   <div className="col-6 col-lg-2">
                     <div className="text-muted mb-1">risk_score</div>
                     <div className="fw-semibold">{formatNumber(item.risk_score)}</div>
@@ -702,7 +766,13 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                     <code
                       className="d-block"
                       title={item.entry_node_id ?? '-'}
-                      style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}
+                      style={{
+                        color: subtleBlueAccent,
+                        fontSize: '0.76rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
                     >
                       {item.entry_node_id ?? '-'}
                     </code>
@@ -712,7 +782,13 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                     <code
                       className="d-block"
                       title={item.target_node_id ?? '-'}
-                      style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}
+                      style={{
+                        color: subtleBlueAccent,
+                        fontSize: '0.76rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
                     >
                       {item.target_node_id ?? '-'}
                     </code>
@@ -730,7 +806,9 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                     <div className="row g-3">
                       <div className="col-12">
                         <div className="text-muted small mb-1">title</div>
-                        <div className="fw-semibold">{('title' in item && item.title) ? item.title : '-'}</div>
+                        <div className="fw-semibold">
+                          {'title' in item && item.title ? renderPathTitleSegments(item.title) : '-'}
+                        </div>
                       </div>
 
                       <div className="col-12 col-xl-6">
@@ -742,7 +820,7 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                                 key={`${item.path_id}-node-${index}`}
                                 className="d-block"
                                 title={nodeId}
-                                style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}
+                                style={{ color: subtleBlueAccent, fontSize: '0.76rem', wordBreak: 'break-all' }}
                               >
                                 {nodeId}
                               </code>
@@ -762,7 +840,7 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
                                 key={`${item.path_id}-edge-${index}`}
                                 className="d-block"
                                 title={edgeId}
-                                style={{ fontSize: '0.76rem', wordBreak: 'break-all' }}
+                                style={{ color: subtleBlueAccent, fontSize: '0.76rem', wordBreak: 'break-all' }}
                               >
                                 {edgeId}
                               </code>
@@ -799,6 +877,7 @@ const AttackPathsTabContent: React.FC<{ result: AnalysisResultResponse }> = ({ r
           );
         })}
       </div>
+
     </div>
   );
 };
@@ -842,6 +921,7 @@ const RecommendationsTabContent: React.FC<{ result: AnalysisResultResponse }> = 
                       className="d-inline-block"
                       title={item.recommendation_id}
                       style={{
+                        color: subtleBlueAccent,
                         maxWidth: '100%',
                         fontSize: '0.78rem',
                         overflowWrap: 'anywhere',
@@ -914,7 +994,7 @@ const AnalysisResultTabbedSection: React.FC<{ result: AnalysisResultResponse }> 
             <h2 className="h6 fw-semibold mb-1" style={{ color: 'var(--text-accent, #93c5fd)' }}>
               결과 상세
             </h2>
-            <p className="text-muted small mb-0">개요는 요약, 탭은 범주별 결과를 읽는 영역입니다.</p>
+            <p className="text-muted small mb-0">Overview는 전체 개요 요약, Attack Paths와 Recommendations는 범주별 결과를 보여줍니다.</p>
           </div>
           <ul className="nav nav-tabs mb-0">
             <li className="nav-item">
