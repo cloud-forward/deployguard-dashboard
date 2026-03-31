@@ -74,7 +74,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
         const nextMessage =
           typeof detail === 'string' && detail.trim()
             ? detail
-            : 'LLM provider settings could not be saved.';
+            : 'LLM 프로바이더 설정을 저장할 수 없습니다.';
         setErrorMessage(nextMessage);
         setSaveStatus('error');
       },
@@ -102,7 +102,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
   const handleSave = () => {
     if (!apiKey.trim()) {
       setSaveStatus('error');
-      setErrorMessage('API key is required.');
+      setErrorMessage('API 키를 입력해주세요.');
       return;
     }
 
@@ -119,21 +119,21 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
   return createPortal(
     <>
       <div className="modal-backdrop fade show" onClick={onClose} />
-      <div className="modal show d-block" tabIndex={-1} role="dialog" aria-modal="true">
+      <div className="dg-dashboard-shell modal show d-block" tabIndex={-1} role="dialog" aria-modal="true">
         <div className="modal-dialog modal-dialog-centered">
           <div className="modal-content">
             <div className="modal-header">
               <div>
-                <h5 className="modal-title">LLM Settings</h5>
-                <div className="small text-muted">Provider configuration for explanation-backed features</div>
+                <h5 className="modal-title">LLM 설정</h5>
+                <div className="small text-muted">설명 기반 기능을 위한 프로바이더 설정</div>
               </div>
-              <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
+              <button type="button" className="btn-close" aria-label="닫기" onClick={onClose} />
             </div>
             <div className="modal-body">
               <div className="d-flex flex-column gap-3">
                 <div>
                   <label htmlFor="llm-provider-select" className="form-label">
-                    Provider
+                    프로바이더
                   </label>
                   <select
                     id="llm-provider-select"
@@ -151,43 +151,43 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
 
                 <div>
                   <label htmlFor="llm-api-key" className="form-label">
-                    API Key
+                    API 키
                   </label>
                   <input
                     id="llm-api-key"
                     type="password"
                     className="form-control"
                     value={apiKey}
-                    placeholder="Enter provider API key"
+                    placeholder="프로바이더 API 키를 입력하세요"
                     autoComplete="off"
                     onChange={(event) => setApiKey(event.target.value)}
                   />
                 </div>
 
-                <div className="card border-0 bg-light-subtle">
+                <div className="card">
                   <div className="card-body py-3">
-                    <div className="small text-muted mb-2">Current provider status</div>
+                    <div className="small text-muted mb-2">현재 프로바이더 상태</div>
                     {isLoadingConfigs ? (
-                      <div className="small text-muted">Loading current configuration…</div>
+                      <div className="small text-muted">현재 설정을 불러오는 중…</div>
                     ) : isConfigsError ? (
-                      <div className="small text-danger">Current configuration could not be loaded.</div>
+                      <div className="small text-danger">현재 설정을 불러올 수 없습니다.</div>
                     ) : selectedConfig ? (
                       <div className="d-flex flex-column gap-1 small">
-                        <div><strong>Provider:</strong> {formatProviderLabel(selectedConfig.provider)}</div>
-                        <div><strong>API key saved:</strong> {selectedConfig.has_api_key ? 'Yes' : 'No'}</div>
-                        <div><strong>Active:</strong> {selectedConfig.is_active ? 'Yes' : 'No'}</div>
-                        <div><strong>Default model:</strong> {selectedConfig.default_model ?? '-'}</div>
-                        <div><strong>Updated:</strong> {formatDateTime(selectedConfig.updated_at)}</div>
+                        <div><strong>프로바이더:</strong> {formatProviderLabel(selectedConfig.provider)}</div>
+                        <div><strong>API 키 저장됨:</strong> {selectedConfig.has_api_key ? '예' : '아니오'}</div>
+                        <div><strong>활성화:</strong> {selectedConfig.is_active ? '예' : '아니오'}</div>
+                        <div><strong>기본 모델:</strong> {selectedConfig.default_model ?? '-'}</div>
+                        <div><strong>업데이트됨:</strong> {formatDateTime(selectedConfig.updated_at)}</div>
                       </div>
                     ) : (
-                      <div className="small text-muted">No saved configuration for this provider.</div>
+                      <div className="small text-muted">이 프로바이더에 대한 저장된 설정이 없습니다.</div>
                     )}
                   </div>
                 </div>
 
                 {saveStatus === 'success' ? (
                   <div className="alert alert-success mb-0" role="alert">
-                    Provider settings saved.
+                    프로바이더 설정이 저장되었습니다.
                   </div>
                 ) : null}
                 {saveStatus === 'error' && errorMessage ? (
@@ -199,7 +199,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>
-                Close
+                닫기
               </button>
               <button
                 type="button"
@@ -207,7 +207,7 @@ const LlmSettingsModal: React.FC<LlmSettingsModalProps> = ({ isOpen, onClose }) 
                 onClick={handleSave}
                 disabled={saveStatus === 'saving'}
               >
-                {saveStatus === 'saving' ? 'Saving…' : 'Save'}
+                {saveStatus === 'saving' ? '저장 중…' : '저장'}
               </button>
             </div>
           </div>
