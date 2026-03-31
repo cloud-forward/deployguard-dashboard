@@ -126,8 +126,8 @@ const WorkloadSecurityPage: React.FC = () => {
                 )}
               </div>
 
-              <Link to="/clusters" className="btn btn-outline-primary btn-sm mt-auto">
-                Clusters 보기
+              <Link to="/clusters" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary mt-auto">
+                바로가기
               </Link>
             </div>
           </div>
@@ -193,8 +193,8 @@ const WorkloadSecurityPage: React.FC = () => {
                 )}
               </div>
 
-              <Link to="/scans" className="btn btn-outline-primary btn-sm mt-auto">
-                Scans 보기
+              <Link to="/scans" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary mt-auto">
+                바로가기
               </Link>
             </div>
           </div>

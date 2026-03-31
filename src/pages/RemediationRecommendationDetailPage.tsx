@@ -377,7 +377,7 @@ const BlockedPathsSection: React.FC<{ rec: RemediationRecommendationDetailRespon
             <div className="mt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={() => setShowAll((v) => !v)}
               >
                 {showAll ? '목록 줄이기' : `더 보기 (+${total - PATHS_INITIAL}개)`}
@@ -453,7 +453,7 @@ const AiExplanationSection: React.FC<{
         {showGenerateButton && (
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
             onClick={onGenerate}
             disabled={isGenerating}
           >
@@ -706,7 +706,7 @@ const RemediationRecommendationDetailPage: React.FC = () => {
             </div>
             <button
               type="button"
-              className="btn btn-outline-secondary btn-sm"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
               onClick={() => query.refetch()}
             >
               다시 시도
@@ -726,7 +726,7 @@ const RemediationRecommendationDetailPage: React.FC = () => {
             <p className="text-muted small mb-3">
               이 권고사항에 대한 상세 정보가 반환되지 않았습니다.
             </p>
-            <Link to="/remediation" className="btn btn-outline-secondary btn-sm">
+            <Link to="/remediation" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
               목록으로 돌아가기
             </Link>
           </div>
@@ -750,7 +750,7 @@ const RemediationRecommendationDetailPage: React.FC = () => {
             <div className="min-w-0">
               <h1 className="dg-page-title mb-0">권고사항 상세</h1>
             </div>
-            <Link to="/remediation" className="btn btn-outline-secondary btn-sm flex-shrink-0">
+            <Link to="/remediation" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
               ← 목록으로
             </Link>
           </div>

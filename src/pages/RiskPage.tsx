@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Chip from '@mui/material/Chip';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type {
   AnalysisJobDetailResponse,
   AnalysisJobSummaryResponse,
@@ -15,12 +15,8 @@ import {
   useGetAnalysisJobApiV1AnalysisJobsJobIdGet,
   useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet,
 } from '../api/generated/analysis/analysis';
+import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import {
-  getListClustersApiV1ClustersGetQueryKey,
-  useListClustersApiV1ClustersGet,
-} from '../api/generated/clusters/clusters';
-import {
-  getListClusterScansApiV1ClustersClusterIdScansGetQueryKey,
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
 import ClusterFlowNav from '../components/layout/ClusterFlowNav';
@@ -63,6 +59,8 @@ const isAnalysisJobDetail = (value: unknown): value is AnalysisJobDetailResponse
 
 const RiskPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: clustersData, isLoading: isLoadingClusters } = useListClustersApiV1ClustersGet();
   const clusters = (Array.isArray(clustersData) ? clustersData : []) as ClusterOption[];
@@ -96,6 +94,7 @@ const RiskPage: React.FC = () => {
   }, [selectedClusterId]);
 
   const selectedCluster = clusters.find((cluster) => cluster.id === selectedClusterId) ?? null;
+  const detailBackTarget = `${location.pathname}${location.search}${location.hash}`;
 
   const { data: scansData, isLoading: isLoadingScans } =
     useListClusterScansApiV1ClustersClusterIdScansGet(selectedClusterId);
@@ -293,23 +292,6 @@ const RiskPage: React.FC = () => {
     }));
   };
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({
-      queryKey: getListClustersApiV1ClustersGetQueryKey(),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(selectedClusterId),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey(selectedClusterId),
-    });
-    if (activeJobId) {
-      queryClient.invalidateQueries({
-        queryKey: getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryKey(activeJobId),
-      });
-    }
-  };
-
   const handleCreateAndExecute = () => {
     if (selectedCount === 0) {
       setFeedback({
@@ -479,14 +461,6 @@ const RiskPage: React.FC = () => {
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm"
-              onClick={handleRefresh}
-              disabled={!selectedClusterId}
-            >
-              새로 고침
-            </button>
           </div>
         )}
       </div>
@@ -595,7 +569,7 @@ const RiskPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm w-100"
+                    className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100"
                     onClick={handleCreateAndExecute}
                     disabled={
                       !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
@@ -812,8 +786,13 @@ const RiskPage: React.FC = () => {
                           <td className="small dg-risk-job-action">
                             <button
                               type="button"
-                              className="btn btn-outline-light btn-sm"
-                              onClick={(event) => event.stopPropagation()}
+                              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                navigate(`/analysis/jobs/${job.job_id}`, {
+                                  state: { from: detailBackTarget },
+                                });
+                              }}
                             >
                               상세 보기
                             </button>

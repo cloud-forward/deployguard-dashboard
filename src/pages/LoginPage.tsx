@@ -175,7 +175,7 @@ const LoginPage: React.FC = () => {
               </label>
             </div>
 
-            <button type="submit" className="btn btn-primary w-100" disabled={isPending}>
+            <button type="submit" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100" disabled={isPending}>
               {isPending ? '로그인 중…' : '로그인'}
             </button>
           </form>

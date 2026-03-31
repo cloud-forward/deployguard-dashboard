@@ -1,14 +1,15 @@
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import PageLoader from '../components/layout/PageLoader';
 import {
+  useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
-import type { AttackPathListItemResponse, AttackPathListResponse } from '../api/model';
+import type { AttackPathListItemResponse } from '../api/model';
 import { useGetClusterAttackGraph } from '../api/attackGraph';
 import {
   attackGraphDefaultLayout,
@@ -24,15 +25,23 @@ import {
   type AttackGraphResourceType,
   type AttackGraphRiskSeverity,
 } from '../components/graph/attackGraph';
+import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle } from '../components/graph/attackGraph/stylesheet';
 import {
+  getNodeTypeMeta,
+  getThreatLabel,
+  getRiskSortOrder,
   NodeTypeBadge,
   parseAttackPathNode,
   RiskLevelBadge,
+  ThreatTypeBadge,
 } from '../components/graph/attackPathVisuals';
 
 const GraphView = React.lazy(() => import('../components/graph/GraphView'));
 
 const LARGE_GRAPH_THRESHOLD = 180;
+const GRAPH_CONTROLS_MIN_X = 12;
+const GRAPH_CONTROLS_MIN_Y = 12;
+const GRAPH_CONTROLS_DEFAULT_POSITION = { x: 16, y: 12 };
 const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
   nodes: [],
   edges: [],
@@ -41,6 +50,22 @@ const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
 
 type SelectionMode = 'none' | 'path' | 'node' | 'edge';
 type AttackGraphInnerTab = 'graph' | 'attack-paths';
+type AttackGraphDetailValue =
+  | string
+  | number
+  | boolean
+  | null
+  | AttackGraphDetailValue[]
+  | Record<string, unknown>;
+type SearchResultKind = 'node' | 'edge' | 'path';
+
+interface SearchResult {
+  key: string;
+  kind: SearchResultKind;
+  id: string;
+  label: string;
+  focusNodeId: string | null;
+}
 
 interface EdgeData {
   id: string;
@@ -52,6 +77,27 @@ interface EdgeData {
   sourceLabel?: string;
   targetLabel?: string;
 }
+
+const ATTACK_GRAPH_RESOURCE_ICONS: Record<AttackGraphResourceType, string> = {
+  Ingress: '🚪',
+  Pod: '🐳',
+  ServiceAccount: '👤',
+  Role: '🧩',
+  ClusterRole: '🧩',
+  RoleBinding: '🔗',
+  ClusterRoleBinding: '🔗',
+  Secret: '🔒',
+  Service: '🧪',
+  Node: '🖧',
+  ContainerImage: '🧱',
+  IAMRole: '🔑',
+  IAMUser: '👥',
+  EC2Instance: '🖥️',
+  SecurityGroup: '🛡️',
+  S3: '🪣',
+  RDS: '🗄️',
+  Unknown: '❔',
+};
 
 const mapLegacyTypeToAttackGraphType = (nodeType: string): string => {
   if (nodeType === 'S3Bucket') return 'S3';
@@ -84,6 +130,19 @@ const toDisplayLabel = (key: string) =>
     .replace(/_/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+
+const toSearchTokens = (value?: string) =>
+  (value ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+
+const toSearchableString = (...values: Array<string | number | null | undefined>) =>
+  values
+    .filter((value) => value != null && String(value).trim())
+    .map((value) => String(value).toLowerCase())
+    .join(' ');
 
 const coerceAttackGraphApiResponse = (value: unknown): AttackGraphApiResponse => {
   if (!value || typeof value !== 'object') {
@@ -134,6 +193,54 @@ const mapAttackGraphNodeToPanelNode = (node: AttackGraphNode): NodeData => {
   };
 };
 
+const toDetailValue = (value: unknown): AttackGraphDetailValue => {
+  if (value == null) return null;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toDetailValue(item));
+  }
+
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [key, toDetailValue(nestedValue)]),
+    );
+  }
+
+  return String(value);
+};
+
+const toAttackGraphDetailMap = (node: AttackGraphNode | null): Record<string, AttackGraphDetailValue> => {
+  if (!node) return {};
+
+  const rawDetails =
+    typeof node.raw.details === 'object' && node.raw.details !== null ? (node.raw.details as Record<string, unknown>) : {};
+  const rawMetadata =
+    typeof node.raw.metadata === 'object' && node.raw.metadata !== null
+      ? (node.raw.metadata as Record<string, unknown>)
+      : {};
+
+  const merged: Record<string, unknown> = {
+    ...rawDetails,
+    ...rawMetadata,
+  };
+
+  if (typeof node.raw.evidence_count === 'number') {
+    merged.evidence_count = node.raw.evidence_count;
+  }
+
+  if (node.namespace && merged.namespace == null) {
+    merged.namespace = node.namespace;
+  }
+
+  return Object.entries(merged).reduce<Record<string, AttackGraphDetailValue>>((acc, [key, value]) => {
+    acc[toDisplayLabel(key)] = toDetailValue(value);
+    return acc;
+  }, {});
+};
+
 interface AttackGraphContentProps {
   payload: AttackGraphApiResponse;
   filters: AttackGraphFilters;
@@ -144,39 +251,12 @@ interface AttackGraphContentProps {
   liveEvidenceCount?: number | null;
 }
 
-const formatRiskScore = (value?: number | null) => {
+const formatNumber = (value?: number | null) => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '-';
   }
 
-  return value.toFixed(3);
-};
-
-const toNumericRiskScore = (value?: number | null) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
-};
-
-const toNumericHopCount = (value?: number | null) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
-};
-
-const toAttackPathItems = (value: unknown): AttackPathListItemResponse[] => {
-  if (!value || typeof value !== 'object') {
-    return [];
-  }
-
-  const response = value as AttackPathListResponse;
-  return Array.isArray(response.items) ? response.items : [];
+  return value.toLocaleString();
 };
 
 const getHopColor = (count?: number | null) => {
@@ -184,15 +264,24 @@ const getHopColor = (count?: number | null) => {
     return '#94a3b8';
   }
 
-  if (count <= 2) return '#ef4444';
+  if (count >= 2 && count <= 3) return '#ef4444';
+  if (count === 4) return '#f59e0b';
   return '#9ca3af';
+};
+
+const getThreatAccentBorder = (target?: string | null) => {
+  const parsed = parseAttackPathNode(target);
+  const threatTypes = new Set(['iam', 's3', 'rds']);
+  return threatTypes.has(parsed.type) ? getNodeTypeMeta(parsed.type).background : 'transparent';
 };
 
 const PathNodeText: React.FC<{
   value?: string | null;
   compact?: boolean;
-}> = ({ value, compact = false }) => {
+  showThreat?: boolean;
+}> = ({ value, compact = false, showThreat = false }) => {
   const parsed = parseAttackPathNode(value);
+  const threatLabel = showThreat ? getThreatLabel(parsed.type) : null;
 
   return (
     <div className="d-flex align-items-start gap-2" title={parsed.raw} style={{ minWidth: 0 }}>
@@ -212,8 +301,169 @@ const PathNodeText: React.FC<{
         >
           {parsed.name}
         </span>
+        {threatLabel ? <span className="small text-muted">{threatLabel}</span> : null}
       </div>
     </div>
+  );
+};
+
+const AttackPathDetailPanel: React.FC<{
+  clusterId: string;
+  pathId: string | null;
+  enabled: boolean;
+  onClose: () => void;
+}> = ({ clusterId, pathId, enabled, onClose }) => {
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId ?? '', {
+    query: {
+      enabled,
+      retry: false,
+    },
+  });
+
+  const detail =
+    data && typeof data === 'object' && 'path' in data
+      ? data.path ?? null
+      : null;
+  const entryNode = parseAttackPathNode(detail?.entry_node_id);
+  const targetNode = parseAttackPathNode(detail?.target_node_id);
+  const threatAccent = getThreatAccentBorder(detail?.target_node_id);
+  const visibleNodeIds = Array.isArray(detail?.node_ids) ? detail.node_ids.filter((item) => item?.trim()) : [];
+  const visibleEdgeIds = Array.isArray(detail?.edge_ids) ? detail.edge_ids.filter((item) => item?.trim()) : [];
+  const riskScore = formatNumber(detail?.risk_score);
+  const rawFinalRisk = formatNumber(detail?.raw_final_risk);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close attack path detail panel"
+        className="border-0"
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.45)', zIndex: 1040 }}
+      />
+      <aside
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          width: 'min(460px, 100vw)',
+          height: '100vh',
+          zIndex: 1050,
+          overflowY: 'auto',
+          background: '#0f172a',
+          borderLeft: '1px solid rgba(148, 163, 184, 0.18)',
+          boxShadow: '-18px 0 50px rgba(15, 23, 42, 0.4)',
+        }}
+      >
+        <div className="p-4 border-bottom d-flex justify-content-between align-items-start gap-3">
+          <div className="w-100">
+            <div className="small text-uppercase text-muted mb-2">Attack Path Detail</div>
+            {detail ? (
+              <div className="d-flex flex-wrap align-items-center gap-2 text-white">
+                <RiskLevelBadge level={detail.risk_level} />
+                <ThreatTypeBadge type={targetNode.type} />
+                <span className="text-muted small">|</span>
+                <span className="small text-muted">Entry</span>
+                <NodeTypeBadge type={entryNode.type} />
+                <span className="fw-semibold text-break">{entryNode.name}</span>
+                <span className="small text-muted">Target</span>
+                <NodeTypeBadge type={targetNode.type} />
+                <span className="fw-semibold text-break">{targetNode.name}</span>
+              </div>
+            ) : (
+              <h2 className="h4 mb-0 text-white text-break">{pathId ?? 'Selected Path'}</h2>
+            )}
+          </div>
+          <button type="button" className="btn-close btn-close-white" onClick={onClose} />
+        </div>
+
+        <div className="p-4 d-flex flex-column gap-4 text-light">
+          {isLoading ? (
+            <div className="text-muted">Persisted attack path detail loading...</div>
+          ) : isError ? (
+            <div>
+              <div className="alert alert-danger mb-3" role="alert">
+                {toErrorMessage(error, 'Persisted attack path detail could not be loaded.')}
+              </div>
+              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : !detail ? (
+            <div className="text-muted">No persisted attack path detail found.</div>
+          ) : (
+            <>
+              <div
+                className="rounded-4 p-3"
+                style={{
+                  background: 'rgba(15, 23, 42, 0.84)',
+                  border: '1px solid rgba(148, 163, 184, 0.18)',
+                  borderLeft: `2px solid ${threatAccent}`,
+                }}
+              >
+                <div className="small text-muted mb-1">Path ID</div>
+                <code className="d-block small text-break user-select-all" style={{ color: '#cbd5e1' }}>
+                  {detail.path_id}
+                </code>
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-sm-6">
+                  <div className="small text-muted mb-1">Hop Count</div>
+                  <div className="fw-semibold" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                    {detail.hop_count ?? '-'}
+                  </div>
+                </div>
+                {riskScore !== '-' ? (
+                  <div className="col-12 col-sm-6">
+                    <div className="small text-muted mb-1">Risk Score</div>
+                    <div className="fw-semibold">{riskScore}</div>
+                  </div>
+                ) : null}
+                {rawFinalRisk !== '-' ? (
+                  <div className="col-12 col-sm-6">
+                    <div className="small text-muted mb-1">Raw Final Risk</div>
+                    <div className="fw-semibold">{rawFinalRisk}</div>
+                  </div>
+                ) : null}
+              </div>
+
+              {visibleNodeIds.length > 0 ? (
+                <div>
+                  <h3 className="h6 mb-2">Node IDs</h3>
+                  <ol className="mb-0 ps-3 small">
+                    {visibleNodeIds.map((item) => (
+                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                        {item}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+
+              {visibleEdgeIds.length > 0 ? (
+                <div>
+                  <h3 className="h6 mb-2">{`Edge IDs (${visibleEdgeIds.length}개)`}</h3>
+                  <ol className="mb-0 ps-3 small">
+                    {visibleEdgeIds.map((item) => (
+                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                        {item}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </aside>
+    </>
   );
 };
 
@@ -221,6 +471,7 @@ const AttackPathsPanel: React.FC<{
   clusterId: string;
   enabled: boolean;
 }> = ({ clusterId, enabled }) => {
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const {
     data,
     isLoading,
@@ -236,21 +487,24 @@ const AttackPathsPanel: React.FC<{
 
   const items = useMemo(
     () =>
-      [...toAttackPathItems(data)].sort((left, right) => {
-        const scoreDelta = toNumericRiskScore(right.risk_score) - toNumericRiskScore(left.risk_score);
-        if (scoreDelta !== 0) {
-          return scoreDelta;
+      (
+        Array.isArray((data as { items?: AttackPathListItemResponse[] } | undefined)?.items)
+          ? ((data as { items?: AttackPathListItemResponse[] }).items ?? [])
+          : []
+      ).slice().sort((left, right) => {
+        const riskGap = getRiskSortOrder(left.risk_level) - getRiskSortOrder(right.risk_level);
+        if (riskGap !== 0) {
+          return riskGap;
         }
 
-        const hopDelta = toNumericHopCount(right.hop_count) - toNumericHopCount(left.hop_count);
-        if (hopDelta != 0) {
-          return hopDelta;
-        }
-
-        return left.path_id.localeCompare(right.path_id);
+        return (left.hop_count ?? 0) - (right.hop_count ?? 0);
       }),
     [data],
   );
+  const resolvedSelectedPathId =
+    enabled && items.some((item) => item.path_id === selectedPathId) ? selectedPathId : null;
+  const shouldLoadDetail = enabled && Boolean(clusterId) && Boolean(resolvedSelectedPathId);
+  const isAttackPathDetailOpen = Boolean(resolvedSelectedPathId);
 
   if (isLoading) {
     return (
@@ -267,7 +521,7 @@ const AttackPathsPanel: React.FC<{
           <div className="alert alert-danger mb-3" role="alert">
             {toErrorMessage(error, 'Persisted attack paths could not be loaded.')}
           </div>
-          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => refetch()}>
+          <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
             Retry
           </button>
         </div>
@@ -287,62 +541,59 @@ const AttackPathsPanel: React.FC<{
   }
 
   return (
-    <div className="card border-0 shadow-sm">
+    <>
+      <div className="card border-0 shadow-sm">
         <div className="card-body py-3">
           <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
             <div>
               <h2 className="h5 mb-1">Persisted Attack Paths</h2>
-              <p className="text-muted mb-0 small">{items.length} paths sorted by risk score</p>
+              <p className="text-muted mb-0 small">{items.length} paths</p>
             </div>
           </div>
           <div className="table-responsive">
             <table className="table align-middle mb-0 small dg-attack-paths-table">
               <thead className="table-light">
                 <tr>
-                  <th style={{ width: 92 }}>Risk</th>
-                  <th style={{ width: 110 }}>Risk Score</th>
+                  <th>Risk</th>
                   <th>Entry</th>
                   <th>Target</th>
-                  <th style={{ width: 72 }}>Hop</th>
-                  <th style={{ width: 88 }}>Open</th>
+                  <th>Hop</th>
+                  <th>Open</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
+                  const isSelected = item.path_id === resolvedSelectedPathId;
                   const entryNode = parseAttackPathNode(item.entry_node_id);
                   const targetNode = parseAttackPathNode(item.target_node_id);
-                  const hopCount = item.hop_count ?? null;
-                  const isHighRisk = item.risk_level?.toLowerCase() === 'high' || item.risk_level?.toLowerCase() === 'critical';
+                  const hopCount = item.hop_count ?? item.node_ids?.length ?? null;
+                  const threatAccent = getThreatAccentBorder(item.target_node_id);
+                  const isHighRisk = item.risk_level?.toLowerCase() === 'high';
 
                   return (
                     <tr
                       key={item.path_id}
-                      className="dg-attack-path-row"
+                      role="button"
+                      className={isSelected ? 'dg-attack-path-row table-active' : 'dg-attack-path-row'}
+                      onClick={() => setSelectedPathId(item.path_id)}
                       style={{
+                        cursor: 'pointer',
                         backgroundColor: isHighRisk ? 'rgba(239, 68, 68, 0.05)' : undefined,
+                        boxShadow: `inset 2px 0 0 ${threatAccent}`,
                         transition: 'background-color 160ms ease',
                       }}
                     >
                       <td style={{ width: 92 }}>
                         <RiskLevelBadge level={item.risk_level} />
                       </td>
-                      <td>
-                        <span
-                          className="fw-semibold"
-                          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-                          title={item.risk_score != null ? String(item.risk_score) : undefined}
-                        >
-                          {formatRiskScore(item.risk_score)}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: 220 }}>
+                      <td style={{ maxWidth: 240 }}>
                         <div title={entryNode.raw}>
                           <PathNodeText value={item.entry_node_id} compact />
                         </div>
                       </td>
-                      <td style={{ maxWidth: 240 }}>
+                      <td style={{ maxWidth: 260 }}>
                         <div title={targetNode.raw}>
-                          <PathNodeText value={item.target_node_id} compact />
+                          <PathNodeText value={item.target_node_id} compact showThreat />
                         </div>
                       </td>
                       <td
@@ -358,7 +609,8 @@ const AttackPathsPanel: React.FC<{
                       <td>
                         <Link
                           to={`/clusters/${clusterId}/attack-paths/${item.path_id}`}
-                          className="btn btn-outline-secondary btn-sm"
+                          className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                          onClick={(event) => event.stopPropagation()}
                         >
                           Open
                         </Link>
@@ -371,6 +623,15 @@ const AttackPathsPanel: React.FC<{
           </div>
         </div>
       </div>
+      {isAttackPathDetailOpen ? (
+        <AttackPathDetailPanel
+          clusterId={clusterId}
+          pathId={resolvedSelectedPathId}
+          enabled={shouldLoadDetail}
+          onClose={() => setSelectedPathId(null)}
+        />
+      ) : null}
+    </>
   );
 };
 
@@ -383,13 +644,23 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   liveSummary,
   liveEvidenceCount,
 }) => {
-  const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<EdgeData | null>(null);
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [selectedMode, setSelectedMode] = useState<SelectionMode>('none');
+  const [searchNavigationState, setSearchNavigationState] = useState<{ key: string; index: number }>({
+    key: '',
+    index: 0,
+  });
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [controlsPosition, setControlsPosition] = useState(GRAPH_CONTROLS_DEFAULT_POSITION);
+  const [controlsMaxHeight, setControlsMaxHeight] = useState<number>();
+  const graphCardRef = useRef<HTMLDivElement | null>(null);
+  const graphControlsRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const controlsPositionRef = useRef(controlsPosition);
+  const searchStepFocusOnlyRef = useRef(false);
   const attackGraphViewModel = useMemo(() => toAttackGraphViewModel(payload), [payload]);
+  const searchTokens = useMemo(() => toSearchTokens(filters.search), [filters.search]);
 
   const attackGraph = useMemo(() => attackGraphViewModel.graph, [attackGraphViewModel.graph]);
 
@@ -421,8 +692,146 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       ),
     [attackGraph.nodes, attackGraph.paths],
   );
-  const filteredGraph = useMemo(() => filterAttackGraphElements(attackGraph, filters), [attackGraph, filters]);
+  const structuralFilters = useMemo(
+    () => ({
+      ...filters,
+      search: '',
+    }),
+    [filters],
+  );
+  const filteredGraph = useMemo(
+    () => filterAttackGraphElements(attackGraph, structuralFilters),
+    [attackGraph, structuralFilters],
+  );
   const renderedGraph = useMemo(() => filterIsolatedAttackGraphNodes(filteredGraph), [filteredGraph]);
+
+  const searchState = useMemo(() => {
+    const matchedNodeIds = new Set<string>();
+    const matchedEdgeIds = new Set<string>();
+    const matchedPathIds = new Set<string>();
+    const contextNodeIds = new Set<string>();
+    const contextEdgeIds = new Set<string>();
+    const searchResults: SearchResult[] = [];
+
+    if (searchTokens.length === 0) {
+      return {
+        matchedNodeIds: [] as string[],
+        matchedEdgeIds: [] as string[],
+        matchedPathIds: [] as string[],
+        contextNodeIds: [] as string[],
+        contextEdgeIds: [] as string[],
+        searchResults: [] as SearchResult[],
+        focusNodeId: null as string | null,
+        summary: null as string | null,
+      };
+    }
+
+    const matchesTokens = (searchable: string) => searchTokens.every((token) => searchable.includes(token));
+
+    for (const node of renderedGraph.nodes) {
+      const searchable = toSearchableString(
+        node.id,
+        node.label,
+        node.resourceType,
+        node.namespace,
+        ...Object.values(node.details ?? {}),
+      );
+
+      if (matchesTokens(searchable)) {
+        matchedNodeIds.add(node.id);
+        searchResults.push({
+          key: `node:${node.id}`,
+          kind: 'node',
+          id: node.id,
+          label: node.label,
+          focusNodeId: node.id,
+        });
+      }
+    }
+
+    for (const edge of renderedGraph.edges) {
+      const rawMetadata =
+        typeof edge.raw.metadata === 'object' && edge.raw.metadata !== null
+          ? JSON.stringify(edge.raw.metadata)
+          : '';
+      const searchable = toSearchableString(edge.id, edge.label, edge.relationType, rawMetadata);
+
+      if (matchesTokens(searchable)) {
+        matchedEdgeIds.add(edge.id);
+        contextNodeIds.add(edge.source);
+        contextNodeIds.add(edge.target);
+        searchResults.push({
+          key: `edge:${edge.id}`,
+          kind: 'edge',
+          id: edge.id,
+          label: edge.label ?? edge.relationType,
+          focusNodeId: edge.source,
+        });
+      }
+    }
+
+    for (const path of renderedGraph.paths) {
+      const rawPath = path.raw as Record<string, unknown>;
+      const searchable = toSearchableString(
+        path.id,
+        path.label,
+        path.severity,
+        typeof rawPath.path_id === 'string' ? rawPath.path_id : '',
+        typeof rawPath.title === 'string' ? rawPath.title : '',
+        typeof rawPath.summary === 'string' ? rawPath.summary : '',
+      );
+
+      if (matchesTokens(searchable)) {
+        matchedPathIds.add(path.id);
+        path.nodeIds.forEach((id) => matchedNodeIds.add(id));
+        path.edgeIds.forEach((id) => matchedEdgeIds.add(id));
+        searchResults.push({
+          key: `path:${path.id}`,
+          kind: 'path',
+          id: path.id,
+          label: path.label ?? path.id,
+          focusNodeId: path.nodeIds[0] ?? null,
+        });
+      }
+    }
+
+    for (const edge of renderedGraph.edges) {
+      if (matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target)) {
+        contextEdgeIds.add(edge.id);
+        contextNodeIds.add(edge.source);
+        contextNodeIds.add(edge.target);
+      }
+    }
+
+    for (const path of renderedGraph.paths) {
+      if (path.nodeIds.some((id) => matchedNodeIds.has(id)) || path.edgeIds.some((id) => matchedEdgeIds.has(id))) {
+        path.nodeIds.forEach((id) => contextNodeIds.add(id));
+        path.edgeIds.forEach((id) => contextEdgeIds.add(id));
+      }
+    }
+
+    const focusNodeId =
+      searchResults.find((result) => result.focusNodeId)?.focusNodeId ??
+      null;
+
+    const summary =
+      matchedNodeIds.size === 0 && matchedEdgeIds.size === 0 && matchedPathIds.size === 0
+        ? `No live graph matches for "${filters.search?.trim()}".`
+        : `${matchedNodeIds.size} node${matchedNodeIds.size === 1 ? '' : 's'}, ${matchedEdgeIds.size} edge${
+            matchedEdgeIds.size === 1 ? '' : 's'
+          }, ${matchedPathIds.size} path${matchedPathIds.size === 1 ? '' : 's'} matched.`;
+
+    return {
+      matchedNodeIds: [...matchedNodeIds],
+      matchedEdgeIds: [...matchedEdgeIds],
+      matchedPathIds: [...matchedPathIds],
+      contextNodeIds: [...contextNodeIds].filter((id) => !matchedNodeIds.has(id)),
+      contextEdgeIds: [...contextEdgeIds].filter((id) => !matchedEdgeIds.has(id)),
+      searchResults,
+      focusNodeId,
+      summary,
+    };
+  }, [filters.search, renderedGraph.edges, renderedGraph.nodes, renderedGraph.paths, searchTokens]);
 
   const attackPaths = useMemo<AttackGraphPath[]>(() => renderedGraph.paths, [renderedGraph.paths]);
   const filteredElements = useMemo(() => toAttackGraphElements(renderedGraph), [renderedGraph]);
@@ -431,33 +840,20 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const visibleNodeIds = useMemo(() => new Set(renderedGraph.nodes.map((node) => node.id)), [renderedGraph.nodes]);
   const visibleEdgeIds = useMemo(() => new Set(renderedGraph.edges.map((edge) => edge.id)), [renderedGraph.edges]);
   const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
-
-  useEffect(() => {
-    if (selectedPathId && !validPathIds.has(selectedPathId)) {
-      setSelectedPathId(null);
-      if (selectedMode === 'path') {
-        setSelectedMode('none');
-      }
-    }
-
-    if (selectedNodeId && !visibleNodeIds.has(selectedNodeId)) {
-      setSelectedNodeId(null);
-      setSelectedNode(null);
-      if (selectedMode === 'node') {
-        setSelectedMode('none');
-      }
-    }
-
-    if (selectedEdgeId && !visibleEdgeIds.has(selectedEdgeId)) {
-      setSelectedEdgeId(null);
-      setSelectedEdge(null);
-      if (selectedMode === 'edge') {
-        setSelectedMode('none');
-      }
-    }
-  }, [selectedPathId, selectedNodeId, selectedEdgeId, validPathIds, visibleNodeIds, visibleEdgeIds, selectedMode]);
-
-  const selectedPath = useMemo(() => attackPaths.find((path) => path.id === selectedPathId) || null, [attackPaths, selectedPathId]);
+  const resolvedSelectedPathId = hasAttackPaths && selectedPathId && validPathIds.has(selectedPathId) ? selectedPathId : null;
+  const resolvedSelectedNodeId = selectedNodeId && visibleNodeIds.has(selectedNodeId) ? selectedNodeId : null;
+  const resolvedSelectedEdgeId = selectedEdgeId && visibleEdgeIds.has(selectedEdgeId) ? selectedEdgeId : null;
+  const selectedMode: SelectionMode = resolvedSelectedNodeId
+    ? 'node'
+    : resolvedSelectedEdgeId
+    ? 'edge'
+    : resolvedSelectedPathId
+    ? 'path'
+    : 'none';
+  const selectedPath = useMemo(
+    () => attackPaths.find((path) => path.id === resolvedSelectedPathId) || null,
+    [attackPaths, resolvedSelectedPathId],
+  );
 
   const selectedPathNodeIds = selectedMode === 'path' && selectedPath ? selectedPath.nodeIds : [];
   const selectedPathEdgeIds = selectedMode === 'path' && selectedPath ? selectedPath.edgeIds : [];
@@ -496,39 +892,280 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     }
     return map;
   }, [attackGraph.edges, selectedNodeLabelLookup]);
-
-  useEffect(() => {
-    if (!hasAttackPaths) {
-      setSelectedPathId(null);
-      if (selectedMode === 'path') {
-        setSelectedMode('none');
-      }
+  const attackGraphNodeLookup = useMemo(() => {
+    const map = new Map<string, AttackGraphNode>();
+    for (const node of attackGraph.nodes) {
+      map.set(node.id, node);
     }
-  }, [hasAttackPaths, selectedMode]);
-
-  useEffect(() => {
-    if (selectedNodeId) {
-      setSelectedNode(selectedNodeLookup.get(selectedNodeId) ?? null);
-    }
-  }, [selectedNodeId, selectedNodeLookup]);
-
-  useEffect(() => {
-    if (selectedEdgeId) {
-      setSelectedEdge(selectedEdgeLookup.get(selectedEdgeId) ?? null);
-    }
-  }, [selectedEdgeId, selectedEdgeLookup]);
-
-  useEffect(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
-    setSelectedPathId(null);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
-    setSelectedMode('none');
-  }, [payload]);
-
+    return map;
+  }, [attackGraph.nodes]);
+  const selectedNode = resolvedSelectedNodeId ? selectedNodeLookup.get(resolvedSelectedNodeId) ?? null : null;
+  const selectedEdge = resolvedSelectedEdgeId ? selectedEdgeLookup.get(resolvedSelectedEdgeId) ?? null : null;
   const shouldShowNodeDetails = selectedMode === 'node' && selectedNode;
   const shouldShowEdgeDetails = selectedMode === 'edge' && selectedEdge;
+  const selectedAttackGraphNode = resolvedSelectedNodeId ? attackGraphNodeLookup.get(resolvedSelectedNodeId) ?? null : null;
+  const selectedNodeDetails = useMemo(
+    () => toAttackGraphDetailMap(selectedAttackGraphNode),
+    [selectedAttackGraphNode],
+  );
+  const selectedNodeVisual = selectedAttackGraphNode
+    ? getAttackGraphNodeTypeStyle(selectedAttackGraphNode.resourceType)
+    : null;
+  const selectedEdgeVisual = selectedEdge ? getAttackGraphEdgeVisualStyle(selectedEdge.relation) : null;
+  const selectedEdgeDetails = useMemo<Record<string, AttackGraphDetailValue>>(() => {
+    if (!selectedEdge) {
+      return {};
+    }
+
+    const edgeDetails: Record<string, AttackGraphDetailValue> = {
+      Relation: selectedEdge.relation || 'n/a',
+      Source: `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`,
+      Target: `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`,
+      Label: selectedEdge.label || selectedEdge.id,
+      Reason: selectedEdge.reason || 'n/a',
+    };
+
+    return edgeDetails;
+  }, [selectedEdge]);
+  const selectedEdgePanelNode = useMemo<NodeData | null>(
+    () =>
+      selectedEdge
+        ? {
+            id: selectedEdge.id,
+            label: selectedEdge.label || selectedEdge.relation || selectedEdge.id,
+            type: 'Pod',
+            details: {},
+            blastRadius: {
+              pods: 0,
+              secrets: 0,
+              databases: 0,
+              adminPrivilege: false,
+            },
+          }
+        : null,
+    [selectedEdge],
+  );
+  const searchNavigationKey = useMemo(
+    () => `${filters.search ?? ''}::${searchState.searchResults.map((result) => result.key).join('|')}`,
+    [filters.search, searchState.searchResults],
+  );
+  const resolvedSearchResultIndex =
+    searchState.searchResults.length === 0
+      ? 0
+      : searchNavigationState.key === searchNavigationKey
+      ? Math.min(searchNavigationState.index, searchState.searchResults.length - 1)
+      : 0;
+  const activeSearchResult =
+    searchState.searchResults.length > 0
+      ? searchState.searchResults[resolvedSearchResultIndex] ?? searchState.searchResults[0]
+      : null;
+  const searchNavigator = activeSearchResult
+    ? {
+        current: resolvedSearchResultIndex + 1,
+        total: searchState.searchResults.length,
+        currentLabel: `${activeSearchResult.kind} · ${activeSearchResult.label}`,
+      }
+    : null;
+  const focusRequestKey =
+    !resolvedSelectedNodeId &&
+    !resolvedSelectedEdgeId &&
+    searchTokens.length > 0 &&
+    (activeSearchResult?.focusNodeId ?? searchState.focusNodeId)
+      ? `${searchTokens.join(':')}::${activeSearchResult?.key ?? 'search'}::${resolvedSearchResultIndex}::${
+          activeSearchResult?.focusNodeId ?? searchState.focusNodeId
+        }::${searchState.matchedNodeIds.length}::${searchState.matchedEdgeIds.length}`
+      : null;
+  const focusSearchResult = useCallback(
+    (direction: 1 | -1) => {
+      if (searchState.searchResults.length === 0) {
+        return;
+      }
+
+      searchStepFocusOnlyRef.current = true;
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      setSelectedPathId(null);
+      setSearchNavigationState((current) => {
+        const total = searchState.searchResults.length;
+        const currentIndex =
+          current.key === searchNavigationKey ? Math.min(current.index, total - 1) : 0;
+
+        return {
+          key: searchNavigationKey,
+          index: (currentIndex + direction + total) % total,
+        };
+      });
+    },
+    [searchNavigationKey, searchState.searchResults.length],
+  );
+  const handleGraphNodeClick = useCallback(
+    (node: NodeData) => {
+      searchStepFocusOnlyRef.current = false;
+      const nextNodeId = node.id ? String(node.id) : null;
+      setSelectedNodeId((current) => (current === nextNodeId ? null : nextNodeId));
+      setSelectedEdgeId(null);
+      setSelectedPathId(null);
+    },
+    [],
+  );
+  const handleGraphEdgeClick = useCallback((edge: EdgeData) => {
+    searchStepFocusOnlyRef.current = false;
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+    setSelectedPathId(null);
+  }, []);
+  const handleSearchFocusHandled = useCallback(
+    ({ found, nodeId }: { found: boolean; nodeId: string }) => {
+      const isNavigatorStepFocus = searchStepFocusOnlyRef.current;
+      searchStepFocusOnlyRef.current = false;
+
+      if (!found || !nodeId || searchTokens.length === 0 || resolvedSelectedPathId) {
+        return;
+      }
+
+      if (isNavigatorStepFocus) {
+        return;
+      }
+
+      setSelectedPathId(null);
+      setSelectedEdgeId(null);
+      setSelectedNodeId((current) => (current === nodeId ? current : nodeId));
+    },
+    [resolvedSelectedPathId, searchTokens.length],
+  );
+  const clampControlsPosition = useCallback(
+    (
+      nextPosition: { x: number; y: number },
+      options?: {
+        cardWidth?: number;
+        cardHeight?: number;
+        overlayWidth?: number;
+        overlayHeight?: number;
+      },
+    ) => {
+      const card = graphCardRef.current;
+      const overlay = graphControlsRef.current;
+      const cardWidth = options?.cardWidth ?? card?.clientWidth ?? 0;
+      const cardHeight = options?.cardHeight ?? card?.clientHeight ?? 0;
+      const overlayWidth = options?.overlayWidth ?? overlay?.offsetWidth ?? (controlsCollapsed ? 224 : 368);
+      const overlayHeight = options?.overlayHeight ?? overlay?.offsetHeight ?? (controlsCollapsed ? 72 : 360);
+
+      if (cardWidth <= 0 || cardHeight <= 0) {
+        return nextPosition;
+      }
+
+      const maxX = Math.max(GRAPH_CONTROLS_MIN_X, cardWidth - overlayWidth - GRAPH_CONTROLS_MIN_X);
+      const maxY = Math.max(GRAPH_CONTROLS_MIN_Y, cardHeight - overlayHeight - GRAPH_CONTROLS_MIN_Y);
+
+      return {
+        x: Math.min(Math.max(GRAPH_CONTROLS_MIN_X, nextPosition.x), maxX),
+        y: Math.min(Math.max(GRAPH_CONTROLS_MIN_Y, nextPosition.y), maxY),
+      };
+    },
+    [controlsCollapsed],
+  );
+
+  useEffect(() => {
+    controlsPositionRef.current = controlsPosition;
+  }, [controlsPosition]);
+
+  useEffect(() => {
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const updateOverlayBounds = () => {
+      const overlay = graphControlsRef.current;
+      const cardWidth = card.clientWidth;
+      const cardHeight = card.clientHeight;
+      const overlayWidth = overlay?.offsetWidth ?? (controlsCollapsed ? 224 : 368);
+      const overlayHeight = overlay?.offsetHeight ?? (controlsCollapsed ? 72 : 360);
+      const clamped = clampControlsPosition(controlsPositionRef.current, {
+        cardWidth,
+        cardHeight,
+        overlayWidth,
+        overlayHeight,
+      });
+
+      setControlsPosition((current) =>
+        current.x === clamped.x && current.y === clamped.y ? current : clamped,
+      );
+      setControlsMaxHeight(Math.max(208, cardHeight - clamped.y - GRAPH_CONTROLS_MIN_Y));
+    };
+
+    updateOverlayBounds();
+
+    const observer = new ResizeObserver(() => {
+      updateOverlayBounds();
+    });
+
+    observer.observe(card);
+    if (graphControlsRef.current) {
+      observer.observe(graphControlsRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [clampControlsPosition, controlsCollapsed]);
+
+  useEffect(() => {
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    setControlsMaxHeight(Math.max(208, card.clientHeight - controlsPosition.y - GRAPH_CONTROLS_MIN_Y));
+  }, [controlsPosition.y]);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const card = graphCardRef.current;
+      const dragOffset = dragOffsetRef.current;
+      if (!card || !dragOffset) {
+        return;
+      }
+
+      const rect = card.getBoundingClientRect();
+      const next = clampControlsPosition({
+        x: event.clientX - rect.left - dragOffset.x,
+        y: event.clientY - rect.top - dragOffset.y,
+      });
+
+      setControlsPosition(next);
+    };
+
+    const handleMouseUp = () => {
+      dragOffsetRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [clampControlsPosition]);
+
+  const handleControlsDragStart = useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const card = graphCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const rect = card.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - rect.left - controlsPosition.x,
+      y: event.clientY - rect.top - controlsPosition.y,
+    };
+    event.preventDefault();
+  }, [controlsPosition.x, controlsPosition.y]);
 
   return (
     <>
@@ -549,127 +1186,111 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         </div>
       ) : null}
 
-      <div className="card border-0 shadow-sm mb-1">
-        <div className="card-body py-1 px-2">
+      <div
+        className="card border-0 shadow-sm dg-attack-graph-canvas-card"
+        style={{ position: 'relative', overflow: 'visible' }}
+        ref={graphCardRef}
+      >
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          {hasRenderableGraph ? (
+            <Suspense fallback={<PageLoader label="공격 그래프를 준비하는 중..." minHeight="100%" compact />}>
+              <GraphView
+                showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
+                elements={filteredElements}
+                layout={attackGraphDefaultLayout}
+                focusNodeId={!resolvedSelectedNodeId && !resolvedSelectedEdgeId ? activeSearchResult?.focusNodeId ?? searchState.focusNodeId : null}
+                focusRequestKey={focusRequestKey}
+                onFocusHandled={handleSearchFocusHandled}
+                selectedPathNodeIds={selectedPathNodeIds}
+                selectedPathEdgeIds={selectedPathEdgeIds}
+                selectedNodeId={resolvedSelectedNodeId}
+                selectedEdgeId={resolvedSelectedEdgeId}
+                searchMatchedNodeIds={searchState.matchedNodeIds}
+                searchMatchedEdgeIds={searchState.matchedEdgeIds}
+                searchContextNodeIds={searchState.contextNodeIds}
+                searchContextEdgeIds={searchState.contextEdgeIds}
+                onNodeClick={handleGraphNodeClick}
+                onEdgeClick={handleGraphEdgeClick}
+              />
+            </Suspense>
+          ) : (
+            <div className="d-flex flex-column justify-content-center align-items-center h-100 text-center px-4">
+              <strong className="mb-2">{emptyStateTitle}</strong>
+              <p className="text-muted mb-0 small">{emptyStateBody}</p>
+            </div>
+          )}
+        </div>
+        <div
+          className="dg-attack-graph-controls-overlay"
+          ref={graphControlsRef}
+          style={{
+            left: controlsPosition.x,
+            top: controlsPosition.y,
+          }}
+        >
           <GraphFilters
             filters={filters}
             availableResourceTypes={availableResourceTypes}
             availableEdgeRelations={availableEdgeRelations}
             availableSeverities={availableSeverities}
             onFiltersChange={onFiltersChange}
+            searchSummary={searchState.summary}
+            searchNavigator={searchNavigator}
+            onPreviousSearchResult={() => focusSearchResult(-1)}
+            onNextSearchResult={() => focusSearchResult(1)}
+            collapsed={controlsCollapsed}
+            onToggleCollapsed={() => setControlsCollapsed((current) => !current)}
+            onDragHandleMouseDown={handleControlsDragStart}
+            bodyMaxHeight={controlsMaxHeight}
           />
         </div>
-      </div>
-
-      <div
-        className="card dg-attack-graph-canvas-card"
-        style={{ position: 'relative', overflow: 'hidden' }}
-      >
-        {hasRenderableGraph ? (
-          <Suspense fallback={<PageLoader label="공격 그래프를 준비하는 중..." minHeight="100%" compact />}>
-            <GraphView
-              showLabels={renderedGraph.nodes.length + renderedGraph.edges.length <= LARGE_GRAPH_THRESHOLD}
-              elements={filteredElements}
-              layout={attackGraphDefaultLayout}
-              selectedPathNodeIds={selectedPathNodeIds}
-              selectedPathEdgeIds={selectedPathEdgeIds}
-              selectedNodeId={selectedNodeId}
-              selectedEdgeId={selectedEdgeId}
-              onNodeClick={(node) => {
-                const nextNodeId = node.id ? String(node.id) : null;
-                const clicked = nextNodeId ? selectedNodeLookup.get(nextNodeId) ?? null : null;
-                setSelectedNode(clicked);
-                setSelectedNodeId(nextNodeId);
-                setSelectedEdgeId(null);
-                setSelectedEdge(null);
-                setSelectedPathId(null);
-                setSelectedMode(nextNodeId ? 'node' : 'none');
-              }}
-              onEdgeClick={(edge) => {
-                const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
-                setSelectedEdge(clicked);
-                setSelectedEdgeId(clicked.id);
-                setSelectedNodeId(null);
-                setSelectedNode(null);
-                setSelectedPathId(null);
-                setSelectedMode('edge');
-              }}
-            />
-          </Suspense>
-        ) : (
-          <div className="d-flex flex-column justify-content-center align-items-center h-100 text-center px-4">
-            <strong className="mb-2">{emptyStateTitle}</strong>
-            <p className="text-muted mb-0 small">{emptyStateBody}</p>
-          </div>
-        )}
         {shouldShowNodeDetails ? (
-          <div style={{ position: 'absolute', top: 12, right: 16, width: 300, zIndex: 10 }}>
+          <div style={{ position: 'absolute', top: 12, right: 16, bottom: 12, width: 340, zIndex: 10, display: 'flex', minHeight: 0 }}>
             <NodeDetailPanel
               node={selectedNode}
               onClose={() => {
-                setSelectedMode('none');
-                setSelectedNode(null);
                 setSelectedNodeId(null);
               }}
+              tone="dark"
+              panelTitle="Node Detail"
+              panelDescription="Selected node details"
+              accentColor={selectedNodeVisual?.backgroundColor}
+              icon={selectedAttackGraphNode ? ATTACK_GRAPH_RESOURCE_ICONS[selectedAttackGraphNode.resourceType] : undefined}
+              typeLabel={selectedAttackGraphNode?.resourceType}
+              details={selectedNodeDetails}
               style={{
                 position: 'relative',
                 top: 0,
                 right: 0,
+                height: '100%',
+                maxHeight: '100%',
               }}
             />
           </div>
         ) : null}
         {shouldShowEdgeDetails ? (
-          <div
-            className="card shadow"
-            style={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              width: 300,
-              zIndex: 10,
-            }}
-          >
-            <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-              <strong>Edge Detail</strong>
-              <button
-                type="button"
-                className="btn-close btn-close-white"
-                aria-label="Close"
-                onClick={() => {
-                  setSelectedMode('none');
-                  setSelectedEdge(null);
-                  setSelectedEdgeId(null);
-                }}
-              />
-            </div>
-            <div className="card-body">
-              <p className="small text-muted mb-3">Selected edge details</p>
-              <table className="table table-sm table-borderless mb-0">
-                <tbody>
-                  <tr>
-                    <td className="text-muted fw-semibold">Relation</td>
-                    <td>{selectedEdge?.relation || 'n/a'}</td>
-                  </tr>
-                  <tr>
-                    <td className="text-muted fw-semibold">Source</td>
-                    <td>{selectedEdge ? `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})` : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td className="text-muted fw-semibold">Target</td>
-                    <td>{selectedEdge ? `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})` : '-'}</td>
-                  </tr>
-                  <tr>
-                    <td className="text-muted fw-semibold">Label</td>
-                    <td>{selectedEdge?.label || selectedEdge?.id}</td>
-                  </tr>
-                  <tr>
-                    <td className="text-muted fw-semibold">Reason</td>
-                    <td>{selectedEdge?.reason || 'n/a'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+          <div style={{ position: 'absolute', top: 12, right: 16, bottom: 12, width: 340, zIndex: 10, display: 'flex', minHeight: 0 }}>
+            <NodeDetailPanel
+              node={selectedEdgePanelNode}
+              onClose={() => {
+                setSelectedEdgeId(null);
+              }}
+              tone="dark"
+              panelTitle="Edge Detail"
+              panelDescription="Selected edge details"
+              subjectLabel={selectedEdge?.relation || selectedEdge?.label || selectedEdge?.id}
+              accentColor={selectedEdgeVisual?.lineColor ?? '#93c5fd'}
+              icon="↗"
+              typeLabel="Relation"
+              details={selectedEdgeDetails}
+              style={{
+                position: 'relative',
+                top: 0,
+                right: 0,
+                height: '100%',
+                maxHeight: '100%',
+              }}
+            />
           </div>
         ) : null}
       </div>
@@ -678,6 +1299,12 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         <span className="text-muted small">
           <strong>{filteredGraph.nodes.length}</strong> nodes / <strong>{filteredGraph.edges.length}</strong> edges
         </span>
+        {searchTokens.length > 0 ? (
+          <span className="text-muted small">
+            Search:
+            <strong>{` ${searchState.matchedNodeIds.length} node / ${searchState.matchedEdgeIds.length} edge / ${searchState.matchedPathIds.length} path`}</strong>
+          </span>
+        ) : null}
         <span className="text-muted small">
           Mode: <strong>{selectedMode}</strong>
           {selectedMode === 'node' && selectedNode ? ` / node ${selectedNode.label}` : null}
@@ -693,7 +1320,7 @@ const AttackGraphPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
   const [activeTab, setActiveTab] = useState<AttackGraphInnerTab>('graph');
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
-  const [selectedClusterId, setSelectedClusterId] = useState('');
+  const [selectedClusterId, setSelectedClusterId] = useState(routeClusterId);
 
   const {
     data: clustersResponse,
@@ -709,11 +1336,6 @@ const AttackGraphPage: React.FC = () => {
       })),
     [clustersResponse],
   );
-  useEffect(() => {
-    if (routeClusterId) {
-      setSelectedClusterId(routeClusterId);
-    }
-  }, [routeClusterId]);
 
   const activeClusterId =
     (routeClusterId && clusters.some((cluster) => cluster.id === routeClusterId)
@@ -745,6 +1367,22 @@ const AttackGraphPage: React.FC = () => {
         }
         .dg-attack-graph-page .dg-attack-graph-canvas-card {
           height: var(--dg-attack-graph-canvas-height);
+          background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.12), transparent 34%),
+            linear-gradient(180deg, rgba(10, 20, 40, 0.98) 0%, rgba(8, 15, 32, 0.98) 100%);
+          border: 1px solid rgba(96, 165, 250, 0.08);
+        }
+        .dg-attack-graph-page .dg-attack-graph-controls-overlay {
+          position: absolute;
+          z-index: 12;
+          max-width: min(25rem, calc(100% - 24px));
+        }
+        .dg-attack-graph-page .dg-attack-graph-canvas-card .card-body {
+          background: transparent;
+        }
+        .dg-attack-graph-page .form-control::placeholder {
+          color: #6b7d99;
         }
         @media (max-width: 991.98px) {
           .dg-attack-graph-page {
@@ -754,6 +1392,9 @@ const AttackGraphPage: React.FC = () => {
         @media (max-width: 767.98px) {
           .dg-attack-graph-page {
             --dg-attack-graph-canvas-height: 30rem;
+          }
+          .dg-attack-graph-page .dg-attack-graph-controls-overlay {
+            max-width: calc(100% - 24px);
           }
         }
       `}</style>
@@ -806,7 +1447,7 @@ const AttackGraphPage: React.FC = () => {
               ) : (
                 clusters.map((cluster) => (
                   <option key={cluster.id} value={cluster.id}>
-                    {cluster.name} ({cluster.id})
+                    {cluster.name}
                   </option>
                 ))
               )}
@@ -859,4 +1500,3 @@ const AttackGraphPage: React.FC = () => {
 };
 
 export default AttackGraphPage;
-

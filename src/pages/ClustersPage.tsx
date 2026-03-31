@@ -324,7 +324,7 @@ const ClustersPage: React.FC = () => {
                     <p className="dg-page-description">연결된 클러스터를 관리합니다</p>
                 </div>
                 <button
-                    className="btn btn-primary"
+                    className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
                     onClick={handleCreate}
                     disabled={isCreating}
                 >
@@ -399,7 +399,7 @@ const ClustersPage: React.FC = () => {
                                             <td className="text-end">
                                                 <div className="d-inline-flex gap-2">
                                                     <button
-                                                        className="btn btn-sm btn-outline-success"
+                                                        className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             handleScanNow(cluster);
@@ -414,7 +414,7 @@ const ClustersPage: React.FC = () => {
                                                             : '스캔 요청'}
                                                     </button>
                                                     <button
-                                                        className="btn btn-sm btn-outline-secondary"
+                                                        className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             handleEdit(cluster);
@@ -423,7 +423,7 @@ const ClustersPage: React.FC = () => {
                                                         편집
                                                     </button>
                                                     <button
-                                                        className="btn btn-sm btn-outline-danger"
+                                                        className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--danger"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             handleDelete(cluster);

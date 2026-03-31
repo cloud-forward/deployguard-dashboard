@@ -176,8 +176,8 @@ const RiskOptimizationPage: React.FC = () => {
                 <AnalysisPreview clusterId={firstClusterId} />
               </div>
 
-              <Link to="/risk" className="btn btn-outline-primary btn-sm mt-auto">
-                Analysis로 이동
+              <Link to="/risk" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary">
+                바로가기
               </Link>
             </div>
           </div>
@@ -210,8 +210,8 @@ const RiskOptimizationPage: React.FC = () => {
                 <RemediationPreview clusterId={firstClusterId} />
               </div>
 
-              <Link to="/remediation" className="btn btn-outline-primary btn-sm mt-auto">
-                Remediation으로 이동
+              <Link to="/remediation" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary">
+                바로가기
               </Link>
             </div>
           </div>
