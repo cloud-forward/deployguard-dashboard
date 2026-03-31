@@ -293,23 +293,6 @@ const RiskPage: React.FC = () => {
     }));
   };
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({
-      queryKey: getListClustersApiV1ClustersGetQueryKey(),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListClusterScansApiV1ClustersClusterIdScansGetQueryKey(selectedClusterId),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGetQueryKey(selectedClusterId),
-    });
-    if (activeJobId) {
-      queryClient.invalidateQueries({
-        queryKey: getGetAnalysisJobApiV1AnalysisJobsJobIdGetQueryKey(activeJobId),
-      });
-    }
-  };
-
   const handleCreateAndExecute = () => {
     if (selectedCount === 0) {
       setFeedback({
