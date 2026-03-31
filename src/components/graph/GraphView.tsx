@@ -30,6 +30,10 @@ interface GraphViewProps {
   selectedPathEdgeIds: string[];
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  searchMatchedNodeIds?: string[];
+  searchMatchedEdgeIds?: string[];
+  searchContextNodeIds?: string[];
+  searchContextEdgeIds?: string[];
   showLabels?: boolean;
   onNodeClick: (node: NodeData) => void;
   onEdgeClick: (edge: EdgeData) => void;
@@ -42,7 +46,16 @@ const getLayoutPadding = (layout: LayoutOptions): number => {
 
 const FOCUS_BLINK_INTERVAL_MS = 600;
 const FOCUS_BLINK_DURATION_MS = 6000;
-const FOCUS_TARGET_ZOOM = 1.1;
+const FOCUS_TARGET_ZOOM = 1.08;
+const FOCUS_REPEAT_ZOOM_DELTA = 0.08;
+const FOCUS_MAX_KICK_ZOOM = 1.18;
+const FOCUS_ANIMATION_DURATION_MS = 520;
+const MIN_GRAPH_ZOOM = 0.16;
+const MAX_GRAPH_ZOOM = 2.6;
+const MIN_FIT_PADDING = 120;
+type ChainDepthClass = 'chain-depth-1' | 'chain-depth-2' | 'chain-depth-3plus';
+const SELECTION_STATE_CLASSES =
+  'dimmed path-active selected-node selected-edge search-match search-dimmed search-context context-dimmed selected-neighborhood-edge selected-neighbor selected-chain-node selected-chain-edge chain-depth-1 chain-depth-2 chain-depth-3plus';
 
 const normalizeSelectionSet = (ids: string[] | null | undefined): Set<string> => {
   return new Set(Array.isArray(ids) ? ids : []);
@@ -52,6 +65,97 @@ const toNodeType = (value: unknown): NodeData['type'] => {
   const type = String(value);
   if (type === 'S3') return 'S3Bucket';
   return (type as NodeData['type']) || 'Pod';
+};
+
+const getChainDepthClass = (depth: number): ChainDepthClass => {
+  if (depth <= 1) return 'chain-depth-1';
+  if (depth === 2) return 'chain-depth-2';
+  return 'chain-depth-3plus';
+};
+
+const mergeDepth = (target: Map<string, number>, source: Map<string, number>) => {
+  source.forEach((depth, id) => {
+    const currentDepth = target.get(id);
+    if (currentDepth == null || depth < currentDepth) {
+      target.set(id, depth);
+    }
+  });
+};
+
+const collectDirectionalChain = (
+  startNode: cytoscape.NodeSingular,
+  direction: 'out' | 'in',
+): {
+  nodeDepths: Map<string, number>;
+  edgeDepths: Map<string, number>;
+} => {
+  const nodeDepths = new Map<string, number>();
+  const edgeDepths = new Map<string, number>();
+  const visited = new Set<string>([startNode.id()]);
+  const queue: Array<{ node: cytoscape.NodeSingular; depth: number }> = [{ node: startNode, depth: 0 }];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    const edges = direction === 'out' ? current.node.outgoers('edge') : current.node.incomers('edge');
+    edges.forEach((edge) => {
+      const nextNode = direction === 'out' ? edge.target() : edge.source();
+      if (nextNode.empty()) {
+        return;
+      }
+
+      const nextDepth = current.depth + 1;
+      const currentEdgeDepth = edgeDepths.get(edge.id());
+      if (currentEdgeDepth == null || nextDepth < currentEdgeDepth) {
+        edgeDepths.set(edge.id(), nextDepth);
+      }
+
+      const currentNodeDepth = nodeDepths.get(nextNode.id());
+      if (currentNodeDepth == null || nextDepth < currentNodeDepth) {
+        nodeDepths.set(nextNode.id(), nextDepth);
+      }
+
+      if (!visited.has(nextNode.id())) {
+        visited.add(nextNode.id());
+        queue.push({ node: nextNode, depth: nextDepth });
+      }
+    });
+  }
+
+  return { nodeDepths, edgeDepths };
+};
+
+const collectSelectedChain = (
+  cy: cytoscape.Core,
+  selectedNodeId: string,
+): {
+  nodeDepths: Map<string, number>;
+  edgeDepths: Map<string, number>;
+} => {
+  const startNode = cy.getElementById(selectedNodeId);
+  if (startNode.empty() || !startNode.isNode()) {
+    return {
+      nodeDepths: new Map<string, number>(),
+      edgeDepths: new Map<string, number>(),
+    };
+  }
+
+  const outgoing = collectDirectionalChain(startNode, 'out');
+  const incoming = collectDirectionalChain(startNode, 'in');
+  const nodeDepths = new Map<string, number>();
+  const edgeDepths = new Map<string, number>();
+
+  mergeDepth(nodeDepths, outgoing.nodeDepths);
+  mergeDepth(nodeDepths, incoming.nodeDepths);
+  mergeDepth(edgeDepths, outgoing.edgeDepths);
+  mergeDepth(edgeDepths, incoming.edgeDepths);
+
+  nodeDepths.delete(selectedNodeId);
+
+  return { nodeDepths, edgeDepths };
 };
 
 const GraphView: React.FC<GraphViewProps> = ({
@@ -67,6 +171,10 @@ const GraphView: React.FC<GraphViewProps> = ({
   selectedPathEdgeIds,
   selectedNodeId,
   selectedEdgeId,
+  searchMatchedNodeIds = [],
+  searchMatchedEdgeIds = [],
+  searchContextNodeIds = [],
+  searchContextEdgeIds = [],
   showLabels = true,
   onNodeClick,
   onEdgeClick,
@@ -103,12 +211,15 @@ const GraphView: React.FC<GraphViewProps> = ({
 
   const pathNodeIds = normalizeSelectionSet(selectedPathNodeIds);
   const pathEdgeIds = normalizeSelectionSet(selectedPathEdgeIds);
+  const searchNodeIds = normalizeSelectionSet(searchMatchedNodeIds);
+  const searchEdgeIds = normalizeSelectionSet(searchMatchedEdgeIds);
+  const searchContextNodes = normalizeSelectionSet(searchContextNodeIds);
+  const searchContextEdges = normalizeSelectionSet(searchContextEdgeIds);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const focusTimeoutRef = useRef<number | null>(null);
   const focusPulseIntervalRef = useRef<number | null>(null);
-  const focusAnimationDelayRef = useRef<number | null>(null);
   const focusedNodeIdRef = useRef<string | null>(null);
   const handledFocusKeyRef = useRef<string | null>(null);
   const completedFocusKeyRef = useRef<string | null>(null);
@@ -117,6 +228,9 @@ const GraphView: React.FC<GraphViewProps> = ({
     edge: EdgeData;
     position: { x: number; y: number };
   } | null>(null);
+  const clearHoveredEdge = useCallback(() => {
+    setHoveredEdge(null);
+  }, []);
   const nodeLookup = useMemo(() => {
     const map = new Map<string, { id: string; label: string }>();
 
@@ -149,11 +263,6 @@ const GraphView: React.FC<GraphViewProps> = ({
       focusPulseIntervalRef.current = null;
     }
 
-    if (focusAnimationDelayRef.current != null) {
-      window.clearTimeout(focusAnimationDelayRef.current);
-      focusAnimationDelayRef.current = null;
-    }
-
     if (!graph || !focusedNodeIdRef.current) {
       focusedNodeIdRef.current = null;
       return;
@@ -182,39 +291,33 @@ const GraphView: React.FC<GraphViewProps> = ({
       node.addClass('focus-target focus-target-emphasis');
 
       const runFocusAnimation = () => {
-        if (focusAnimationDelayRef.current != null) {
-          window.clearTimeout(focusAnimationDelayRef.current);
+        const freshNode = cy.getElementById(nodeId);
+        if (freshNode.empty() || freshNode.removed()) {
+          return;
         }
 
-        focusAnimationDelayRef.current = window.setTimeout(() => {
-          const freshNode = cy.getElementById(nodeId);
-          if (freshNode.empty() || freshNode.removed()) {
-            return;
-          }
+        const freshPosition = freshNode.position();
+        const nextZoom = Math.min(
+          cy.maxZoom(),
+          Math.max(
+            cy.minZoom(),
+            Math.min(FOCUS_MAX_KICK_ZOOM, Math.max(FOCUS_TARGET_ZOOM, cy.zoom() + FOCUS_REPEAT_ZOOM_DELTA)),
+          ),
+        );
+        const nextPan = {
+          x: cy.width() / 2 - freshPosition.x * nextZoom,
+          y: cy.height() / 2 - freshPosition.y * nextZoom,
+        };
 
-          console.log('[AttackGraph focus]', {
-            requestedNodeId: nodeId,
-            elementId: freshNode.id(),
-            data: freshNode.data(),
-          });
-
-          const freshPosition = freshNode.position();
-          const nextZoom = Math.min(cy.maxZoom(), Math.max(cy.minZoom(), FOCUS_TARGET_ZOOM));
-          const nextPan = {
-            x: cy.width() / 2 - freshPosition.x * nextZoom,
-            y: cy.height() / 2 - freshPosition.y * nextZoom,
-          };
-
-          cy.stop();
-          cy.animate({
-            pan: nextPan,
-            zoom: nextZoom,
-            duration: 600,
-            easing: 'ease-in-out-cubic',
-          });
-          completedFocusKeyRef.current = requestKey;
-          focusAnimationDelayRef.current = null;
-        }, 200);
+        cy.stop();
+        cy.animate({
+          pan: nextPan,
+          zoom: nextZoom,
+          duration: FOCUS_ANIMATION_DURATION_MS,
+          easing: 'ease-in-out-cubic',
+        });
+        completedFocusKeyRef.current = requestKey;
+        onFocusHandled?.({ found: true, nodeId });
       };
 
       if (isLayoutRunningRef.current) {
@@ -241,8 +344,6 @@ const GraphView: React.FC<GraphViewProps> = ({
         }
         node.addClass('focus-target focus-target-emphasis');
       }, FOCUS_BLINK_DURATION_MS);
-
-      onFocusHandled?.({ found: true, nodeId });
       return true;
     },
     [clearFocusedNode, onFocusHandled],
@@ -255,53 +356,136 @@ const GraphView: React.FC<GraphViewProps> = ({
       pathEdges: Set<string>,
       selectedNode: string | null,
       selectedEdge: string | null,
+      matchedNodes: Set<string>,
+      matchedEdges: Set<string>,
+      contextNodes: Set<string>,
+      contextEdges: Set<string>,
     ) => {
-      cy.elements().removeClass('dimmed path-active selected-node selected-edge');
-      const hasPathSelection = pathNodes.size > 0 || pathEdges.size > 0;
+      clearHoveredEdge();
+      cy.batch(() => {
+        cy.elements().removeClass(SELECTION_STATE_CLASSES);
+        const hasPathSelection = pathNodes.size > 0 || pathEdges.size > 0;
+        const hasSearchContext =
+          matchedNodes.size > 0 || matchedEdges.size > 0 || contextNodes.size > 0 || contextEdges.size > 0;
 
-      if (!hasPathSelection && !selectedNode && !selectedEdge) {
-        return;
-      }
+        if (!hasPathSelection && !selectedNode && !selectedEdge && !hasSearchContext) {
+          return;
+        }
 
-      if (hasPathSelection) {
-        let pathNodeElements = cy.collection();
-        let pathEdgeElements = cy.collection();
+        if (hasSearchContext) {
+          let matchedNodeElements = cy.collection();
+          let matchedEdgeElements = cy.collection();
+          let contextNodeElements = cy.collection();
+          let contextEdgeElements = cy.collection();
 
-        pathNodes.forEach((id) => {
-          const node = cy.getElementById(id);
+          matchedNodes.forEach((id) => {
+            const node = cy.getElementById(id);
+            if (node.nonempty()) {
+              matchedNodeElements = matchedNodeElements.add(node);
+            }
+          });
+
+          matchedEdges.forEach((id) => {
+            const edge = cy.getElementById(id);
+            if (edge.nonempty()) {
+              matchedEdgeElements = matchedEdgeElements.add(edge);
+            }
+          });
+
+          contextNodes.forEach((id) => {
+            const node = cy.getElementById(id);
+            if (node.nonempty()) {
+              contextNodeElements = contextNodeElements.add(node);
+            }
+          });
+
+          contextEdges.forEach((id) => {
+            const edge = cy.getElementById(id);
+            if (edge.nonempty()) {
+              contextEdgeElements = contextEdgeElements.add(edge);
+            }
+          });
+
+          cy.elements().addClass('search-dimmed');
+          contextNodeElements.removeClass('search-dimmed').addClass('search-context');
+          contextEdgeElements.removeClass('search-dimmed').addClass('search-context');
+          matchedNodeElements.removeClass('search-dimmed search-context').addClass('search-match');
+          matchedEdgeElements.removeClass('search-dimmed search-context').addClass('search-match');
+        }
+
+        if (hasPathSelection) {
+          let pathNodeElements = cy.collection();
+          let pathEdgeElements = cy.collection();
+
+          pathNodes.forEach((id) => {
+            const node = cy.getElementById(id);
+            if (node.nonempty()) {
+              pathNodeElements = pathNodeElements.add(node);
+            }
+          });
+
+          pathEdges.forEach((id) => {
+            const edge = cy.getElementById(id);
+            if (edge.nonempty()) {
+              pathEdgeElements = pathEdgeElements.add(edge);
+            }
+          });
+
+          cy.elements().addClass('dimmed');
+          pathNodeElements.removeClass('dimmed').addClass('path-active');
+          pathEdgeElements.removeClass('dimmed').addClass('path-active');
+        }
+
+        if (selectedNode) {
+          const node = cy.getElementById(selectedNode);
           if (node.nonempty()) {
-            pathNodeElements = pathNodeElements.add(node);
-          }
-        });
+            const { nodeDepths, edgeDepths } = collectSelectedChain(cy, selectedNode);
 
-        pathEdges.forEach((id) => {
-          const edge = cy.getElementById(id);
+            cy.elements().addClass('context-dimmed');
+            node.removeClass('dimmed search-dimmed context-dimmed').addClass('selected-node');
+
+            nodeDepths.forEach((depth, nodeId) => {
+              const chainNode = cy.getElementById(nodeId);
+              if (chainNode.nonempty()) {
+                chainNode
+                  .removeClass('dimmed search-dimmed context-dimmed')
+                  .addClass(`selected-chain-node ${getChainDepthClass(depth)}`);
+              }
+            });
+
+            edgeDepths.forEach((depth, edgeId) => {
+              const chainEdge = cy.getElementById(edgeId);
+              if (chainEdge.nonempty()) {
+                chainEdge
+                  .removeClass('dimmed search-dimmed context-dimmed')
+                  .addClass(`selected-chain-edge ${getChainDepthClass(depth)}`);
+              }
+            });
+          }
+        }
+
+        if (selectedEdge) {
+          const edge = cy.getElementById(selectedEdge);
           if (edge.nonempty()) {
-            pathEdgeElements = pathEdgeElements.add(edge);
+            cy.elements().addClass('context-dimmed');
+            edge.removeClass('dimmed search-dimmed context-dimmed').addClass('selected-edge');
+            edge.connectedNodes().removeClass('dimmed search-dimmed context-dimmed').addClass('selected-neighbor');
           }
-        });
-
-        cy.elements().addClass('dimmed');
-        pathNodeElements.removeClass('dimmed').addClass('path-active');
-        pathEdgeElements.removeClass('dimmed').addClass('path-active');
-      }
-
-      if (selectedNode) {
-        cy.getElementById(selectedNode).removeClass('dimmed').addClass('selected-node');
-      }
-
-      if (selectedEdge) {
-        cy.getElementById(selectedEdge).removeClass('dimmed').addClass('selected-edge');
-      }
+        }
+      });
     },
-    [],
+    [clearHoveredEdge],
   );
 
   const handleCy = useCallback(
     (cy: cytoscape.Core) => {
       cyRef.current = cy;
       cy.removeAllListeners();
-      cy.elements().removeClass('dimmed selected-node selected-edge path-active');
+      cy
+        .elements()
+        .removeClass(SELECTION_STATE_CLASSES);
+      cy.minZoom(MIN_GRAPH_ZOOM);
+      cy.maxZoom(MAX_GRAPH_ZOOM);
 
       cy.on('tap', 'node', (evt) => {
         const raw = evt.target.data() as Record<string, unknown>;
@@ -387,27 +571,69 @@ const GraphView: React.FC<GraphViewProps> = ({
 
       cy.on('mouseover', 'edge', updateHoveredEdge);
       cy.on('mousemove', 'edge', updateHoveredEdge);
-      cy.on('mouseout', 'edge', () => {
-        setHoveredEdge(null);
-      });
+      cy.on('mouseout', 'edge', clearHoveredEdge);
       cy.on('tap', (evt) => {
         if (evt.target === cy) {
-          setHoveredEdge(null);
+          clearHoveredEdge();
         }
       });
 
       // keep classes in sync for first paint
-      updateSelectionState(cy, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId);
+      updateSelectionState(
+        cy,
+        pathNodeIds,
+        pathEdgeIds,
+        selectedNodeId,
+        selectedEdgeId,
+        searchNodeIds,
+        searchEdgeIds,
+        searchContextNodes,
+        searchContextEdges,
+      );
     },
-    [nodeLookup, onNodeClick, onEdgeClick, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId, updateSelectionState],
+    [
+      nodeLookup,
+      onNodeClick,
+      onEdgeClick,
+      pathNodeIds,
+      pathEdgeIds,
+      selectedNodeId,
+      selectedEdgeId,
+      searchNodeIds,
+      searchEdgeIds,
+      searchContextNodes,
+      searchContextEdges,
+      clearHoveredEdge,
+      updateSelectionState,
+    ],
   );
 
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
 
-    updateSelectionState(cy, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId);
-  }, [updateSelectionState, pathNodeIds, pathEdgeIds, selectedNodeId, selectedEdgeId]);
+    updateSelectionState(
+      cy,
+      pathNodeIds,
+      pathEdgeIds,
+      selectedNodeId,
+      selectedEdgeId,
+      searchNodeIds,
+      searchEdgeIds,
+      searchContextNodes,
+      searchContextEdges,
+    );
+  }, [
+    updateSelectionState,
+    pathNodeIds,
+    pathEdgeIds,
+    selectedNodeId,
+    selectedEdgeId,
+    searchNodeIds,
+    searchEdgeIds,
+    searchContextNodes,
+    searchContextEdges,
+  ]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -424,6 +650,8 @@ const GraphView: React.FC<GraphViewProps> = ({
       }
 
       cy.resize();
+      cy.minZoom(MIN_GRAPH_ZOOM);
+      cy.maxZoom(MAX_GRAPH_ZOOM);
       if (focusNodeId && focusRequestKey && completedFocusKeyRef.current === focusRequestKey) {
         return;
       }
@@ -433,7 +661,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       layoutInstance.one('layoutstop', () => {
         isLayoutRunningRef.current = false;
         onLayoutComplete?.(cy);
-        cy.fit(undefined, getLayoutPadding(layout));
+        cy.fit(undefined, Math.max(getLayoutPadding(layout), MIN_FIT_PADDING));
 
         if (focusNodeId && focusRequestKey) {
           applyFocusHighlight(cy, focusNodeId, focusRequestKey);
@@ -473,6 +701,7 @@ const GraphView: React.FC<GraphViewProps> = ({
     const cy = cyRef.current;
     if (!cy || !focusNodeId || !focusRequestKey) {
       completedFocusKeyRef.current = null;
+      clearFocusedNode(cy);
       return;
     }
 
@@ -494,11 +723,7 @@ const GraphView: React.FC<GraphViewProps> = ({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [applyFocusHighlight, focusNodeId, focusRequestKey]);
-
-  useEffect(() => {
-    setHoveredEdge(null);
-  }, [elements, selectedNodeId, selectedEdgeId, selectedPathNodeIds, selectedPathEdgeIds]);
+  }, [applyFocusHighlight, clearFocusedNode, focusNodeId, focusRequestKey]);
 
   useEffect(() => {
     return () => {
@@ -517,7 +742,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       />
       {hoveredEdge ? (
         <div
-          className="card shadow-sm"
+          className="card shadow-sm border-0"
           style={{
             position: 'absolute',
             left: hoveredEdge.position.x,
@@ -525,15 +750,19 @@ const GraphView: React.FC<GraphViewProps> = ({
             width: 240,
             zIndex: 20,
             pointerEvents: 'none',
+            background: 'rgba(8, 15, 32, 0.94)',
+            border: '1px solid rgba(96, 165, 250, 0.12)',
+            color: '#e2e8f0',
+            backdropFilter: 'blur(12px)',
           }}
         >
           <div className="card-body p-2 small">
             <div className="fw-semibold mb-1">{hoveredEdge.edge.relation ?? hoveredEdge.edge.label ?? hoveredEdge.edge.id}</div>
-            <div className="text-muted">Source</div>
+            <div style={{ color: '#93a8c7' }}>Source</div>
             <div className="text-break mb-1">
               {hoveredEdge.edge.sourceLabel ?? hoveredEdge.edge.source} ({hoveredEdge.edge.source})
             </div>
-            <div className="text-muted">Target</div>
+            <div style={{ color: '#93a8c7' }}>Target</div>
             <div className="text-break">
               {hoveredEdge.edge.targetLabel ?? hoveredEdge.edge.target} ({hoveredEdge.edge.target})
             </div>
