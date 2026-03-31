@@ -121,3 +121,41 @@ Dedicated Attack Path detail graph-front polish
 - Validation for this pass
   - `npx eslint src/pages/AttackPathDetailPage.tsx` passed.
   - `npm run build` passed.
+
+Dedicated Attack Path detail summary/graph swap implementation
+
+- This implementation pass stayed tightly scoped to:
+  - `src/pages/AttackPathDetailPage.tsx`
+  - `src/pages/AttackGraphPage.tsx`
+- `src/pages/AttackGraphPage.tsx` was touched only because the new top action `공격 패스로 돌아가기` needed a real landing path to the Attack Path tab. The page now reads and writes a tiny `?tab=attack-paths` URL hint instead of relying on in-memory tab state.
+- Dedicated page changes in `src/pages/AttackPathDetailPage.tsx`
+  - Kept the existing hero as the single owner of:
+    - graph layer
+    - summary layer
+    - control layer
+    - graph-front detail overlay
+  - Implemented a true animated summary-first vs graph-front swap by changing only page-local composition:
+    - summary-first:
+      - graph interaction disabled
+      - graph opacity reduced
+      - graph blurred/dimmed
+      - stronger dark scrim
+      - summary surfaces remain fully readable and visually forward
+    - graph-front:
+      - graph interaction restored
+      - graph opacity/clarity increased
+      - graph tint relaxed
+      - summary layer pushed back with very low opacity, blur, and scale/translate recession so it no longer competes
+  - Kept graph generation, preset layout, node size, node placement, label size, and click selection IDs unchanged.
+  - Added a right-side hero overlay for both selected node and selected edge detail in graph-front mode only.
+  - Reused `NodeDetailPanel` for both node and edge detail without editing the shared component.
+  - Added page-local panel dragging and collapse/minimize behavior using local refs/state and hero-bounded clamping.
+  - Increased overlay panel width slightly for the dedicated single-path context.
+  - Added a second top action beside `공격 그래프로 돌아가기`:
+    - `공격 패스로 돌아가기`
+  - Polished the in-hero `요약 보기` / `경로 보기` controls locally with a stronger capsule, active-state treatment, and animated transitions while keeping the existing DeployGuard button language.
+  - Aligned dedicated-page resource/type badges with Attack Graph colors locally by replacing page usage of `NodeTypeBadge` / `NodeIdentity` with page-local badge/identity wrappers that source colors from `getAttackGraphNodeTypeStyle`.
+  - Kept the lower `상세 정보` accordion intact and still hidden in graph-front mode.
+- Validation for this pass
+  - `npx eslint src/pages/AttackPathDetailPage.tsx src/pages/AttackGraphPage.tsx` passed.
+  - `npm run build` passed.
