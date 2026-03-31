@@ -7,6 +7,7 @@ type AwsInstallGuideProps = {
 };
 
 const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, apiEndpoint }) => {
+  const copyButtonStyle = { height: 36, minWidth: 64, paddingInline: 12, fontSize: 14 } as const;
   const registryHost = '189060532132.dkr.ecr.ap-northeast-2.amazonaws.com';
   const imageUri = `${registryHost}/deployguard-aws-scanner:latest`;
   const removeOldCommand = 'docker rm -f deployguard-aws-scanner 2>/dev/null || true';
@@ -65,13 +66,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           <p className="mb-2"><strong>DG_API_ENDPOINT / API_URL:</strong> <code>{apiEndpoint}</code></p>
           <p className="mb-2">
             <strong>DG_CLUSTER_ID:</strong>
-            <span className="d-flex gap-2 align-items-start mt-1">
-              <code className="bg-dark border border-secondary-subtle rounded p-1 flex-grow-1 text-break text-light">
+            <span className="d-flex gap-2 align-items-center mt-1">
+              <code className="bg-dark border border-secondary-subtle rounded px-2 py-2 flex-grow-1 text-break text-light">
                 {clusterId}
               </code>
               <button
                 type="button"
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                style={copyButtonStyle}
                 onClick={() => copyToClipboard(clusterId, setClusterIdCopied)}
               >
                 복사
@@ -80,13 +82,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
           </p>
           <p className="mb-0">
             <strong>DG_API_TOKEN:</strong>
-            <span className="d-flex gap-2 align-items-start mt-1">
-              <code className="bg-dark border border-secondary-subtle rounded p-1 flex-grow-1 text-break text-light">
+            <span className="d-flex gap-2 align-items-center mt-1">
+              <code className="bg-dark border border-secondary-subtle rounded px-2 py-2 flex-grow-1 text-break text-light">
                 {apiToken}
               </code>
               <button
                 type="button"
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                style={copyButtonStyle}
                 onClick={() => copyToClipboard(apiToken, setTokenCopied)}
               >
                 복사
@@ -104,13 +107,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
       </div>
       <div className="mb-3">
         <label className="form-label fw-semibold">1. 기존 컨테이너 정리</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{removeOldCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(removeOldCommand, setRemoveCopied)}
           >
             복사
@@ -120,13 +124,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
       </div>
       <div className="mb-3">
         <label className="form-label fw-semibold">2. ECR 로그인</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{loginCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(loginCommand, setLoginCopied)}
           >
             복사
@@ -136,13 +141,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
       </div>
       <div className="mb-3">
         <label className="form-label fw-semibold">3. 스캐너 이미지 pull</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{pullCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(pullCommand, setPullCopied)}
           >
             복사
@@ -152,13 +158,14 @@ const AwsInstallGuide: React.FC<AwsInstallGuideProps> = ({ clusterId, apiToken, 
       </div>
       <div className="mb-3">
         <label className="form-label fw-semibold">4. worker 실행</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{runCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(runCommand, setRunCopied)}
           >
             복사
