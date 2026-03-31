@@ -265,6 +265,36 @@
   background-color: rgba(148, 163, 184, 0.12);
 }
 
+.dg-dashboard-shell .dg-table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.dg-dashboard-shell .dg-table-sort-button:hover {
+  color: #f8fafc;
+}
+
+.dg-dashboard-shell .dg-table-sort-button:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.38);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.dg-dashboard-shell .dg-table-sort-indicator {
+  color: #93c5fd;
+  font-size: 0.9em;
+  line-height: 1;
+}
+
 .dg-dashboard-shell .text-muted,
 .dg-dashboard-shell .text-secondary,
 .dg-dashboard-shell .text-body-secondary,

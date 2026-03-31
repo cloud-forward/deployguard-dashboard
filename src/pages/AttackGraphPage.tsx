@@ -259,6 +259,22 @@ const formatNumber = (value?: number | null) => {
   return value.toLocaleString();
 };
 
+const getFallbackRiskScore = (riskLevel?: string | null) => {
+  const normalized = riskLevel?.trim().toLowerCase();
+  if (normalized === 'critical') return 100;
+  if (normalized === 'high') return 90;
+  if (normalized === 'medium') return 60;
+  if (normalized === 'low') return 30;
+  return 0;
+};
+
+const getAttackPathRiskScore = (item: AttackPathListItemResponse) =>
+  typeof item.risk_score === 'number' && Number.isFinite(item.risk_score)
+    ? item.risk_score
+    : getFallbackRiskScore(item.risk_level);
+
+type RiskScoreSortDirection = 'asc' | 'desc';
+
 const getHopColor = (count?: number | null) => {
   if (typeof count !== 'number' || Number.isNaN(count)) {
     return '#94a3b8';
@@ -472,6 +488,7 @@ const AttackPathsPanel: React.FC<{
   enabled: boolean;
 }> = ({ clusterId, enabled }) => {
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
+  const [riskScoreSortDirection, setRiskScoreSortDirection] = useState<RiskScoreSortDirection>('desc');
   const {
     data,
     isLoading,
@@ -492,14 +509,27 @@ const AttackPathsPanel: React.FC<{
           ? ((data as { items?: AttackPathListItemResponse[] }).items ?? [])
           : []
       ).slice().sort((left, right) => {
+        const leftScore = getAttackPathRiskScore(left);
+        const rightScore = getAttackPathRiskScore(right);
+        const scoreGap =
+          riskScoreSortDirection === 'desc' ? rightScore - leftScore : leftScore - rightScore;
+        if (scoreGap !== 0) {
+          return scoreGap;
+        }
+
         const riskGap = getRiskSortOrder(left.risk_level) - getRiskSortOrder(right.risk_level);
         if (riskGap !== 0) {
           return riskGap;
         }
 
-        return (left.hop_count ?? 0) - (right.hop_count ?? 0);
+        const hopGap = (left.hop_count ?? 0) - (right.hop_count ?? 0);
+        if (hopGap !== 0) {
+          return hopGap;
+        }
+
+        return left.path_id.localeCompare(right.path_id);
       }),
-    [data],
+    [data, riskScoreSortDirection],
   );
   const resolvedSelectedPathId =
     enabled && items.some((item) => item.path_id === selectedPathId) ? selectedPathId : null;
@@ -554,6 +584,21 @@ const AttackPathsPanel: React.FC<{
             <table className="table align-middle mb-0 small dg-attack-paths-table">
               <thead className="table-light">
                 <tr>
+                  <th style={{ width: 120 }}>
+                    <button
+                      type="button"
+                      className="dg-table-sort-button"
+                      onClick={() =>
+                        setRiskScoreSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                      }
+                      aria-label={`Sort risk score ${riskScoreSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                    >
+                      <span>Risk Score</span>
+                      <span className="dg-table-sort-indicator" aria-hidden="true">
+                        {riskScoreSortDirection === 'desc' ? '↓' : '↑'}
+                      </span>
+                    </button>
+                  </th>
                   <th>Risk</th>
                   <th>Entry</th>
                   <th>Target</th>
@@ -567,6 +612,7 @@ const AttackPathsPanel: React.FC<{
                   const entryNode = parseAttackPathNode(item.entry_node_id);
                   const targetNode = parseAttackPathNode(item.target_node_id);
                   const hopCount = item.hop_count ?? item.node_ids?.length ?? null;
+                  const riskScore = getAttackPathRiskScore(item);
                   const threatAccent = getThreatAccentBorder(item.target_node_id);
                   const isHighRisk = item.risk_level?.toLowerCase() === 'high';
 
@@ -583,6 +629,16 @@ const AttackPathsPanel: React.FC<{
                         transition: 'background-color 160ms ease',
                       }}
                     >
+                      <td
+                        style={{
+                          width: 120,
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                          fontWeight: 700,
+                          color: '#f8fafc',
+                        }}
+                      >
+                        {formatNumber(riskScore)}
+                      </td>
                       <td style={{ width: 92 }}>
                         <RiskLevelBadge level={item.risk_level} />
                       </td>
