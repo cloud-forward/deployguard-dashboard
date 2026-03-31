@@ -8,6 +8,7 @@ import {
 import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import { attackGraphStylesheet } from '../components/graph/attackGraph';
+import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle } from '../components/graph/attackGraph/stylesheet';
 import { NodeIdentity, NodeTypeBadge, ThreatTypeBadge, parseAttackPathNode } from '../components/graph/attackPathVisuals';
 import type {
   AttackPathDetailEnvelopeResponse,
@@ -44,6 +45,7 @@ interface EdgeDetailData {
   targetLabel?: string;
 }
 
+type AttackPathPresentationMode = 'summary' | 'graph';
 type RiskTone = 'high' | 'medium' | 'low' | 'unknown';
 
 const EDGE_TYPE_KR: Record<string, string> = {
@@ -331,6 +333,8 @@ const DangerMetric: React.FC<{ label: string; value: React.ReactNode; accent?: s
     style={{
       background: 'rgba(15, 23, 42, 0.5)',
       border: '1px solid rgba(148, 163, 184, 0.18)',
+      boxShadow: '0 16px 32px rgba(2, 6, 23, 0.18)',
+      backdropFilter: 'blur(16px)',
       minWidth: 140,
     }}
   >
@@ -464,6 +468,7 @@ const EdgeList: React.FC<{ edges: AttackPathEdgeSequenceResponse[] }> = ({ edges
 const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationItem[] }> = ({ matchedRemediation }) => {
   const navigate = useNavigate();
   const { clusterId = '', pathId = '' } = useParams();
+  const [presentationMode, setPresentationMode] = React.useState<AttackPathPresentationMode>('summary');
   const [selectedNode, setSelectedNode] = React.useState<NodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = React.useState<EdgeDetailData | null>(null);
@@ -539,6 +544,45 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     fit: true,
     padding: 48,
   }), []);
+  const isGraphFrontMode = presentationMode === 'graph';
+  const selectedNodeAccentColor = useMemo(
+    () => (selectedNode ? getAttackGraphNodeTypeStyle(getGraphNodeTypeFromId(selectedNode.id)).backgroundColor : undefined),
+    [selectedNode],
+  );
+  const selectedEdgeVisual = useMemo(() => getAttackGraphEdgeVisualStyle(selectedEdge?.relation), [selectedEdge]);
+  const selectedEdgeDetails = useMemo<Record<string, string>>(() => {
+    if (!selectedEdge) {
+      return {};
+    }
+
+    const edgeDetails: Record<string, string> = {
+      관계: toKoreanEdgeType(selectedEdge.relation),
+      출발: `${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`,
+      도착: `${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`,
+      레이블: selectedEdge.label || selectedEdge.id,
+      사유: selectedEdge.reason || '-',
+    };
+
+    return edgeDetails;
+  }, [selectedEdge]);
+  const selectedEdgePanelNode = useMemo<NodeData | null>(
+    () =>
+      selectedEdge
+        ? {
+            id: selectedEdge.id,
+            label: selectedEdge.label || selectedEdge.relation || selectedEdge.id,
+            type: 'Pod',
+            details: {},
+            blastRadius: {
+              pods: 0,
+              secrets: 0,
+              databases: 0,
+              adminPrivilege: false,
+            },
+          }
+        : null,
+    [selectedEdge],
+  );
 
   React.useEffect(() => {
     setSelectedNode(null);
@@ -584,6 +628,8 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
   const chainNodes: string[] = orderedSteps.length > 0
     ? [orderedSteps[0].sourceNodeId, ...orderedSteps.map((s) => s.targetNodeId)]
     : [path.entry_node_id, path.target_node_id].filter((value): value is string => Boolean(value));
+  const hasPathGraph = pathGraphElements.length > 0;
+  const truncatedPathId = truncateMiddle(path.path_id, 52);
 
   const tid = path.target_node_id ?? '';
   const targetDangerLabel =
@@ -605,181 +651,354 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     t === 'change_service_account' ? '서비스 계정 변경' :
     t === 'restrict_iam_policy' ? 'IAM 정책 제한' :
     t;
+  const shouldShowHeroDetailPanel = isGraphFrontMode && Boolean(selectedNode || selectedEdge);
+  const heroGraphLayerStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    zIndex: isGraphFrontMode ? 2 : 0,
+  };
+  const heroGraphCanvasStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    opacity: isGraphFrontMode ? 1 : 0.92,
+  };
+  const heroGraphTintStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    background: isGraphFrontMode
+      ? `
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.12), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.12), transparent 32%),
+        linear-gradient(180deg, rgba(8, 15, 32, 0.14) 0%, rgba(8, 15, 32, 0.24) 36%, rgba(8, 15, 32, 0.42) 100%)
+      `
+      : `
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.14), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.12), transparent 32%),
+        linear-gradient(180deg, rgba(8, 15, 32, 0.2) 0%, rgba(8, 15, 32, 0.42) 36%, rgba(8, 15, 32, 0.64) 100%)
+      `,
+  };
+  const heroSummaryLayerStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    zIndex: isGraphFrontMode ? 1 : 2,
+    padding: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    opacity: isGraphFrontMode ? 0.4 : 1,
+    transform: isGraphFrontMode ? 'translateY(0.75rem) scale(0.985)' : 'translateY(0) scale(1)',
+    transition: 'opacity 180ms ease, transform 180ms ease',
+    pointerEvents: 'none',
+  };
+  const heroSummaryShellStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    maxWidth: isGraphFrontMode ? 'min(26rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+  };
+  const heroTitleShellStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    maxWidth: isGraphFrontMode ? 'min(22rem, 100%)' : 'min(44rem, 100%)',
+  };
+  const heroPathChipStyle: React.CSSProperties = {
+    margin: 0,
+    padding: '0.3rem 0.65rem',
+    borderRadius: 999,
+    background: isGraphFrontMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(15, 23, 42, 0.48)',
+    border: '1px solid rgba(248, 113, 113, 0.2)',
+    color: '#fecaca',
+    backdropFilter: isGraphFrontMode ? 'blur(10px)' : 'blur(12px)',
+  };
+  const heroStartTargetStyle: React.CSSProperties = {
+    maxWidth: isGraphFrontMode ? 'min(26rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    background: isGraphFrontMode ? 'rgba(15, 23, 42, 0.22)' : 'rgba(15, 23, 42, 0.48)',
+    border: '1px solid rgba(248, 113, 113, 0.2)',
+    boxShadow: isGraphFrontMode ? '0 10px 24px rgba(2, 6, 23, 0.12)' : '0 16px 32px rgba(2, 6, 23, 0.18)',
+    backdropFilter: isGraphFrontMode ? 'blur(12px)' : 'blur(16px)',
+  };
+  const heroControlLayerStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 4,
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 8,
+  };
+  const heroDetailShellStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 76,
+    right: 16,
+    bottom: 16,
+    width: 'min(21.25rem, calc(100% - 2rem))',
+    zIndex: 3,
+    display: 'flex',
+    alignItems: 'stretch',
+    pointerEvents: 'auto',
+  };
 
   return (
     <div className="container-fluid py-4">
-      <div className="card border-0 shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, rgba(127, 29, 29, 0.88) 0%, rgba(69, 10, 10, 0.7) 38%, rgba(15, 23, 42, 0.96) 100%)', boxShadow: '0 20px 50px rgba(15, 23, 42, 0.35)', overflow: 'hidden' }}>
-        <div className="card-body p-4 p-lg-5">
-          <div className="d-flex flex-column gap-4">
-            <div className="d-flex flex-wrap justify-content-between align-items-start gap-3">
-              <div className="d-flex flex-wrap align-items-center gap-3">
-                <KoreanRiskBadge level={path.risk_level} />
-                <DangerMetric label="위험도 점수" value={<span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: '#ffffff' }}>{formatRiskPercent(path.risk_score)}</span>} />
-                <DangerMetric label="경유 단계" accent={getHopAccent(path.hop_count)} value={<span style={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1 }}>{`${path.hop_count ?? '-'} 단계`}</span>} />
-              </div>
-              {clusterId ? <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">공격 그래프로 돌아가기</Link> : null}
-            </div>
-
-            <div className="rounded-4 p-4" style={{ background: 'rgba(15, 23, 42, 0.46)', border: '1px solid rgba(248, 113, 113, 0.2)' }}>
-              <div className="d-flex flex-column gap-2">
-                <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>시작 노드 및 목표 자산</div>
-                <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3 text-break">
-                  <span className="small text-muted">시작 노드</span>
-                  <NodeTypeBadge type={entryNode.type} />
-                  <span className="fw-semibold">{entryNode.name}</span>
-                  <span className="fw-semibold" style={{ color: '#fca5a5' }}>→</span>
-                  <span className="small text-muted">목표 자산</span>
-                  <NodeTypeBadge type={targetNode.type} />
-                  <span className="fw-semibold">{targetNode.name}</span>
-                  <ThreatTypeBadge type={targetNode.type} />
+      <div className="dg-page-shell">
+        <div className="dg-page-header">
+          <div className="dg-page-heading">
+            <h1 className="dg-page-title">공격 그래프</h1>
+            <p className="dg-page-description">선택한 클러스터의 연결 자산과 저장된 공격 경로를 확인합니다.</p>
+          </div>
+          {clusterId ? <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">공격 그래프로 돌아가기</Link> : null}
+        </div>
+        <div
+          className="card border-0 shadow-sm mb-4"
+          style={{
+            position: 'relative',
+            minHeight: hasPathGraph ? '30rem' : undefined,
+            background: 'linear-gradient(135deg, rgba(127, 29, 29, 0.88) 0%, rgba(69, 10, 10, 0.7) 38%, rgba(15, 23, 42, 0.96) 100%)',
+            boxShadow: '0 20px 50px rgba(15, 23, 42, 0.35)',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ position: 'relative', minHeight: hasPathGraph ? '30rem' : '24rem' }}>
+            {hasPathGraph ? (
+              <div style={heroGraphLayerStyle}>
+                <div style={heroGraphCanvasStyle}>
+                  <GraphView
+                    elements={pathGraphElements}
+                    layout={attackPathLayout}
+                    stylesheet={attackPathGraphStylesheet}
+                    selectedPathNodeIds={[]}
+                    selectedPathEdgeIds={[]}
+                    selectedNodeId={selectedNodeId}
+                    selectedEdgeId={selectedEdgeId}
+                    showLabels
+                    onNodeClick={(node) => {
+                      const clicked = selectedNodeLookup.get(node.id) ?? node;
+                      setSelectedNode(clicked);
+                      setSelectedNodeId(clicked.id);
+                      setSelectedEdge(null);
+                      setSelectedEdgeId(null);
+                    }}
+                    onEdgeClick={(edge) => {
+                      const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
+                      setSelectedEdge(clicked);
+                      setSelectedEdgeId(clicked.id);
+                      setSelectedNode(null);
+                      setSelectedNodeId(null);
+                    }}
+                  />
                 </div>
-                <div className="small text-muted text-break">{`${entryNode.raw} → ${targetNode.raw}`}</div>
+                <div aria-hidden="true" style={heroGraphTintStyle} />
+              </div>
+            ) : null}
+            <div style={heroSummaryLayerStyle}>
+              <div style={heroSummaryShellStyle}>
+                <div style={heroTitleShellStyle}>
+                  <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>공격 경로 상세</div>
+                  <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3">
+                    <h2 className="h3 mb-0 text-white">공격 경로 상세</h2>
+                    <code className="small text-break" style={heroPathChipStyle}>
+                      {truncatedPathId}
+                    </code>
+                  </div>
+                  <p className="mb-0 text-muted">선택한 경로의 위험도, 이동 단계, 목표 자산 도달 흐름을 확인합니다.</p>
+                  {!hasPathGraph ? <div className="small text-muted">그래프로 표시할 수 있는 경로 데이터가 충분하지 않습니다.</div> : null}
+                </div>
+
+                <div className="d-flex flex-wrap align-items-start gap-3">
+                  <KoreanRiskBadge level={path.risk_level} />
+                  <DangerMetric label="위험도 점수" value={<span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: '#ffffff' }}>{formatRiskPercent(path.risk_score)}</span>} />
+                  <DangerMetric label="경유 단계" accent={getHopAccent(path.hop_count)} value={<span style={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1 }}>{`${path.hop_count ?? '-'} 단계`}</span>} />
+                </div>
+              </div>
+
+              <div className="rounded-4 p-4" style={heroStartTargetStyle}>
+                <div className="d-flex flex-column gap-2">
+                  <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>시작 노드 및 목표 자산</div>
+                  <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3 text-break">
+                    <span className="small text-muted">시작 노드</span>
+                    <NodeTypeBadge type={entryNode.type} />
+                    <span className="fw-semibold">{entryNode.name}</span>
+                    <span className="fw-semibold" style={{ color: '#fca5a5' }}>→</span>
+                    <span className="small text-muted">목표 자산</span>
+                    <NodeTypeBadge type={targetNode.type} />
+                    <span className="fw-semibold">{targetNode.name}</span>
+                    <ThreatTypeBadge type={targetNode.type} />
+                  </div>
+                  <div className="small text-muted text-break">{`${entryNode.raw} → ${targetNode.raw}`}</div>
+                </div>
               </div>
             </div>
+            <div style={heroControlLayerStyle}>
+              <div
+                className="d-inline-flex align-items-center gap-1 rounded-pill p-1"
+                style={{
+                  background: 'rgba(8, 15, 32, 0.72)',
+                  border: '1px solid rgba(148, 163, 184, 0.18)',
+                  backdropFilter: 'blur(14px)',
+                  boxShadow: '0 12px 28px rgba(2, 6, 23, 0.18)',
+                }}
+              >
+                <button
+                  type="button"
+                  className={`btn btn-sm dg-dashboard-action-btn ${presentationMode === 'summary' ? 'dg-dashboard-action-btn--primary' : 'dg-dashboard-action-btn--secondary'}`}
+                  onClick={() => setPresentationMode('summary')}
+                >
+                  요약 보기
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm dg-dashboard-action-btn ${presentationMode === 'graph' ? 'dg-dashboard-action-btn--primary' : 'dg-dashboard-action-btn--secondary'}`}
+                  onClick={() => setPresentationMode('graph')}
+                >
+                  경로 보기
+                </button>
+              </div>
+            </div>
+            {shouldShowHeroDetailPanel ? (
+              <div style={heroDetailShellStyle}>
+                {selectedNode ? (
+                  <NodeDetailPanel
+                    node={selectedNode}
+                    onClose={() => {
+                      setSelectedNode(null);
+                      setSelectedNodeId(null);
+                    }}
+                    tone="dark"
+                    accentColor={selectedNodeAccentColor}
+                    typeLabel={getGraphNodeTypeFromId(selectedNode.id)}
+                    panelTitle="노드 상세 정보"
+                    panelDescription="선택한 노드의 세부 정보입니다."
+                    style={{
+                      position: 'relative',
+                      top: 0,
+                      right: 0,
+                      width: '100%',
+                      maxHeight: '100%',
+                    }}
+                  />
+                ) : null}
+                {selectedEdge ? (
+                  <NodeDetailPanel
+                    node={selectedEdgePanelNode}
+                    onClose={() => {
+                      setSelectedEdge(null);
+                      setSelectedEdgeId(null);
+                    }}
+                    tone="dark"
+                    panelTitle="엣지 상세 정보"
+                    panelDescription="선택한 엣지의 세부 정보입니다."
+                    subjectLabel={selectedEdge.relation || selectedEdge.label || selectedEdge.id}
+                    accentColor={selectedEdgeVisual.lineColor}
+                    icon="↗"
+                    typeLabel="관계"
+                    details={selectedEdgeDetails}
+                    style={{
+                      position: 'relative',
+                      top: 0,
+                      right: 0,
+                      width: '100%',
+                      maxHeight: '100%',
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
-      </div>
 
-      <SectionCard title="왜 위험한가?" className="mb-4">
-        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 12 }}>
-            <span style={{ color:'#ef4444', fontWeight:700, fontSize:'1.1rem' }}>{targetDangerLabel}</span>
-            <span style={{ color:'#ef4444', fontWeight:700, fontSize:'1.4rem' }}>{((path.risk_score ?? 0) * 100).toFixed(1)}%</span>
+        <SectionCard title="왜 위험한가?" className="mb-4">
+          <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 12 }}>
+              <span style={{ color:'#ef4444', fontWeight:700, fontSize:'1.1rem' }}>{targetDangerLabel}</span>
+              <span style={{ color:'#ef4444', fontWeight:700, fontSize:'1.4rem' }}>{((path.risk_score ?? 0) * 100).toFixed(1)}%</span>
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap: '4px 6px' }}>
+              {chainNodes.map((nodeId, i) => {
+                const short = nodeId.split(':').at(-1) ?? nodeId;
+                const isLast = i === chainNodes.length - 1;
+                return (
+                  <React.Fragment key={`${nodeId}-${i}`}>
+                    {i > 0 && <span style={{ color:'#6b7280', fontSize:'0.85rem' }}>→</span>}
+                    <NodeTypeBadge type={parseAttackPathNode(nodeId).type} />
+                    <span style={{ fontWeight: isLast ? 700 : 400 }}>{short}</span>
+                    {isLast && <span></span>}
+                  </React.Fragment>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap: '4px 6px' }}>
-            {chainNodes.map((nodeId, i) => {
-              const short = nodeId.split(':').at(-1) ?? nodeId;
-              const isLast = i === chainNodes.length - 1;
-              return (
-                <React.Fragment key={`${nodeId}-${i}`}>
-                  {i > 0 && <span style={{ color:'#6b7280', fontSize:'0.85rem' }}>→</span>}
-                  <NodeTypeBadge type={parseAttackPathNode(nodeId).type} />
-                  <span style={{ fontWeight: isLast ? 700 : 400 }}>{short}</span>
-                  {isLast && <span></span>}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-      </SectionCard>
+        </SectionCard>
 
-      {bestFix && (
-        <div style={{ background: 'rgba(239,68,68,0.08)', borderLeft: '3px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize:'0.875rem' }}>
-            이 경로는 <strong>"{fixTypeLabel(bestFix.fix_type ?? '')}"</strong> 조치로 차단할 수 있습니다&nbsp;·&nbsp;
-            <span style={{ color:'#9ca3af' }}>
-              위험 경로 {bestFix.blocked_path_ids?.length ?? 0}개 차단 가능&nbsp;·&nbsp;위험도 {(bestFix.covered_risk ?? 0).toFixed(2)} 감소
+        {bestFix && (
+          <div style={{ background: 'rgba(239,68,68,0.08)', borderLeft: '3px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize:'0.875rem' }}>
+              이 경로는 <strong>"{fixTypeLabel(bestFix.fix_type ?? '')}"</strong> 조치로 차단할 수 있습니다&nbsp;·&nbsp;
+              <span style={{ color:'#9ca3af' }}>
+                위험 경로 {bestFix.blocked_path_ids?.length ?? 0}개 차단 가능&nbsp;·&nbsp;위험도 {(bestFix.covered_risk ?? 0).toFixed(2)} 감소
+              </span>
             </span>
-          </span>
-          <button
-            onClick={() => {
-              navigate('/remediation', {
-                state: {
-                  highlightId: bestFix.recommendation_id,
-                  clusterId,
-                },
-              });
-            }}
-            style={{ border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', borderRadius: 6, padding: '4px 12px', fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            권장 조치 보기 →
-          </button>
-        </div>
-      )}
-
-      <SectionCard title="공격 경로 시각화" className="mb-4">
-        {pathGraphElements.length === 0 ? <div className="text-muted small">그래프로 표시할 수 있는 경로 데이터가 충분하지 않습니다.</div> : (
-          <div style={{ minHeight: 340, height: 340 }}>
-            <GraphView
-              elements={pathGraphElements}
-              layout={attackPathLayout}
-              stylesheet={attackPathGraphStylesheet}
-              selectedPathNodeIds={[]}
-              selectedPathEdgeIds={[]}
-              selectedNodeId={selectedNodeId}
-              selectedEdgeId={selectedEdgeId}
-              showLabels
-              onNodeClick={(node) => {
-                const clicked = selectedNodeLookup.get(node.id) ?? node;
-                setSelectedNode(clicked);
-                setSelectedNodeId(clicked.id);
-                setSelectedEdge(null);
-                setSelectedEdgeId(null);
+            <button
+              onClick={() => {
+                navigate('/remediation', {
+                  state: {
+                    highlightId: bestFix.recommendation_id,
+                    clusterId,
+                  },
+                });
               }}
-              onEdgeClick={(edge) => {
-                const clicked = selectedEdgeLookup.get(edge.id) ?? edge;
-                setSelectedEdge(clicked);
-                setSelectedEdgeId(clicked.id);
-                setSelectedNode(null);
-                setSelectedNodeId(null);
-              }}
-            />
+              style={{ border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', borderRadius: 6, padding: '4px 12px', fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              권장 조치 보기 →
+            </button>
           </div>
         )}
-      </SectionCard>
 
-      {selectedNode ? <div className="mb-4"><NodeDetailPanel node={selectedNode} onClose={() => { setSelectedNode(null); setSelectedNodeId(null); }} style={{ position: 'relative', top: 0, right: 0, width: 320 }} /></div> : null}
+        <div className="mb-4"><StepList path={path} /></div>
 
-      {selectedEdge ? (
-        <div className="card shadow mb-4">
-          <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <strong>엣지 상세 정보</strong>
-            <button type="button" className="btn-close btn-close-white" aria-label="닫기" onClick={() => { setSelectedEdge(null); setSelectedEdgeId(null); }} />
-          </div>
-          <div className="card-body">
-            <p className="small text-muted mb-3">선택한 엣지의 상세 데이터입니다.</p>
-            <table className="table table-sm table-borderless mb-0">
-              <tbody>
-                <tr><td className="text-muted fw-semibold">관계</td><td>{toKoreanEdgeType(selectedEdge.relation)}</td></tr>
-                <tr><td className="text-muted fw-semibold">출발</td><td>{`${selectedEdge.sourceLabel ?? selectedEdge.source} (${selectedEdge.source})`}</td></tr>
-                <tr><td className="text-muted fw-semibold">도착</td><td>{`${selectedEdge.targetLabel ?? selectedEdge.target} (${selectedEdge.target})`}</td></tr>
-                <tr><td className="text-muted fw-semibold">레이블</td><td>{selectedEdge.label || selectedEdge.id}</td></tr>
-                <tr><td className="text-muted fw-semibold">사유</td><td style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{selectedEdge.reason || '-'}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
+        {!isGraphFrontMode ? (
+          <div className="accordion mb-4" id="attack-path-detail-accordion">
+            <div className="accordion-item border-0 shadow-sm">
+              <h2 className="accordion-header" id="attack-path-detail-heading">
+                <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#attack-path-detail-collapse" aria-expanded="false" aria-controls="attack-path-detail-collapse">상세 정보</button>
+              </h2>
+              <div id="attack-path-detail-collapse" className="accordion-collapse collapse" aria-labelledby="attack-path-detail-heading" data-bs-parent="#attack-path-detail-accordion">
+                <div className="accordion-body bg-card-surface">
+                  <div className="row g-3 mb-4">
+                    <DetailField label="위험도 점수" value={formatRiskPercent(path.risk_score)} />
+                    <DetailField label="위험도 점수 (raw)" value={formatRawRisk(path.raw_final_risk)} />
+                    <DetailField label="분석 시각" value={formatDateTime(envelope.generated_at)} />
+                    <DetailField label="클러스터 ID" value={envelope.cluster_id} />
+                    <DetailField label="경로 ID" value={<code className="small text-break">{truncateMiddle(path.path_id, 60)}</code>} />
+                    <DetailField label="분석 실행 ID" value={envelope.analysis_run_id ?? '-'} />
+                  </div>
 
-      <div className="mb-4"><StepList path={path} /></div>
+                  <div className="mb-4">
+                    <h3 className="h6 mb-2">연결된 엣지 ID</h3>
+                    {edgeIds.length === 0 ? <div className="text-muted small">연결된 엣지 ID가 없습니다.</div> : (
+                      <ol className="mb-0 ps-3">{edgeIds.map((edgeId) => <li key={edgeId} className="mb-2 text-break">{edgeId}</li>)}</ol>
+                    )}
+                  </div>
 
-      <div className="accordion mb-4" id="attack-path-detail-accordion">
-        <div className="accordion-item border-0 shadow-sm">
-          <h2 className="accordion-header" id="attack-path-detail-heading">
-            <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#attack-path-detail-collapse" aria-expanded="false" aria-controls="attack-path-detail-collapse">상세 정보</button>
-          </h2>
-          <div id="attack-path-detail-collapse" className="accordion-collapse collapse" aria-labelledby="attack-path-detail-heading" data-bs-parent="#attack-path-detail-accordion">
-            <div className="accordion-body bg-card-surface">
-              <div className="row g-3 mb-4">
-                <DetailField label="위험도 점수" value={formatRiskPercent(path.risk_score)} />
-                <DetailField label="위험도 점수 (raw)" value={formatRawRisk(path.raw_final_risk)} />
-                <DetailField label="분석 시각" value={formatDateTime(envelope.generated_at)} />
-                <DetailField label="클러스터 ID" value={envelope.cluster_id} />
-                <DetailField label="경로 ID" value={<code className="small text-break">{truncateMiddle(path.path_id, 60)}</code>} />
-                <DetailField label="분석 실행 ID" value={envelope.analysis_run_id ?? '-'} />
-              </div>
-
-              <div className="mb-4">
-                <h3 className="h6 mb-2">연결된 엣지 ID</h3>
-                {edgeIds.length === 0 ? <div className="text-muted small">연결된 엣지 ID가 없습니다.</div> : (
-                  <ol className="mb-0 ps-3">{edgeIds.map((edgeId) => <li key={edgeId} className="mb-2 text-break">{edgeId}</li>)}</ol>
-                )}
-              </div>
-
-              <div className="d-flex flex-column gap-3">
-                {orderedEdges.filter((edge) => edge.metadata && Object.keys(edge.metadata).length > 0).map((edge) => (
-                  <details key={edge.edge_id} className="rounded-4 p-3" style={{ background: 'rgba(15, 23, 42, 0.42)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
-                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{`엣지 메타데이터 ${edge.edge_id}`}</summary>
-                    <pre className="mb-0 mt-3 small text-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderValue(edge.metadata)}</pre>
-                  </details>
-                ))}
+                  <div className="d-flex flex-column gap-3">
+                    {orderedEdges.filter((edge) => edge.metadata && Object.keys(edge.metadata).length > 0).map((edge) => (
+                      <details key={edge.edge_id} className="rounded-4 p-3" style={{ background: 'rgba(15, 23, 42, 0.42)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{`엣지 메타데이터 ${edge.edge_id}`}</summary>
+                        <pre className="mb-0 mt-3 small text-wrap" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderValue(edge.metadata)}</pre>
+                      </details>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        ) : null}
 
-      {orderedEdges.length > 0 ? <div className="mb-4"><EdgeList edges={orderedEdges} /></div> : null}
+        {orderedEdges.length > 0 ? <div className="mb-4"><EdgeList edges={orderedEdges} /></div> : null}
+      </div>
     </div>
   );
 };

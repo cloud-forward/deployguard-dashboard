@@ -5,7 +5,6 @@ import GraphFilters from '../components/graph/GraphFilters';
 import type { NodeData, NodeType } from '../components/graph/mockGraphData';
 import PageLoader from '../components/layout/PageLoader';
 import {
-  useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
@@ -33,7 +32,6 @@ import {
   NodeTypeBadge,
   parseAttackPathNode,
   RiskLevelBadge,
-  ThreatTypeBadge,
 } from '../components/graph/attackPathVisuals';
 
 const GraphView = React.lazy(() => import('../components/graph/GraphView'));
@@ -272,12 +270,15 @@ interface AttackGraphContentProps {
   liveEvidenceCount?: number | null;
 }
 
-const formatNumber = (value?: number | null) => {
+const formatRiskScoreDisplay = (value?: number | null) => {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '-';
   }
 
-  return value.toLocaleString();
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const getFallbackRiskScore = (riskLevel?: string | null) => {
@@ -294,7 +295,21 @@ const getAttackPathRiskScore = (item: AttackPathListItemResponse) =>
     ? item.risk_score
     : getFallbackRiskScore(item.risk_level);
 
-type RiskScoreSortDirection = 'asc' | 'desc';
+const getAttackPathHopCount = (item: AttackPathListItemResponse) => item.hop_count ?? item.node_ids?.length ?? 0;
+
+type SortDirection = 'asc' | 'desc';
+
+const compareNumbersByDirection = (left: number, right: number, direction: SortDirection) =>
+  direction === 'desc' ? right - left : left - right;
+
+const compareRiskSeverityByDirection = (
+  leftRiskLevel: AttackPathListItemResponse['risk_level'],
+  rightRiskLevel: AttackPathListItemResponse['risk_level'],
+  direction: SortDirection,
+) => {
+  const gap = getRiskSortOrder(leftRiskLevel) - getRiskSortOrder(rightRiskLevel);
+  return direction === 'desc' ? gap : -gap;
+};
 
 const getHopColor = (count?: number | null) => {
   if (typeof count !== 'number' || Number.isNaN(count)) {
@@ -344,173 +359,21 @@ const PathNodeText: React.FC<{
   );
 };
 
-const AttackPathDetailPanel: React.FC<{
-  clusterId: string;
-  pathId: string | null;
-  enabled: boolean;
-  onClose: () => void;
-}> = ({ clusterId, pathId, enabled, onClose }) => {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId ?? '', {
-    query: {
-      enabled,
-      retry: false,
-    },
-  });
-
-  const detail =
-    data && typeof data === 'object' && 'path' in data
-      ? data.path ?? null
-      : null;
-  const entryNode = parseAttackPathNode(detail?.entry_node_id);
-  const targetNode = parseAttackPathNode(detail?.target_node_id);
-  const threatAccent = getThreatAccentBorder(detail?.target_node_id);
-  const visibleNodeIds = Array.isArray(detail?.node_ids) ? detail.node_ids.filter((item) => item?.trim()) : [];
-  const visibleEdgeIds = Array.isArray(detail?.edge_ids) ? detail.edge_ids.filter((item) => item?.trim()) : [];
-  const riskScore = formatNumber(detail?.risk_score);
-  const rawFinalRisk = formatNumber(detail?.raw_final_risk);
-
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="공격 경로 상세 패널 닫기"
-        className="border-0"
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(2, 6, 23, 0.3)', zIndex: 1040 }}
-      />
-      <aside
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: 'min(460px, 100vw)',
-          height: '100vh',
-          zIndex: 1050,
-          overflowY: 'auto',
-          background: 'rgba(15, 23, 42, 0.8)',
-          borderLeft: '1px solid rgba(148, 163, 184, 0.18)',
-          boxShadow: '-18px 0 50px rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(18px)',
-        }}
-      >
-        <div className="p-4 border-bottom d-flex justify-content-between align-items-start gap-3">
-          <div className="w-100">
-            <div className="small text-uppercase text-muted mb-2">공격 경로 상세</div>
-            {detail ? (
-              <div className="d-flex flex-wrap align-items-center gap-2 text-white">
-                <RiskLevelBadge level={detail.risk_level} />
-                <ThreatTypeBadge type={targetNode.type} />
-                <span className="text-muted small">|</span>
-                <span className="small text-muted">시작</span>
-                <NodeTypeBadge type={entryNode.type} />
-                <span className="fw-semibold text-break">{entryNode.name}</span>
-                <span className="small text-muted">목표</span>
-                <NodeTypeBadge type={targetNode.type} />
-                <span className="fw-semibold text-break">{targetNode.name}</span>
-              </div>
-            ) : (
-              <h2 className="h4 mb-0 text-white text-break">{pathId ?? '선택한 경로'}</h2>
-            )}
-          </div>
-          <button type="button" className="btn-close btn-close-white" aria-label="닫기" onClick={onClose} />
-        </div>
-
-        <div className="p-4 d-flex flex-column gap-4 text-light">
-          {isLoading ? (
-            <div className="text-muted">저장된 공격 경로 상세 정보를 불러오는 중입니다...</div>
-          ) : isError ? (
-            <div>
-              <div className="alert alert-danger mb-3" role="alert">
-                {toErrorMessage(error, '저장된 공격 경로 상세 정보를 불러오지 못했습니다.')}
-              </div>
-              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
-                다시 시도
-              </button>
-            </div>
-          ) : !detail ? (
-            <div className="text-muted">저장된 공격 경로 상세 정보가 없습니다.</div>
-          ) : (
-            <>
-              <div
-                className="rounded-4 p-3"
-                style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  borderLeft: `2px solid ${threatAccent}`,
-                }}
-              >
-                <div className="small text-muted mb-1">경로 ID</div>
-                <code className="d-block small text-break user-select-all" style={{ color: '#cbd5e1' }}>
-                  {detail.path_id}
-                </code>
-              </div>
-
-              <div className="row g-3">
-                <div className="col-12 col-sm-6">
-                  <div className="small text-muted mb-1">경유 수</div>
-                  <div className="fw-semibold" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                    {detail.hop_count ?? '-'}
-                  </div>
-                </div>
-                {riskScore !== '-' ? (
-                  <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">위험도 점수</div>
-                    <div className="fw-semibold">{riskScore}</div>
-                  </div>
-                ) : null}
-                {rawFinalRisk !== '-' ? (
-                  <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">최종 위험도 원시값</div>
-                    <div className="fw-semibold">{rawFinalRisk}</div>
-                  </div>
-                ) : null}
-              </div>
-
-              {visibleNodeIds.length > 0 ? (
-                <div>
-                  <h3 className="h6 mb-2">노드 ID</h3>
-                  <ol className="mb-0 ps-3 small">
-                    {visibleNodeIds.map((item) => (
-                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
-
-              {visibleEdgeIds.length > 0 ? (
-                <div>
-                  <h3 className="h6 mb-2">{`엣지 ID (${visibleEdgeIds.length}개)`}</h3>
-                  <ol className="mb-0 ps-3 small">
-                    {visibleEdgeIds.map((item) => (
-                      <li key={item} className="mb-1 text-break" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                        {item}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </aside>
-    </>
-  );
-};
-
 const AttackPathsPanel: React.FC<{
   clusterId: string;
   enabled: boolean;
 }> = ({ clusterId, enabled }) => {
-  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
-  const [riskScoreSortDirection, setRiskScoreSortDirection] = useState<RiskScoreSortDirection>('desc');
+  const stickyHeaderCellStyle: React.CSSProperties = {
+    position: 'sticky',
+    top: 0,
+    zIndex: 2,
+    background: 'rgba(17, 24, 39, 0.96)',
+    boxShadow: 'inset 0 -1px 0 rgba(148, 163, 184, 0.18), 0 10px 20px rgba(2, 6, 23, 0.2)',
+    backdropFilter: 'blur(10px)',
+    verticalAlign: 'middle',
+  };
+  const [riskScoreSortDirection, setRiskScoreSortDirection] = useState<SortDirection>('desc');
+  const [hopCountSortDirection, setHopCountSortDirection] = useState<SortDirection>('asc');
   const {
     data,
     isLoading,
@@ -533,30 +396,27 @@ const AttackPathsPanel: React.FC<{
       ).slice().sort((left, right) => {
         const leftScore = getAttackPathRiskScore(left);
         const rightScore = getAttackPathRiskScore(right);
-        const scoreGap =
-          riskScoreSortDirection === 'desc' ? rightScore - leftScore : leftScore - rightScore;
+        const scoreGap = compareNumbersByDirection(leftScore, rightScore, riskScoreSortDirection);
         if (scoreGap !== 0) {
           return scoreGap;
         }
 
-        const riskGap = getRiskSortOrder(left.risk_level) - getRiskSortOrder(right.risk_level);
-        if (riskGap !== 0) {
-          return riskGap;
-        }
-
-        const hopGap = (left.hop_count ?? 0) - (right.hop_count ?? 0);
+        const leftHopCount = getAttackPathHopCount(left);
+        const rightHopCount = getAttackPathHopCount(right);
+        const hopGap = compareNumbersByDirection(leftHopCount, rightHopCount, hopCountSortDirection);
         if (hopGap !== 0) {
           return hopGap;
         }
 
+        const riskGap = compareRiskSeverityByDirection(left.risk_level, right.risk_level, riskScoreSortDirection);
+        if (riskGap !== 0) {
+          return riskGap;
+        }
+
         return left.path_id.localeCompare(right.path_id);
       }),
-    [data, riskScoreSortDirection],
+    [data, hopCountSortDirection, riskScoreSortDirection],
   );
-  const resolvedSelectedPathId =
-    enabled && items.some((item) => item.path_id === selectedPathId) ? selectedPathId : null;
-  const shouldLoadDetail = enabled && Boolean(clusterId) && Boolean(resolvedSelectedPathId);
-  const isAttackPathDetailOpen = Boolean(resolvedSelectedPathId);
 
   if (isLoading) {
     return (
@@ -597,23 +457,33 @@ const AttackPathsPanel: React.FC<{
       <div className="card border-0 shadow-sm">
         <div className="card-body py-3">
           <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <div>
-              <h2 className="h5 mb-1">탐지된 공격 경로</h2>
-              <p className="text-muted mb-0 small">{items.length}개 경로</p>
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <h2 className="h5 mb-0">탐지된 공격 경로</h2>
+              <span className="text-muted small">{items.length}개 경로</span>
             </div>
           </div>
-          <div className="table-responsive">
+          <div
+            className="table-responsive"
+            style={{
+              maxHeight: 'clamp(18rem, calc(100vh - 20rem), 32rem)',
+              overflow: 'auto',
+              overscrollBehavior: 'contain',
+            }}
+          >
             <table className="table align-middle mb-0 small dg-attack-paths-table">
               <thead className="table-light">
                 <tr>
-                  <th style={{ width: 120 }}>
+                  <th
+                    style={{ ...stickyHeaderCellStyle, width: 120 }}
+                    aria-sort={riskScoreSortDirection === 'desc' ? 'descending' : 'ascending'}
+                  >
                     <button
                       type="button"
                       className="dg-table-sort-button"
                       onClick={() =>
                         setRiskScoreSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
                       }
-                      aria-label={`위험도 점수 ${riskScoreSortDirection === 'desc' ? '오름차순' : '내림차순'} 정렬`}
+                      aria-label={`위험도 점수 기준 현재 ${riskScoreSortDirection === 'desc' ? '내림차순' : '오름차순'} 정렬. 같은 점수는 단계 ${hopCountSortDirection === 'desc' ? '내림차순' : '오름차순'} 후 위험 등급 순으로 정렬됩니다.`}
                     >
                       <span>위험도 점수</span>
                       <span className="dg-table-sort-indicator" aria-hidden="true">
@@ -621,19 +491,35 @@ const AttackPathsPanel: React.FC<{
                       </span>
                     </button>
                   </th>
-                  <th>위험</th>
-                  <th>시작 노드</th>
-                  <th>목표 자산</th>
-                  <th>단계</th>
-                  <th>상세</th>
+                  <th style={stickyHeaderCellStyle}>위험</th>
+                  <th style={stickyHeaderCellStyle}>시작 노드</th>
+                  <th style={stickyHeaderCellStyle}>목표 자산</th>
+                  <th
+                    style={{ ...stickyHeaderCellStyle, width: 72 }}
+                    aria-sort={hopCountSortDirection === 'desc' ? 'descending' : 'ascending'}
+                  >
+                    <button
+                      type="button"
+                      className="dg-table-sort-button"
+                      onClick={() =>
+                        setHopCountSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                      }
+                      aria-label={`단계 기준 현재 ${hopCountSortDirection === 'desc' ? '내림차순' : '오름차순'} 보조 정렬. 위험도 점수가 같은 경로에만 적용됩니다.`}
+                    >
+                      <span>단계</span>
+                      <span className="dg-table-sort-indicator" aria-hidden="true">
+                        {hopCountSortDirection === 'desc' ? '↓' : '↑'}
+                      </span>
+                    </button>
+                  </th>
+                  <th style={stickyHeaderCellStyle}>상세</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const isSelected = item.path_id === resolvedSelectedPathId;
                   const entryNode = parseAttackPathNode(item.entry_node_id);
                   const targetNode = parseAttackPathNode(item.target_node_id);
-                  const hopCount = item.hop_count ?? item.node_ids?.length ?? null;
+                  const hopCount = getAttackPathHopCount(item);
                   const riskScore = getAttackPathRiskScore(item);
                   const threatAccent = getThreatAccentBorder(item.target_node_id);
                   const isHighRisk = item.risk_level?.toLowerCase() === 'high';
@@ -641,11 +527,8 @@ const AttackPathsPanel: React.FC<{
                   return (
                     <tr
                       key={item.path_id}
-                      role="button"
-                      className={isSelected ? 'dg-attack-path-row table-active' : 'dg-attack-path-row'}
-                      onClick={() => setSelectedPathId(item.path_id)}
+                      className="dg-attack-path-row"
                       style={{
-                        cursor: 'pointer',
                         backgroundColor: isHighRisk ? 'rgba(239, 68, 68, 0.05)' : undefined,
                         boxShadow: `inset 2px 0 0 ${threatAccent}`,
                         transition: 'background-color 160ms ease',
@@ -659,7 +542,7 @@ const AttackPathsPanel: React.FC<{
                           color: '#f8fafc',
                         }}
                       >
-                        {formatNumber(riskScore)}
+                        {formatRiskScoreDisplay(riskScore)}
                       </td>
                       <td style={{ width: 92 }}>
                         <RiskLevelBadge level={item.risk_level} />
@@ -688,9 +571,8 @@ const AttackPathsPanel: React.FC<{
                         <Link
                           to={`/clusters/${clusterId}/attack-paths/${item.path_id}`}
                           className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
-                          onClick={(event) => event.stopPropagation()}
                         >
-                          보기
+                          상세 보기
                         </Link>
                       </td>
                     </tr>
@@ -701,14 +583,6 @@ const AttackPathsPanel: React.FC<{
           </div>
         </div>
       </div>
-      {isAttackPathDetailOpen ? (
-        <AttackPathDetailPanel
-          clusterId={clusterId}
-          pathId={resolvedSelectedPathId}
-          enabled={shouldLoadDetail}
-          onClose={() => setSelectedPathId(null)}
-        />
-      ) : null}
     </>
   );
 };

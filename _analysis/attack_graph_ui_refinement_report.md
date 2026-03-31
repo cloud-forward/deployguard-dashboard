@@ -1,130 +1,123 @@
-# Attack Graph UI Refinement Report
+Attack Graph UI refinement report
 
-## Scope
+Scope
 
-This pass stayed local to the Attack Graph / Attack Path detail polish requested after the gap analysis:
-- Korean UI consistency for Attack Graph / Attack Path detail
-- slight live-page search tightening
-- collapsible/draggable node and edge detail panels on Attack Graph
-- softer translucency for the detail panel shell and the same-page persisted Attack Path drawer
+- This update was limited to the Attack Graph page's persisted Attack Path tab final polish.
+- Code changes were restricted to:
+  - `src/pages/AttackGraphPage.tsx`
 
-## Files Changed
+Implemented changes
 
-- `src/pages/AttackGraphPage.tsx`
-- `src/pages/AttackPathDetailPage.tsx`
-- `src/components/graph/GraphFilters.tsx`
-- `src/components/graph/NodeDetailPanel.tsx`
-- `src/components/graph/GraphView.tsx`
-- `src/components/graph/attackPathVisuals.tsx`
+- Removed the in-page Attack Path detail panel path
+  - Deleted the local `AttackPathDetailPanel` implementation that previously lived inside `src/pages/AttackGraphPage.tsx`.
+  - Removed the generated persisted-detail hook import that was only used by that in-page panel.
+  - Removed the Attack Path tab-only row-selection state and conditional panel mount.
+  - Removed row click opening behavior and row-selected/button-like affordances that only existed to support the in-page panel.
+- Preserved the separate full-page detail route
+  - Kept the table `Link` to `/clusters/{clusterId}/attack-paths/{pathId}`.
+  - Renamed the visible action label from `보기` to `상세`.
+- Tightened combined sorting
+  - Kept the existing two local sort directions: risk score and hop count.
+  - Made the comparator explicit in this order:
+    1. risk score by selected direction
+    2. hop count by selected direction
+    3. risk severity aligned with the selected risk-score direction
+    4. `path_id` lexical order
+  - Updated sort-button accessibility text to describe the current primary/secondary sort behavior more explicitly.
+- Added internal scrolling to the Attack Path table region
+  - Kept the card header/title/count outside the scroll area.
+  - Made the existing Attack Path `table-responsive` wrapper the local scroll owner with a local `max-height`, `overflow: auto`, and contained overscroll.
 
-## What Changed
+Preserved behavior
 
-### Korean UI copy
+- The separate full-page Attack Path detail route remains intact.
+- Risk score display formatting was left unchanged.
+- Badge colors and current localized table structure were left unchanged.
+- Persisted attack path data still uses the generated hooks/models already in place.
+- Live graph interaction logic, graph-mode node/edge detail panels, router structure, and `src/api/attackGraph.ts` were left untouched.
 
-- Localized the remaining Attack Graph page title, description, tabs, cluster label, empty/error/loading copy, search summary, mode summary, drawer labels, drawer button copy, and drawer aria labels in `src/pages/AttackGraphPage.tsx`.
-- Localized Graph Controls copy, search helper text, navigator labels, filter section titles, and related aria labels in `src/components/graph/GraphFilters.tsx`.
-- Localized the shared detail shell defaults and close/collapse control labels in `src/components/graph/NodeDetailPanel.tsx`.
-- Localized edge hover tooltip labels in `src/components/graph/GraphView.tsx`.
-- Localized threat badge labels/descriptions in `src/components/graph/attackPathVisuals.tsx`.
-- Localized the remaining `Path ID` label on the dedicated Attack Path detail page in `src/pages/AttackPathDetailPage.tsx`.
+Tradeoffs
 
-Literal identifiers were intentionally preserved:
-- resource names
-- node IDs
-- edge IDs
-- path IDs
-- cluster IDs
-- analysis IDs
-- risk values
-- resource-type technical literals like `IAM`, `S3`, `RDS`
+- The sort UI still uses two independent toggles instead of introducing a more complex multi-column sort framework. That was intentional to keep this pass small and local.
+- The table scroll rule was kept local to `AttackGraphPage.tsx` instead of extracted to `src/App.css` because no shared styling was needed.
 
-### Search tightening
+Validation
 
-Live-page search was narrowed only inside `src/pages/AttackGraphPage.tsx` `searchState`.
+- `npx eslint src/pages/AttackGraphPage.tsx` passed.
+- `npm run build` passed.
 
-Kept searchable:
-- nodes: `id`, `label`, `resourceType`, `namespace`
-- edges: `id`, `label`, `relationType`
-- paths: `id`, `label`, `path_id`
+Attack Path detail/layout polish follow-up
 
-Removed from matching:
-- node detail values via `Object.values(node.details ?? {})`
-- serialized edge raw metadata
-- path `severity`
-- raw path `title`
-- raw path `summary`
+- This follow-up stayed within:
+  - `src/pages/AttackGraphPage.tsx`
+  - `src/pages/AttackPathDetailPage.tsx`
+- Attack Graph persisted Attack Path table
+  - Kept the existing `table-responsive` wrapper as the only local scroll owner.
+  - Made only the header cells sticky with local inline `th` styles:
+    - `position: sticky`
+    - `top: 0`
+    - raised `z-index`
+    - dark opaque background
+    - subtle separator/shadow for readability
+  - Renamed the row action link text from `상세` to `상세 보기`.
+- Dedicated Attack Path detail page
+  - Added the shared page-heading language above the hero:
+    - `공격 그래프`
+    - `선택한 클러스터의 연결 자산과 저장된 공격 경로를 확인합니다.`
+  - Moved `공격 그래프로 돌아가기` from the hero metrics row into that top page row.
+  - Kept the existing hero card, but added an in-hero path-specific heading block for `공격 경로 상세` plus the current path ID chip.
+  - Re-homed the existing `GraphView` attack-path visualization into the hero card as an absolute background-like layer.
+  - Kept the metrics and the `시작 노드 및 목표 자산` surface above the graph as translucent overlays using the current dark/red palette.
+  - Removed the standalone normal-flow `공격 경로 시각화` section after the graph moved into the hero.
+- Intentionally left untouched
+  - persisted route ownership
+  - generated hooks/models
+  - `src/api/attackGraph.ts`
+  - `src/components/graph/GraphView.tsx`
+  - `src/components/graph/attackPathVisuals.tsx`
+  - Attack Graph live graph-mode interactions
+- Validation for this follow-up
+  - `npx eslint src/pages/AttackGraphPage.tsx src/pages/AttackPathDetailPage.tsx` passed.
+  - `npm run build` passed.
 
-The search system itself was not replaced:
-- tokenization unchanged
-- in-place highlighting unchanged
-- result navigator unchanged
-- focus stepping unchanged
-- chain emphasis unchanged
+Dedicated Attack Path detail graph-front polish
 
-### Attack Graph detail panel controls
-
-`src/components/graph/NodeDetailPanel.tsx`
-- Added optional shell props for:
-  - `collapsed`
-  - `onToggleCollapsed`
-  - `onDragHandleMouseDown`
-  - `dragHandleLabel`
-- Added a compact collapsed header mode with:
-  - drag dots
-  - title
-  - current subject line
-  - collapse/expand control
-  - close control
-
-`src/pages/AttackGraphPage.tsx`
-- Added Attack Graph-owned detail panel state:
-  - `detailPanelCollapsed`
-  - `detailPanelPosition`
-  - `detailPanelMaxHeight`
-- Added drag refs and clamping logic scoped to the graph card.
-- Reused the existing Graph Controls drag/clamp interaction pattern instead of introducing a new subsystem.
-- Applied the shell behavior to both live node and live edge detail overlays.
-
-### Translucency adjustments
-
-`src/components/graph/NodeDetailPanel.tsx`
-- Outer dark shell background: `rgba(8, 15, 32, 0.94)` -> `rgba(8, 15, 32, 0.76)`
-- Header background: `rgba(15, 23, 42, 0.9)` -> `rgba(15, 23, 42, 0.68)`
-- Inner summary tile: `rgba(15, 23, 42, 0.76)` -> `rgba(15, 23, 42, 0.48)`
-- Blur: `blur(16px)` -> `blur(18px)`
-
-`src/pages/AttackGraphPage.tsx`
-- Same-page persisted Attack Path drawer scrim: `rgba(2, 6, 23, 0.45)` -> `rgba(2, 6, 23, 0.3)`
-- Drawer background: `#0f172a` -> `rgba(15, 23, 42, 0.8)`
-- Added drawer `backdropFilter: blur(18px)`
-- Inner path ID card: `rgba(15, 23, 42, 0.84)` -> `rgba(15, 23, 42, 0.6)`
-
-## What Stayed Untouched
-
-- `src/api/attackGraph.ts`
-- generated hooks/models
-- Orval output
-- `src/components/graph/attackGraph/adapter.ts`
-- `src/components/graph/attackGraph/stylesheet.ts`
-- `src/components/graph/attackGraph/layout.ts`
-- router structure
-- `fcose` behavior
-- node fill meaning
-- node border meaning
-- search navigator behavior
-- chain emphasis and focus logic
-
-## Validation
-
-Passed:
-- `npx eslint src/pages/AttackGraphPage.tsx src/pages/AttackPathDetailPage.tsx src/components/graph/GraphFilters.tsx src/components/graph/NodeDetailPanel.tsx src/components/graph/GraphView.tsx --max-warnings=0`
-- `npx tsc -b`
-
-Observed but not addressed in this scoped pass:
-- `npm run lint` fails on multiple pre-existing repo-wide lint issues outside the allowed scope.
-- `npm run build` fails on an existing Vite/Rolldown resolution problem for `cytoscape-dagre` imported by `src/components/graph/GraphView.tsx`. The TypeScript compile step completed before that bundler failure.
-
-## Tradeoffs
-
-- Drag/collapse was implemented only for the live Attack Graph node/edge overlays. The dedicated Attack Path detail page keeps its existing inline selected-node/selected-edge layout in this pass to avoid a broader layout rewrite.
-- Shared shell translucency was updated through `NodeDetailPanel`, so dark-tone detail shells become lighter consistently without changing graph semantics.
+- This pass was intentionally limited to:
+  - `src/pages/AttackPathDetailPage.tsx`
+- No shared graph files, router files, generated API files, or Attack Graph page files were edited.
+- Added a page-local two-mode presentation toggle inside the existing hero:
+  - `요약 보기`
+  - `경로 보기`
+- Reworked the hero into three local layers owned by `AttackPathDetailPage.tsx`:
+  - graph layer
+  - summary layer
+  - always-reachable control layer
+- Summary-first mode
+  - Kept the graph in the hero background.
+  - Reduced obstruction slightly by easing graph dimming/tint.
+  - Moved the summary into a non-blocking overlay owner instead of a full-card foreground body.
+- Graph-front mode
+  - Brings the graph above the summary overlay with unchanged graph elements, preset layout, node sizes, label sizes, and selection callbacks.
+  - Recedes the summary visually with lower opacity and lower z-order.
+  - Keeps the summary non-blocking so graph interaction remains available.
+- Selection detail handling
+  - Removed the old below-hero selected-node panel.
+  - Removed the old below-hero custom selected-edge card.
+  - Added a hero-scoped right-side overlay in graph-front mode only.
+  - Reused `NodeDetailPanel` for selected-node detail.
+  - Converted selected-edge detail to the same overlay family locally by building a small panel node plus edge detail map in `AttackPathDetailPage.tsx`.
+- `상세 정보`
+  - Kept the section and its current collapsed/default behavior in summary-first mode.
+  - Hid it in graph-front mode.
+  - Left all path-level backend metadata exposure intact in summary-first mode.
+- Preserved
+  - persisted route ownership
+  - current queries/fetching
+  - remediation recommendation logic
+  - attack-path graph element generation
+  - preset layout and node positions
+  - current node sizing and label sizing
+  - current graph color semantics
+- Validation for this pass
+  - `npx eslint src/pages/AttackPathDetailPage.tsx` passed.
+  - `npm run build` passed.
