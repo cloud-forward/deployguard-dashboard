@@ -163,6 +163,60 @@
 }
 
 /* ========================================
+   Dashboard Shell - Form & Alert Overrides
+   ======================================== */
+.dg-dashboard-shell .form-label {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.dg-dashboard-shell .form-control,
+.dg-dashboard-shell .form-select {
+  background-color: rgba(15, 23, 42, 0.6);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.dg-dashboard-shell .form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.dg-dashboard-shell .form-control:focus,
+.dg-dashboard-shell .form-select:focus {
+  background-color: rgba(15, 23, 42, 0.8);
+  border-color: var(--border-accent-blue);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.dg-dashboard-shell .form-select {
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+.dg-dashboard-shell .alert-success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: var(--border-accent-green);
+  color: #86efac;
+}
+
+.dg-dashboard-shell .alert-warning {
+  background: rgba(234, 179, 8, 0.1);
+  border-color: var(--border-accent-yellow);
+  color: #fde047;
+}
+
+.dg-dashboard-shell .alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--border-accent-red);
+  color: #fca5a5;
+}
+
+.dg-dashboard-shell .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ========================================
    Login Shell - Dark Theme Overrides
    ======================================== */
 .dg-login-shell {
