@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ElementDefinition } from 'cytoscape';
 import {
   useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet,
@@ -462,6 +462,7 @@ const EdgeList: React.FC<{ edges: AttackPathEdgeSequenceResponse[] }> = ({ edges
 );
 
 const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationItem[] }> = ({ matchedRemediation }) => {
+  const navigate = useNavigate();
   const { clusterId = '', pathId = '' } = useParams();
   const [selectedNode, setSelectedNode] = React.useState<NodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
@@ -670,7 +671,19 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
               위험 경로 {bestFix.blocked_path_ids?.length ?? 0}개 차단 가능&nbsp;·&nbsp;위험도 {(bestFix.covered_risk ?? 0).toFixed(2)} 감소
             </span>
           </span>
-          <Link to={`/clusters/${clusterId}/remediation`} style={{ border: '1px solid #ef4444', color: '#ef4444', borderRadius: 6, padding: '4px 12px', fontSize: '0.875rem', textDecoration: 'none', whiteSpace: 'nowrap' }}>권장 조치 보기 →</Link>
+          <button
+            onClick={() => {
+              navigate('/remediation', {
+                state: {
+                  highlightId: bestFix.recommendation_id,
+                  clusterId,
+                },
+              });
+            }}
+            style={{ border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', borderRadius: 6, padding: '4px 12px', fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            권장 조치 보기 →
+          </button>
         </div>
       )}
 

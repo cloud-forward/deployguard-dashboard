@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import ChokePointList from '../components/risk/ChokePointList';
 
@@ -8,6 +9,10 @@ type ClusterOption = {
 };
 
 const RemediationPage: React.FC = () => {
+  const location = useLocation();
+  const highlightId = (location.state as { highlightId?: string; clusterId?: string } | null)?.highlightId;
+  const stateClusterId = (location.state as { highlightId?: string; clusterId?: string } | null)?.clusterId;
+  const highlightRef = useRef<HTMLDivElement>(null);
   const { data: clustersData, isLoading: isLoadingClusters } = useListClustersApiV1ClustersGet();
   const clusters = (Array.isArray(clustersData) ? clustersData : []) as ClusterOption[];
 
@@ -18,6 +23,41 @@ const RemediationPage: React.FC = () => {
     selectedClusterId && clusters.some((c) => c.id === selectedClusterId)
       ? selectedClusterId
       : firstClusterId;
+
+  useEffect(() => {
+    if (stateClusterId && clusters.some((cluster) => cluster.id === stateClusterId)) {
+      setSelectedClusterId(stateClusterId);
+    }
+  }, [clusters, stateClusterId]);
+
+  useEffect(() => {
+    if (!highlightRef.current || !highlightId || !activeClusterId) {
+      return;
+    }
+
+    const container = highlightRef.current;
+    const cards = Array.from(container.querySelectorAll('.dg-recommendation-list-card')) as HTMLDivElement[];
+    for (const card of cards) {
+      card.style.border = '1px solid rgba(255,255,255,0.1)';
+      card.style.boxShadow = 'none';
+      card.style.scrollMarginTop = '80px';
+    }
+
+    const link = container.querySelector(
+      `a[href="/clusters/${activeClusterId}/recommendations/${highlightId}"]`,
+    ) as HTMLAnchorElement | null;
+    const card = link?.closest('.dg-recommendation-list-card') as HTMLDivElement | null;
+
+    if (card) {
+      card.style.border = '2px solid #ef4444';
+      card.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.2)';
+      card.style.scrollMarginTop = '80px';
+      card.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  }, [activeClusterId, highlightId]);
 
   return (
     <div className="dg-page-shell">
@@ -55,7 +95,9 @@ const RemediationPage: React.FC = () => {
           </select>
         </div>
       </div>
-      <ChokePointList clusterId={activeClusterId} />
+      <div ref={highlightRef}>
+        <ChokePointList clusterId={activeClusterId} />
+      </div>
     </div>
   );
 };

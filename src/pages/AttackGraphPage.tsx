@@ -438,7 +438,7 @@ const AttackPathDetailPanel: React.FC<{
                 </div>
                 {riskScore !== '-' ? (
                   <div className="col-12 col-sm-6">
-                    <div className="small text-muted mb-1">Risk Score</div>
+                    <div className="small text-muted mb-1">위험도 점수</div>
                     <div className="fw-semibold">{riskScore}</div>
                   </div>
                 ) : null}
@@ -539,7 +539,7 @@ const AttackPathsPanel: React.FC<{
   if (isLoading) {
     return (
       <div className="card border-0 shadow-sm">
-        <div className="card-body py-5 text-center text-muted">Persisted attack paths loading...</div>
+        <div className="card-body py-5 text-center text-muted">탐지된 공격 경로를 불러오는 중입니다...</div>
       </div>
     );
   }
@@ -549,10 +549,10 @@ const AttackPathsPanel: React.FC<{
       <div className="card border-0 shadow-sm">
         <div className="card-body py-4">
           <div className="alert alert-danger mb-3" role="alert">
-            {toErrorMessage(error, 'Persisted attack paths could not be loaded.')}
+            {toErrorMessage(error, '탐지된 공격 경로를 불러오지 못했습니다.')}
           </div>
           <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
-            Retry
+            다시 시도
           </button>
         </div>
       </div>
@@ -563,8 +563,8 @@ const AttackPathsPanel: React.FC<{
     return (
       <div className="card border-0 shadow-sm">
         <div className="card-body py-5 text-center">
-          <h2 className="h5 mb-2">No persisted attack paths found.</h2>
-          <p className="text-muted mb-0">Persisted attack path results will appear here when analysis data is available.</p>
+          <h2 className="h5 mb-2">탐지된 공격 경로가 없습니다.</h2>
+          <p className="text-muted mb-0">분석 데이터가 준비되면 탐지된 공격 경로가 여기에 표시됩니다.</p>
         </div>
       </div>
     );
@@ -576,8 +576,8 @@ const AttackPathsPanel: React.FC<{
         <div className="card-body py-3">
           <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
             <div>
-              <h2 className="h5 mb-1">Persisted Attack Paths</h2>
-              <p className="text-muted mb-0 small">{items.length} paths</p>
+              <h2 className="h5 mb-1">탐지된 공격 경로</h2>
+              <p className="text-muted mb-0 small">{items.length}개 경로</p>
             </div>
           </div>
           <div className="table-responsive">
@@ -593,17 +593,17 @@ const AttackPathsPanel: React.FC<{
                       }
                       aria-label={`Sort risk score ${riskScoreSortDirection === 'desc' ? 'ascending' : 'descending'}`}
                     >
-                      <span>Risk Score</span>
+                      <span>위험도 점수</span>
                       <span className="dg-table-sort-indicator" aria-hidden="true">
                         {riskScoreSortDirection === 'desc' ? '↓' : '↑'}
                       </span>
                     </button>
                   </th>
-                  <th>Risk</th>
-                  <th>Entry</th>
-                  <th>Target</th>
-                  <th>Hop</th>
-                  <th>Open</th>
+                  <th>위험</th>
+                  <th>시작 노드</th>
+                  <th>목표 자산</th>
+                  <th>단계</th>
+                  <th>상세</th>
                 </tr>
               </thead>
               <tbody>
@@ -668,7 +668,7 @@ const AttackPathsPanel: React.FC<{
                           className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          Open
+                          보기
                         </Link>
                       </td>
                     </tr>
