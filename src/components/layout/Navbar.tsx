@@ -272,7 +272,7 @@ const Navbar: React.FC = () => {
       <div className="dg-mobile-actions d-md-none">
         <button
           type="button"
-          className="btn btn-outline-light btn-sm"
+          className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
           onClick={() => {
             logout();
             navigate('/login', { replace: true });
@@ -293,7 +293,7 @@ const Navbar: React.FC = () => {
             </span>
             <button
               type="button"
-              className="btn btn-outline-light btn-sm"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
               onClick={() => {
                 logout();
                 navigate('/login', { replace: true });

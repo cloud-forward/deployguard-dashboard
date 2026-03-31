@@ -391,7 +391,7 @@ const AttackPathDetailPanel: React.FC<{
               <div className="alert alert-danger mb-3" role="alert">
                 {toErrorMessage(error, 'Persisted attack path detail could not be loaded.')}
               </div>
-              <button type="button" className="btn btn-outline-light btn-sm" onClick={() => refetch()}>
+              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
                 Retry
               </button>
             </div>
@@ -521,7 +521,7 @@ const AttackPathsPanel: React.FC<{
           <div className="alert alert-danger mb-3" role="alert">
             {toErrorMessage(error, 'Persisted attack paths could not be loaded.')}
           </div>
-          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => refetch()}>
+          <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => refetch()}>
             Retry
           </button>
         </div>
@@ -609,7 +609,7 @@ const AttackPathsPanel: React.FC<{
                       <td>
                         <Link
                           to={`/clusters/${clusterId}/attack-paths/${item.path_id}`}
-                          className="btn btn-outline-secondary btn-sm"
+                          className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                           onClick={(event) => event.stopPropagation()}
                         >
                           Open

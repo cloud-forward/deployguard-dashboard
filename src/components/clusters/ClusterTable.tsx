@@ -35,13 +35,13 @@ const ClusterTable: React.FC<ClusterTableProps> = ({ clusters, onEdit, onDelete 
               <td>{cluster.lastScan}</td>
               <td className="text-end">
                 <button
-                  className="btn btn-sm btn-outline-primary me-2"
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary me-2"
                   onClick={() => onEdit(cluster)}
                 >
                   Edit
                 </button>
                 <button
-                  className="btn btn-sm btn-outline-danger"
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--danger"
                   onClick={() => onDelete(cluster)}
                 >
                   Delete

@@ -126,10 +126,10 @@ const ClusterModal: React.FC<ClusterModalProps> = ({
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              <button type="submit" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary" disabled={isSubmitting}>
                 {isSubmitting ? (cluster ? 'Updating...' : 'Creating...') : (cluster ? 'Update' : 'Create')}
               </button>
             </div>

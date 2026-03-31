@@ -481,7 +481,7 @@ const RiskPage: React.FC = () => {
             </div>
             <button
               type="button"
-              className="btn btn-outline-secondary btn-sm"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
               onClick={handleRefresh}
               disabled={!selectedClusterId}
             >
@@ -595,7 +595,7 @@ const RiskPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm w-100"
+                    className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
                     onClick={handleCreateAndExecute}
                     disabled={
                       !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
