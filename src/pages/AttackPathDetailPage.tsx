@@ -665,7 +665,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
       {bestFix && (
         <div style={{ background: 'rgba(239,68,68,0.08)', borderLeft: '3px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize:'0.875rem' }}>
-            이 경로는 <strong>"{fixTypeLabel(bestFix.fix_type)}"</strong> 조치로 차단할 수 있습니다&nbsp;·&nbsp;
+            이 경로는 <strong>"{fixTypeLabel(bestFix.fix_type ?? '')}"</strong> 조치로 차단할 수 있습니다&nbsp;·&nbsp;
             <span style={{ color:'#9ca3af' }}>
               위험 경로 {bestFix.blocked_path_ids?.length ?? 0}개 차단 가능&nbsp;·&nbsp;위험도 {(bestFix.covered_risk ?? 0).toFixed(2)} 감소
             </span>
