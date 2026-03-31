@@ -24,9 +24,14 @@ interface NodeDetailPanelProps {
   panelDescription?: string;
   subjectLabel?: string;
   detailLabelWidth?: string;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  onDragHandleMouseDown?: React.MouseEventHandler<HTMLDivElement>;
+  dragHandleLabel?: string;
 }
 
 const DETAIL_PANEL_WIDTH = 340;
+const DETAIL_PANEL_COLLAPSED_WIDTH = 252;
 
 const getTextWrapStyle = (color: string): React.CSSProperties => ({
   color,
@@ -143,17 +148,21 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   icon: iconOverride,
   typeLabel,
   details,
-  panelTitle = 'Node Detail',
-  panelDescription = 'Selected node details',
+  panelTitle = '노드 상세 정보',
+  panelDescription = '선택한 노드의 세부 정보입니다.',
   subjectLabel,
   detailLabelWidth = '34%',
+  collapsed = false,
+  onToggleCollapsed,
+  onDragHandleMouseDown,
+  dragHandleLabel = '드래그하여 이동',
 }) => {
   if (!node) return null;
 
   const color = accentColor ?? nodeTypeColors[node.type];
   const icon = iconOverride ?? nodeTypeIcons[node.type];
   const isDark = tone === 'dark';
-  const cardBackground = isDark ? 'rgba(8, 15, 32, 0.94)' : '#ffffff';
+  const cardBackground = isDark ? 'rgba(8, 15, 32, 0.76)' : '#ffffff';
   const cardBorder = isDark ? '1px solid rgba(96, 165, 250, 0.14)' : '1px solid rgba(15, 23, 42, 0.08)';
   const textColor = isDark ? '#e2e8f0' : '#0f172a';
   const mutedColor = isDark ? '#93a8c7' : '#64748b';
@@ -168,12 +177,12 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         position: 'absolute',
         top: 16,
         right: 16,
-        width: DETAIL_PANEL_WIDTH,
+        width: collapsed ? DETAIL_PANEL_COLLAPSED_WIDTH : DETAIL_PANEL_WIDTH,
         zIndex: 10,
         border: cardBorder,
         background: cardBackground,
         color: textColor,
-        backdropFilter: isDark ? 'blur(16px)' : undefined,
+        backdropFilter: isDark ? 'blur(18px)' : undefined,
         maxHeight: 'calc(100vh - 7rem)',
         overflow: 'hidden',
         display: 'flex',
@@ -184,20 +193,71 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       <div
         className="card-header d-flex justify-content-between align-items-center"
         style={{
-          background: isDark ? 'rgba(15, 23, 42, 0.9)' : '#f8fafc',
+          background: isDark ? 'rgba(15, 23, 42, 0.68)' : '#f8fafc',
           color: isDark ? '#f8fafc' : textColor,
           borderBottom: isDark ? '1px solid rgba(148, 163, 184, 0.12)' : '1px solid rgba(15, 23, 42, 0.06)',
           borderTop: `4px solid ${color}`,
         }}
       >
-        <strong>{panelTitle}</strong>
-        <button
-          type="button"
-          className={isDark ? 'btn-close btn-close-white' : 'btn-close'}
-          aria-label="Close"
-          onClick={onClose}
-        />
+        <div
+          className="d-flex align-items-center gap-3"
+          style={{
+            minWidth: 0,
+            flex: 1,
+            cursor: onDragHandleMouseDown ? 'grab' : 'default',
+            userSelect: 'none',
+          }}
+          onMouseDown={onDragHandleMouseDown}
+          title={onDragHandleMouseDown ? dragHandleLabel : undefined}
+        >
+          {onDragHandleMouseDown ? (
+            <div
+              aria-hidden="true"
+              className="d-flex flex-column justify-content-center gap-1 flex-shrink-0"
+              style={{ opacity: 0.8 }}
+            >
+              <span style={{ width: 4, height: 4, borderRadius: 999, background: color }} />
+              <span style={{ width: 4, height: 4, borderRadius: 999, background: color }} />
+              <span style={{ width: 4, height: 4, borderRadius: 999, background: color }} />
+            </div>
+          ) : null}
+          <div style={{ minWidth: 0 }}>
+            <strong className="d-block text-truncate">{panelTitle}</strong>
+            {collapsed ? (
+              <div className="small text-truncate" style={{ color: mutedColor }}>
+                {heading}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div className="d-flex align-items-center gap-2 flex-shrink-0">
+          {onToggleCollapsed ? (
+            <button
+              type="button"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? '패널 펼치기' : '패널 접기'}
+              onClick={onToggleCollapsed}
+              style={{
+                borderRadius: 999,
+                minWidth: 34,
+                border: isDark ? '1px solid rgba(148, 163, 184, 0.24)' : '1px solid rgba(15, 23, 42, 0.12)',
+                color: isDark ? '#dbe8ff' : textColor,
+                background: isDark ? 'rgba(15, 23, 42, 0.34)' : '#ffffff',
+              }}
+            >
+              {collapsed ? '+' : '−'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={isDark ? 'btn-close btn-close-white' : 'btn-close'}
+            aria-label="닫기"
+            onClick={onClose}
+          />
+        </div>
       </div>
+      {collapsed ? null : (
       <div
         className="card-body d-flex flex-column gap-3"
         style={{
@@ -212,7 +272,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         <div
           className="rounded-4 p-3 d-flex align-items-start gap-3"
           style={{
-            background: isDark ? 'rgba(15, 23, 42, 0.76)' : '#f8fafc',
+            background: isDark ? 'rgba(15, 23, 42, 0.48)' : '#f8fafc',
             border: isDark ? '1px solid rgba(148, 163, 184, 0.14)' : '1px solid rgba(148, 163, 184, 0.2)',
             minWidth: 0,
           }}
@@ -252,6 +312,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 };
