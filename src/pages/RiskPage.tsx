@@ -15,12 +15,8 @@ import {
   useGetAnalysisJobApiV1AnalysisJobsJobIdGet,
   useListAnalysisJobsApiV1ClustersClusterIdAnalysisJobsGet,
 } from '../api/generated/analysis/analysis';
+import { useListClustersApiV1ClustersGet } from '../api/generated/clusters/clusters';
 import {
-  getListClustersApiV1ClustersGetQueryKey,
-  useListClustersApiV1ClustersGet,
-} from '../api/generated/clusters/clusters';
-import {
-  getListClusterScansApiV1ClustersClusterIdScansGetQueryKey,
   useListClusterScansApiV1ClustersClusterIdScansGet,
 } from '../api/generated/scans/scans';
 import ClusterFlowNav from '../components/layout/ClusterFlowNav';
