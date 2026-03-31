@@ -56,6 +56,9 @@ const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
 
 type SelectionMode = 'none' | 'path' | 'node' | 'edge';
 type AttackGraphInnerTab = 'graph' | 'attack-paths';
+
+const resolveAttackGraphInnerTab = (rawTab: string | null): AttackGraphInnerTab =>
+  rawTab === 'attack-paths' ? 'attack-paths' : 'graph';
 type AttackGraphDetailValue =
   | string
   | number
@@ -772,7 +775,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 
     const summary =
       matchedNodeIds.size === 0 && matchedEdgeIds.size === 0 && matchedPathIds.size === 0
-        ? `라이브 그래프에서 "${filters.search?.trim()}"와 일치하는 항목이 없습니다.`
+        ? `라이브 그래프에서 "${effectiveSearchTerm}"와 일치하는 항목이 없습니다.`
         : `노드 ${matchedNodeIds.size}개, 엣지 ${matchedEdgeIds.size}개, 경로 ${matchedPathIds.size}개가 일치합니다.`;
 
     return {
@@ -1481,10 +1484,19 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
 const AttackGraphPage: React.FC = () => {
   const { clusterId: routeClusterId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<AttackGraphInnerTab>('graph');
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState(routeClusterId);
+  const activeTab = resolveAttackGraphInnerTab(searchParams.get('tab'));
   const highlightName = searchParams.get('highlight');
+  const handleTabChange = useCallback((nextTab: AttackGraphInnerTab) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextTab === 'attack-paths') {
+      nextParams.set('tab', 'attack-paths');
+    } else {
+      nextParams.delete('tab');
+    }
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
   const clearHighlight = useCallback(() => {
     if (!searchParams.has('highlight')) {
       return;
@@ -1585,7 +1597,7 @@ const AttackGraphPage: React.FC = () => {
               <button
                 type="button"
                 className={`nav-link ${activeTab === 'graph' ? 'active' : ''}`}
-                onClick={() => setActiveTab('graph')}
+                onClick={() => handleTabChange('graph')}
               >
                 그래프
               </button>
@@ -1594,7 +1606,7 @@ const AttackGraphPage: React.FC = () => {
               <button
                 type="button"
                 className={`nav-link ${activeTab === 'attack-paths' ? 'active' : ''}`}
-                onClick={() => setActiveTab('attack-paths')}
+                onClick={() => handleTabChange('attack-paths')}
               >
                 공격 경로
               </button>
