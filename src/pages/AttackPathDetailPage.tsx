@@ -9,7 +9,7 @@ import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import { attackGraphStylesheet } from '../components/graph/attackGraph';
 import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle } from '../components/graph/attackGraph/stylesheet';
-import { NodeIdentity, NodeTypeBadge, ThreatTypeBadge, parseAttackPathNode } from '../components/graph/attackPathVisuals';
+import { ThreatTypeBadge, getThreatLabel, parseAttackPathNode, type AttackPathVisualNodeType } from '../components/graph/attackPathVisuals';
 import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
@@ -47,6 +47,7 @@ interface EdgeDetailData {
 
 type AttackPathPresentationMode = 'summary' | 'graph';
 type RiskTone = 'high' | 'medium' | 'low' | 'unknown';
+type HeroDetailPanelMode = 'node' | 'edge' | 'none';
 
 const EDGE_TYPE_KR: Record<string, string> = {
   pod_uses_service_account: '서비스 계정 사용',
@@ -187,6 +188,15 @@ const toCompactNodeLabel = (value: string): string => {
 
 const DASHBOARD_PATH_X_STEP = 150;
 const DASHBOARD_PATH_Y_PATTERN = [0, 60, -30, 55, -20];
+const HERO_DETAIL_PANEL_MIN_X = 16;
+const HERO_DETAIL_PANEL_MIN_Y = 16;
+const HERO_DETAIL_PANEL_DEFAULT_TOP = 92;
+const HERO_DETAIL_PANEL_DEFAULT_RIGHT_MARGIN = 18;
+const HERO_DETAIL_PANEL_EXPANDED_WIDTH = 392;
+const HERO_DETAIL_PANEL_COLLAPSED_WIDTH = 276;
+const HERO_DETAIL_PANEL_EXPANDED_HEIGHT = 420;
+const HERO_DETAIL_PANEL_COLLAPSED_HEIGHT = 78;
+const HERO_SWAP_TRANSITION = '420ms cubic-bezier(0.22, 1, 0.36, 1)';
 
 const getDashboardPathPosition = (index: number) => ({
   x: index * DASHBOARD_PATH_X_STEP,
@@ -284,7 +294,7 @@ const buildAttackPathGraphElements = (path: AttackPathDetailResponse): ElementDe
   return [...nodeElements, ...edgeElements];
 };
 
-const attackPathGraphStylesheet = [
+const getAttackPathGraphStylesheet = (isGraphFrontMode: boolean) => [
   ...attackGraphStylesheet,
   {
     selector: 'node',
@@ -301,9 +311,11 @@ const attackPathGraphStylesheet = [
     selector: 'edge',
     style: {
       'font-size': 8,
-      'text-background-color': 'transparent',
-      'text-background-opacity': 0,
-      'text-background-padding': '0px',
+      'text-background-color': isGraphFrontMode ? 'rgba(8, 15, 32, 0.88)' : 'transparent',
+      'text-background-opacity': isGraphFrontMode ? 1 : 0,
+      'text-background-padding': isGraphFrontMode ? '2px' : '0px',
+      'text-border-width': isGraphFrontMode ? 1 : 0,
+      'text-border-color': isGraphFrontMode ? 'rgba(96, 165, 250, 0.24)' : 'transparent',
       'text-margin-y': -8,
       'text-rotation': 'autorotate',
       'control-point-step-size': 34,
@@ -327,7 +339,12 @@ const SectionCard: React.FC<{ title: string; children: React.ReactNode; classNam
   </div>
 );
 
-const DangerMetric: React.FC<{ label: string; value: React.ReactNode; accent?: string }> = ({ label, value, accent = '#f8fafc' }) => (
+const DangerMetric: React.FC<{ label: string; value: React.ReactNode; accent?: string; surfaceStyle?: React.CSSProperties }> = ({
+  label,
+  value,
+  accent = '#f8fafc',
+  surfaceStyle,
+}) => (
   <div
     className="rounded-4 p-3"
     style={{
@@ -336,6 +353,8 @@ const DangerMetric: React.FC<{ label: string; value: React.ReactNode; accent?: s
       boxShadow: '0 16px 32px rgba(2, 6, 23, 0.18)',
       backdropFilter: 'blur(16px)',
       minWidth: 140,
+      transition: `background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}, transform ${HERO_SWAP_TRANSITION}, opacity ${HERO_SWAP_TRANSITION}`,
+      ...surfaceStyle,
     }}
   >
     <div className="small text-muted mb-1">{label}</div>
@@ -375,6 +394,130 @@ const KoreanRiskBadge: React.FC<{ level?: string | null }> = ({ level }) => {
   );
 };
 
+const getAttackPathBadgeLabel = (type: AttackPathVisualNodeType) => {
+  switch (type) {
+    case 'pod':
+      return 'POD';
+    case 'service':
+      return 'SVC';
+    case 'ingress':
+      return 'ING';
+    case 'sa':
+      return 'SA';
+    case 'iam':
+      return 'IAM';
+    case 's3':
+      return 'S3';
+    case 'rds':
+      return 'RDS';
+    case 'cluster_role':
+      return 'CR';
+    case 'role':
+      return 'ROLE';
+    case 'secret':
+      return 'SECRET';
+    case 'node':
+      return 'NODE';
+    default:
+      return 'NODE';
+  }
+};
+
+const toAttackGraphColorType = (type: AttackPathVisualNodeType): string => {
+  switch (type) {
+    case 'pod':
+      return 'Pod';
+    case 'service':
+      return 'Service';
+    case 'ingress':
+      return 'Ingress';
+    case 'sa':
+      return 'ServiceAccount';
+    case 'iam':
+      return 'IAMRole';
+    case 's3':
+      return 'S3';
+    case 'rds':
+      return 'RDS';
+    case 'cluster_role':
+      return 'ClusterRole';
+    case 'role':
+      return 'Role';
+    case 'secret':
+      return 'Secret';
+    case 'node':
+      return 'Node';
+    default:
+      return 'Unknown';
+  }
+};
+
+const AttackGraphAlignedTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> = ({ type }) => {
+  const accentColor = getAttackGraphNodeTypeStyle(toAttackGraphColorType(type)).backgroundColor;
+
+  return (
+    <span
+      className="d-inline-flex align-items-center justify-content-center"
+      style={{
+        background: accentColor,
+        color: '#eff6ff',
+        fontSize: 11,
+        fontWeight: 800,
+        padding: '2px 7px',
+        borderRadius: 999,
+        letterSpacing: '0.05em',
+        lineHeight: 1.2,
+        minWidth: 38,
+        boxShadow: `0 0 18px ${accentColor}33`,
+      }}
+    >
+      {getAttackPathBadgeLabel(type)}
+    </span>
+  );
+};
+
+const AttackGraphAlignedNodeIdentity: React.FC<{
+  value?: string | null;
+  compact?: boolean;
+  showThreat?: boolean;
+  showGlow?: boolean;
+}> = ({ value, compact = false, showThreat = false, showGlow = false }) => {
+  const parsed = parseAttackPathNode(value);
+  const accentColor = getAttackGraphNodeTypeStyle(toAttackGraphColorType(parsed.type)).backgroundColor;
+  const threatLabel = showThreat ? getThreatLabel(parsed.type) : null;
+
+  return (
+    <div
+      className="d-flex align-items-start gap-2"
+      style={
+        showGlow
+          ? {
+              padding: '0.2rem 0.35rem',
+              borderRadius: 12,
+              boxShadow: `0 0 24px ${accentColor}26`,
+            }
+          : undefined
+      }
+      title={parsed.raw}
+    >
+      <AttackGraphAlignedTypeBadge type={parsed.type} />
+      <div className="d-flex flex-column" style={{ minWidth: 0 }}>
+        <span
+          className="fw-semibold"
+          style={{
+            overflow: compact ? 'hidden' : undefined,
+            textOverflow: compact ? 'ellipsis' : undefined,
+            whiteSpace: compact ? 'nowrap' : undefined,
+          }}
+        >
+          {parsed.name}
+        </span>
+        {threatLabel ? <span className="small text-muted">{threatLabel}</span> : null}
+      </div>
+    </div>
+  );
+};
+
 const StepList: React.FC<{ path: AttackPathDetailResponse }> = ({ path }) => {
   const steps = useMemo(() => getOrderedPathSteps(path), [path]);
 
@@ -401,7 +544,7 @@ const StepList: React.FC<{ path: AttackPathDetailResponse }> = ({ path }) => {
                 <div className="d-flex flex-column gap-3">
                   <div className="d-flex flex-wrap align-items-center gap-2" title={sourceNode.raw}>
                     <span className="small text-muted">출발</span>
-                    <NodeTypeBadge type={sourceNode.type} />
+                    <AttackGraphAlignedTypeBadge type={sourceNode.type} />
                     <span className="fw-semibold text-break">{sourceNode.name}</span>
                   </div>
                   <div className="small" style={{ color: '#fbbf24', fontWeight: 700 }}>
@@ -409,7 +552,7 @@ const StepList: React.FC<{ path: AttackPathDetailResponse }> = ({ path }) => {
                   </div>
                   <div className="d-flex flex-wrap align-items-center gap-2" title={targetNode.raw}>
                     <span className="small text-muted">도착</span>
-                    <NodeTypeBadge type={targetNode.type} />
+                    <AttackGraphAlignedTypeBadge type={targetNode.type} />
                     <span className="fw-semibold text-break">{targetNode.name}</span>
                     {isFinalTarget ? (
                       <span className="d-inline-flex align-items-center" style={{ color: '#fecaca', background: 'rgba(127, 29, 29, 0.42)', border: '1px solid rgba(248, 113, 113, 0.34)', borderRadius: 999, padding: '3px 8px', fontSize: 12, fontWeight: 800, lineHeight: 1.2 }}>
@@ -455,8 +598,8 @@ const EdgeList: React.FC<{ edges: AttackPathEdgeSequenceResponse[] }> = ({ edges
               <td>{edge.edge_index + 1}</td>
               <td className="text-break">{edge.edge_id}</td>
               <td>{toKoreanEdgeType(edge.edge_type)}</td>
-              <td style={{ minWidth: 220 }}><NodeIdentity value={edge.source_node_id} compact showThreat /></td>
-              <td style={{ minWidth: 220 }}><NodeIdentity value={edge.target_node_id} compact showThreat showGlow /></td>
+              <td style={{ minWidth: 220 }}><AttackGraphAlignedNodeIdentity value={edge.source_node_id} compact showThreat /></td>
+              <td style={{ minWidth: 220 }}><AttackGraphAlignedNodeIdentity value={edge.target_node_id} compact showThreat showGlow /></td>
             </tr>
           ))}
         </tbody>
@@ -473,6 +616,14 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = React.useState<EdgeDetailData | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null);
+  const [detailPanelCollapsed, setDetailPanelCollapsed] = React.useState(false);
+  const [detailPanelPosition, setDetailPanelPosition] = React.useState({ x: HERO_DETAIL_PANEL_MIN_X, y: HERO_DETAIL_PANEL_DEFAULT_TOP });
+  const [detailPanelMaxHeight, setDetailPanelMaxHeight] = React.useState<number>();
+  const heroCardRef = React.useRef<HTMLDivElement | null>(null);
+  const detailPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const detailPanelDragOffsetRef = React.useRef<{ x: number; y: number } | null>(null);
+  const detailPanelPositionRef = React.useRef(detailPanelPosition);
+  const previousDetailPanelModeRef = React.useRef<HeroDetailPanelMode>('none');
   const query = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId, {
     query: {
       enabled: Boolean(clusterId && pathId),
@@ -545,6 +696,14 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     padding: 48,
   }), []);
   const isGraphFrontMode = presentationMode === 'graph';
+  const attackPathGraphStylesheet = useMemo(() => getAttackPathGraphStylesheet(isGraphFrontMode), [isGraphFrontMode]);
+  const detailPanelMode: HeroDetailPanelMode = !isGraphFrontMode
+    ? 'none'
+    : selectedNode
+    ? 'node'
+    : selectedEdge
+    ? 'edge'
+    : 'none';
   const selectedNodeAccentColor = useMemo(
     () => (selectedNode ? getAttackGraphNodeTypeStyle(getGraphNodeTypeFromId(selectedNode.id)).backgroundColor : undefined),
     [selectedNode],
@@ -584,12 +743,208 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     [selectedEdge],
   );
 
+  const clampDetailPanelPosition = React.useCallback(
+    (
+      nextPosition: { x: number; y: number },
+      options?: {
+        cardWidth?: number;
+        cardHeight?: number;
+        overlayWidth?: number;
+        overlayHeight?: number;
+      },
+    ) => {
+      const card = heroCardRef.current;
+      const overlay = detailPanelRef.current;
+      const cardWidth = options?.cardWidth ?? card?.clientWidth ?? 0;
+      const cardHeight = options?.cardHeight ?? card?.clientHeight ?? 0;
+      const overlayWidth =
+        options?.overlayWidth ??
+        overlay?.offsetWidth ??
+        (detailPanelCollapsed ? HERO_DETAIL_PANEL_COLLAPSED_WIDTH : HERO_DETAIL_PANEL_EXPANDED_WIDTH);
+      const overlayHeight =
+        options?.overlayHeight ??
+        overlay?.offsetHeight ??
+        (detailPanelCollapsed ? HERO_DETAIL_PANEL_COLLAPSED_HEIGHT : HERO_DETAIL_PANEL_EXPANDED_HEIGHT);
+
+      if (cardWidth <= 0 || cardHeight <= 0) {
+        return nextPosition;
+      }
+
+      const maxX = Math.max(HERO_DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - HERO_DETAIL_PANEL_MIN_X);
+      const maxY = Math.max(HERO_DETAIL_PANEL_MIN_Y, cardHeight - overlayHeight - HERO_DETAIL_PANEL_MIN_Y);
+
+      return {
+        x: Math.min(Math.max(HERO_DETAIL_PANEL_MIN_X, nextPosition.x), maxX),
+        y: Math.min(Math.max(HERO_DETAIL_PANEL_MIN_Y, nextPosition.y), maxY),
+      };
+    },
+    [detailPanelCollapsed],
+  );
+
+  const handleDetailPanelDragStart = React.useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const card = heroCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const rect = card.getBoundingClientRect();
+    detailPanelDragOffsetRef.current = {
+      x: event.clientX - rect.left - detailPanelPosition.x,
+      y: event.clientY - rect.top - detailPanelPosition.y,
+    };
+    event.preventDefault();
+  }, [detailPanelPosition.x, detailPanelPosition.y]);
+
+  React.useEffect(() => {
+    detailPanelPositionRef.current = detailPanelPosition;
+  }, [detailPanelPosition]);
+
   React.useEffect(() => {
     setSelectedNode(null);
     setSelectedNodeId(null);
     setSelectedEdge(null);
     setSelectedEdgeId(null);
+    setDetailPanelCollapsed(false);
   }, [pathId, path]);
+
+  React.useEffect(() => {
+    if (!isGraphFrontMode) {
+      previousDetailPanelModeRef.current = 'none';
+      detailPanelDragOffsetRef.current = null;
+      setDetailPanelCollapsed(false);
+      return;
+    }
+
+    const previousMode = previousDetailPanelModeRef.current;
+    previousDetailPanelModeRef.current = detailPanelMode;
+
+    if (detailPanelMode === 'none') {
+      setDetailPanelCollapsed(false);
+      return;
+    }
+
+    if (previousMode !== 'none') {
+      return;
+    }
+
+    const card = heroCardRef.current;
+    const overlay = detailPanelRef.current;
+    if (!card) {
+      return;
+    }
+
+    const overlayWidth = overlay?.offsetWidth ?? HERO_DETAIL_PANEL_EXPANDED_WIDTH;
+    const overlayHeight = overlay?.offsetHeight ?? HERO_DETAIL_PANEL_EXPANDED_HEIGHT;
+    const next = clampDetailPanelPosition(
+      {
+        x: card.clientWidth - overlayWidth - HERO_DETAIL_PANEL_DEFAULT_RIGHT_MARGIN,
+        y: HERO_DETAIL_PANEL_DEFAULT_TOP,
+      },
+      {
+        cardWidth: card.clientWidth,
+        cardHeight: card.clientHeight,
+        overlayWidth,
+        overlayHeight,
+      },
+    );
+
+    setDetailPanelPosition(next);
+  }, [clampDetailPanelPosition, detailPanelMode, isGraphFrontMode]);
+
+  React.useEffect(() => {
+    if (!isGraphFrontMode || detailPanelMode === 'none') {
+      return;
+    }
+
+    const card = heroCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    const updateOverlayBounds = () => {
+      const overlay = detailPanelRef.current;
+      const cardWidth = card.clientWidth;
+      const cardHeight = card.clientHeight;
+      const overlayWidth =
+        overlay?.offsetWidth ??
+        (detailPanelCollapsed ? HERO_DETAIL_PANEL_COLLAPSED_WIDTH : HERO_DETAIL_PANEL_EXPANDED_WIDTH);
+      const overlayHeight =
+        overlay?.offsetHeight ??
+        (detailPanelCollapsed ? HERO_DETAIL_PANEL_COLLAPSED_HEIGHT : HERO_DETAIL_PANEL_EXPANDED_HEIGHT);
+      const clamped = clampDetailPanelPosition(detailPanelPositionRef.current, {
+        cardWidth,
+        cardHeight,
+        overlayWidth,
+        overlayHeight,
+      });
+
+      setDetailPanelPosition((current) => (current.x === clamped.x && current.y === clamped.y ? current : clamped));
+      setDetailPanelMaxHeight(Math.max(160, cardHeight - clamped.y - HERO_DETAIL_PANEL_MIN_Y));
+    };
+
+    updateOverlayBounds();
+
+    const observer = new ResizeObserver(() => {
+      updateOverlayBounds();
+    });
+
+    observer.observe(card);
+    if (detailPanelRef.current) {
+      observer.observe(detailPanelRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [clampDetailPanelPosition, detailPanelCollapsed, detailPanelMode, isGraphFrontMode]);
+
+  React.useEffect(() => {
+    if (!isGraphFrontMode || detailPanelMode === 'none') {
+      setDetailPanelMaxHeight(undefined);
+      return;
+    }
+
+    const card = heroCardRef.current;
+    if (!card) {
+      return;
+    }
+
+    setDetailPanelMaxHeight(Math.max(160, card.clientHeight - detailPanelPosition.y - HERO_DETAIL_PANEL_MIN_Y));
+  }, [detailPanelMode, detailPanelPosition.y, isGraphFrontMode]);
+
+  React.useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const card = heroCardRef.current;
+      const detailDragOffset = detailPanelDragOffsetRef.current;
+      if (!card || !detailDragOffset) {
+        return;
+      }
+
+      const rect = card.getBoundingClientRect();
+      const next = clampDetailPanelPosition({
+        x: event.clientX - rect.left - detailDragOffset.x,
+        y: event.clientY - rect.top - detailDragOffset.y,
+      });
+
+      setDetailPanelPosition(next);
+    };
+
+    const handleMouseUp = () => {
+      detailPanelDragOffsetRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [clampDetailPanelPosition]);
 
   if (query.isLoading) {
     return <div className="container-fluid py-4"><div className="card border-0 shadow-sm"><div className="card-body py-5 text-center text-muted">공격 경로 상세 정보를 불러오는 중입니다...</div></div></div>;
@@ -651,16 +1006,21 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     t === 'change_service_account' ? '서비스 계정 변경' :
     t === 'restrict_iam_policy' ? 'IAM 정책 제한' :
     t;
-  const shouldShowHeroDetailPanel = isGraphFrontMode && Boolean(selectedNode || selectedEdge);
+  const shouldShowHeroDetailPanel = detailPanelMode !== 'none';
   const heroGraphLayerStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    zIndex: isGraphFrontMode ? 2 : 0,
+    zIndex: isGraphFrontMode ? 3 : 1,
+    pointerEvents: isGraphFrontMode ? 'auto' : 'none',
+    transition: `transform ${HERO_SWAP_TRANSITION}, opacity ${HERO_SWAP_TRANSITION}`,
   };
   const heroGraphCanvasStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    opacity: isGraphFrontMode ? 1 : 0.92,
+    opacity: isGraphFrontMode ? 1 : 0.58,
+    transform: isGraphFrontMode ? 'scale(1.015)' : 'scale(0.985)',
+    filter: isGraphFrontMode ? 'blur(0px) saturate(1.08) brightness(1.04)' : 'blur(11px) saturate(0.74) brightness(0.64)',
+    transition: `opacity ${HERO_SWAP_TRANSITION}, transform ${HERO_SWAP_TRANSITION}, filter ${HERO_SWAP_TRANSITION}`,
   };
   const heroGraphTintStyle: React.CSSProperties = {
     position: 'absolute',
@@ -668,77 +1028,115 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     pointerEvents: 'none',
     background: isGraphFrontMode
       ? `
-        radial-gradient(circle at top left, rgba(248, 113, 113, 0.12), transparent 24%),
-        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.12), transparent 32%),
-        linear-gradient(180deg, rgba(8, 15, 32, 0.14) 0%, rgba(8, 15, 32, 0.24) 36%, rgba(8, 15, 32, 0.42) 100%)
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.18), transparent 24%),
+        radial-gradient(circle at 76% 18%, rgba(248, 113, 113, 0.12), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.14), transparent 32%),
+        linear-gradient(180deg, rgba(8, 15, 32, 0.05) 0%, rgba(8, 15, 32, 0.12) 28%, rgba(8, 15, 32, 0.3) 100%)
       `
       : `
-        radial-gradient(circle at top left, rgba(248, 113, 113, 0.14), transparent 24%),
-        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.12), transparent 32%),
-        linear-gradient(180deg, rgba(8, 15, 32, 0.2) 0%, rgba(8, 15, 32, 0.42) 36%, rgba(8, 15, 32, 0.64) 100%)
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.12), transparent 22%),
+        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.1), transparent 30%),
+        linear-gradient(180deg, rgba(8, 15, 32, 0.42) 0%, rgba(8, 15, 32, 0.66) 34%, rgba(8, 15, 32, 0.82) 100%)
       `,
+    transition: `background ${HERO_SWAP_TRANSITION}, opacity ${HERO_SWAP_TRANSITION}`,
   };
   const heroSummaryLayerStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    zIndex: isGraphFrontMode ? 1 : 2,
+    zIndex: isGraphFrontMode ? 1 : 4,
     padding: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
     gap: '1rem',
-    opacity: isGraphFrontMode ? 0.4 : 1,
-    transform: isGraphFrontMode ? 'translateY(0.75rem) scale(0.985)' : 'translateY(0) scale(1)',
-    transition: 'opacity 180ms ease, transform 180ms ease',
+    opacity: isGraphFrontMode ? 0.08 : 1,
+    transform: isGraphFrontMode ? 'translateY(1.4rem) scale(0.958)' : 'translateY(0) scale(1)',
+    filter: isGraphFrontMode ? 'blur(18px) saturate(0.82)' : 'blur(0px)',
+    transition: `opacity ${HERO_SWAP_TRANSITION}, transform ${HERO_SWAP_TRANSITION}, filter ${HERO_SWAP_TRANSITION}`,
     pointerEvents: 'none',
   };
   const heroSummaryShellStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
-    maxWidth: isGraphFrontMode ? 'min(26rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    maxWidth: isGraphFrontMode ? 'min(22rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    transition: `max-width ${HERO_SWAP_TRANSITION}`,
   };
   const heroTitleShellStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.5rem',
-    maxWidth: isGraphFrontMode ? 'min(22rem, 100%)' : 'min(44rem, 100%)',
+    maxWidth: isGraphFrontMode ? 'min(20rem, 100%)' : 'min(44rem, 100%)',
+    transition: `max-width ${HERO_SWAP_TRANSITION}`,
   };
   const heroPathChipStyle: React.CSSProperties = {
     margin: 0,
-    padding: '0.3rem 0.65rem',
+    padding: '0.34rem 0.72rem',
     borderRadius: 999,
-    background: isGraphFrontMode ? 'rgba(15, 23, 42, 0.3)' : 'rgba(15, 23, 42, 0.48)',
-    border: '1px solid rgba(248, 113, 113, 0.2)',
+    background: isGraphFrontMode ? 'rgba(8, 15, 32, 0.1)' : 'rgba(8, 15, 32, 0.78)',
+    border: isGraphFrontMode ? '1px solid rgba(248, 113, 113, 0.08)' : '1px solid rgba(248, 113, 113, 0.28)',
     color: '#fecaca',
-    backdropFilter: isGraphFrontMode ? 'blur(10px)' : 'blur(12px)',
+    backdropFilter: isGraphFrontMode ? 'blur(6px)' : 'blur(14px)',
+    boxShadow: isGraphFrontMode ? 'none' : '0 14px 28px rgba(2, 6, 23, 0.22)',
+    transition: `background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, backdrop-filter ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}`,
   };
   const heroStartTargetStyle: React.CSSProperties = {
-    maxWidth: isGraphFrontMode ? 'min(26rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
-    background: isGraphFrontMode ? 'rgba(15, 23, 42, 0.22)' : 'rgba(15, 23, 42, 0.48)',
-    border: '1px solid rgba(248, 113, 113, 0.2)',
-    boxShadow: isGraphFrontMode ? '0 10px 24px rgba(2, 6, 23, 0.12)' : '0 16px 32px rgba(2, 6, 23, 0.18)',
-    backdropFilter: isGraphFrontMode ? 'blur(12px)' : 'blur(16px)',
+    maxWidth: isGraphFrontMode ? 'min(20rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    background: isGraphFrontMode ? 'rgba(8, 15, 32, 0.12)' : 'rgba(8, 15, 32, 0.76)',
+    border: isGraphFrontMode ? '1px solid rgba(248, 113, 113, 0.06)' : '1px solid rgba(248, 113, 113, 0.24)',
+    boxShadow: isGraphFrontMode ? 'none' : '0 22px 38px rgba(2, 6, 23, 0.26)',
+    backdropFilter: isGraphFrontMode ? 'blur(6px)' : 'blur(18px)',
+    transition: `max-width ${HERO_SWAP_TRANSITION}, background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}, backdrop-filter ${HERO_SWAP_TRANSITION}`,
+  };
+  const heroMetricSurfaceStyle: React.CSSProperties = {
+    background: isGraphFrontMode ? 'rgba(8, 15, 32, 0.12)' : 'rgba(8, 15, 32, 0.66)',
+    border: isGraphFrontMode ? '1px solid rgba(148, 163, 184, 0.08)' : '1px solid rgba(148, 163, 184, 0.22)',
+    boxShadow: isGraphFrontMode ? 'none' : '0 18px 34px rgba(2, 6, 23, 0.24)',
+    backdropFilter: isGraphFrontMode ? 'blur(6px)' : 'blur(18px)',
   };
   const heroControlLayerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 4,
+    top: 18,
+    right: 18,
+    zIndex: 6,
     display: 'flex',
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
-    gap: 8,
+    gap: 10,
   };
-  const heroDetailShellStyle: React.CSSProperties = {
+  const modeToggleShellStyle: React.CSSProperties = {
+    background: isGraphFrontMode ? 'rgba(8, 15, 32, 0.82)' : 'rgba(8, 15, 32, 0.78)',
+    border: isGraphFrontMode ? '1px solid rgba(96, 165, 250, 0.22)' : '1px solid rgba(248, 113, 113, 0.18)',
+    backdropFilter: 'blur(18px)',
+    boxShadow: isGraphFrontMode ? '0 16px 34px rgba(2, 6, 23, 0.28)' : '0 16px 32px rgba(2, 6, 23, 0.24)',
+    transition: `background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}`,
+  };
+  const getModeToggleButtonStyle = (mode: AttackPathPresentationMode): React.CSSProperties => {
+    const isActive = presentationMode === mode;
+
+    return {
+      minWidth: mode === 'summary' ? 92 : 88,
+      borderRadius: 999,
+      padding: '0.5rem 0.95rem',
+      border: isActive ? '1px solid rgba(248, 113, 113, 0.3)' : '1px solid rgba(148, 163, 184, 0.12)',
+      background: isActive
+        ? 'linear-gradient(180deg, rgba(127, 29, 29, 0.44) 0%, rgba(30, 41, 59, 0.92) 100%)'
+        : 'rgba(8, 15, 32, 0.14)',
+      color: isActive ? '#fff1f2' : '#dbeafe',
+      boxShadow: isActive
+        ? 'inset 0 1px 0 rgba(254, 226, 226, 0.12), 0 0 0 1px rgba(248, 113, 113, 0.08), 0 10px 24px rgba(127, 29, 29, 0.16)'
+        : 'none',
+      transform: isActive ? 'translateY(-1px)' : 'translateY(0)',
+      transition: `background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}, color ${HERO_SWAP_TRANSITION}, transform ${HERO_SWAP_TRANSITION}`,
+    };
+  };
+  const heroDetailOverlayStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 76,
-    right: 16,
-    bottom: 16,
-    width: 'min(21.25rem, calc(100% - 2rem))',
-    zIndex: 3,
+    left: detailPanelPosition.x,
+    top: detailPanelPosition.y,
+    zIndex: 5,
     display: 'flex',
-    alignItems: 'stretch',
+    minHeight: 0,
     pointerEvents: 'auto',
   };
 
@@ -750,7 +1148,16 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
             <h1 className="dg-page-title">공격 그래프</h1>
             <p className="dg-page-description">선택한 클러스터의 연결 자산과 저장된 공격 경로를 확인합니다.</p>
           </div>
-          {clusterId ? <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">공격 그래프로 돌아가기</Link> : null}
+          {clusterId ? (
+            <div className="d-flex flex-wrap gap-2">
+              <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
+                공격 그래프로 돌아가기
+              </Link>
+              <Link to={`/clusters/${clusterId}/graph?tab=attack-paths`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
+                공격 패스로 돌아가기
+              </Link>
+            </div>
+          ) : null}
         </div>
         <div
           className="card border-0 shadow-sm mb-4"
@@ -762,7 +1169,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
             overflow: 'hidden',
           }}
         >
-          <div style={{ position: 'relative', minHeight: hasPathGraph ? '30rem' : '24rem' }}>
+          <div ref={heroCardRef} style={{ position: 'relative', minHeight: hasPathGraph ? '30rem' : '24rem' }}>
             {hasPathGraph ? (
               <div style={heroGraphLayerStyle}>
                 <div style={heroGraphCanvasStyle}>
@@ -810,8 +1217,17 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
 
                 <div className="d-flex flex-wrap align-items-start gap-3">
                   <KoreanRiskBadge level={path.risk_level} />
-                  <DangerMetric label="위험도 점수" value={<span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: '#ffffff' }}>{formatRiskPercent(path.risk_score)}</span>} />
-                  <DangerMetric label="경유 단계" accent={getHopAccent(path.hop_count)} value={<span style={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1 }}>{`${path.hop_count ?? '-'} 단계`}</span>} />
+                  <DangerMetric
+                    label="위험도 점수"
+                    surfaceStyle={heroMetricSurfaceStyle}
+                    value={<span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: '#ffffff' }}>{formatRiskPercent(path.risk_score)}</span>}
+                  />
+                  <DangerMetric
+                    label="경유 단계"
+                    accent={getHopAccent(path.hop_count)}
+                    surfaceStyle={heroMetricSurfaceStyle}
+                    value={<span style={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1 }}>{`${path.hop_count ?? '-'} 단계`}</span>}
+                  />
                 </div>
               </div>
 
@@ -820,11 +1236,11 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                   <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>시작 노드 및 목표 자산</div>
                   <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3 text-break">
                     <span className="small text-muted">시작 노드</span>
-                    <NodeTypeBadge type={entryNode.type} />
+                    <AttackGraphAlignedTypeBadge type={entryNode.type} />
                     <span className="fw-semibold">{entryNode.name}</span>
                     <span className="fw-semibold" style={{ color: '#fca5a5' }}>→</span>
                     <span className="small text-muted">목표 자산</span>
-                    <NodeTypeBadge type={targetNode.type} />
+                    <AttackGraphAlignedTypeBadge type={targetNode.type} />
                     <span className="fw-semibold">{targetNode.name}</span>
                     <ThreatTypeBadge type={targetNode.type} />
                   </div>
@@ -835,17 +1251,13 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
             <div style={heroControlLayerStyle}>
               <div
                 className="d-inline-flex align-items-center gap-1 rounded-pill p-1"
-                style={{
-                  background: 'rgba(8, 15, 32, 0.72)',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  backdropFilter: 'blur(14px)',
-                  boxShadow: '0 12px 28px rgba(2, 6, 23, 0.18)',
-                }}
+                style={modeToggleShellStyle}
               >
                 <button
                   type="button"
                   className={`btn btn-sm dg-dashboard-action-btn ${presentationMode === 'summary' ? 'dg-dashboard-action-btn--primary' : 'dg-dashboard-action-btn--secondary'}`}
                   onClick={() => setPresentationMode('summary')}
+                  style={getModeToggleButtonStyle('summary')}
                 >
                   요약 보기
                 </button>
@@ -853,21 +1265,26 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                   type="button"
                   className={`btn btn-sm dg-dashboard-action-btn ${presentationMode === 'graph' ? 'dg-dashboard-action-btn--primary' : 'dg-dashboard-action-btn--secondary'}`}
                   onClick={() => setPresentationMode('graph')}
+                  style={getModeToggleButtonStyle('graph')}
                 >
                   경로 보기
                 </button>
               </div>
             </div>
             {shouldShowHeroDetailPanel ? (
-              <div style={heroDetailShellStyle}>
+              <div ref={detailPanelRef} style={heroDetailOverlayStyle}>
                 {selectedNode ? (
                   <NodeDetailPanel
                     node={selectedNode}
                     onClose={() => {
+                      setDetailPanelCollapsed(false);
                       setSelectedNode(null);
                       setSelectedNodeId(null);
                     }}
                     tone="dark"
+                    collapsed={detailPanelCollapsed}
+                    onToggleCollapsed={() => setDetailPanelCollapsed((current) => !current)}
+                    onDragHandleMouseDown={handleDetailPanelDragStart}
                     accentColor={selectedNodeAccentColor}
                     typeLabel={getGraphNodeTypeFromId(selectedNode.id)}
                     panelTitle="노드 상세 정보"
@@ -876,8 +1293,8 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                       position: 'relative',
                       top: 0,
                       right: 0,
-                      width: '100%',
-                      maxHeight: '100%',
+                      width: detailPanelCollapsed ? `${HERO_DETAIL_PANEL_COLLAPSED_WIDTH}px` : `${HERO_DETAIL_PANEL_EXPANDED_WIDTH}px`,
+                      maxHeight: detailPanelMaxHeight ? `${detailPanelMaxHeight}px` : 'calc(100vh - 7rem)',
                     }}
                   />
                 ) : null}
@@ -885,10 +1302,14 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                   <NodeDetailPanel
                     node={selectedEdgePanelNode}
                     onClose={() => {
+                      setDetailPanelCollapsed(false);
                       setSelectedEdge(null);
                       setSelectedEdgeId(null);
                     }}
                     tone="dark"
+                    collapsed={detailPanelCollapsed}
+                    onToggleCollapsed={() => setDetailPanelCollapsed((current) => !current)}
+                    onDragHandleMouseDown={handleDetailPanelDragStart}
                     panelTitle="엣지 상세 정보"
                     panelDescription="선택한 엣지의 세부 정보입니다."
                     subjectLabel={selectedEdge.relation || selectedEdge.label || selectedEdge.id}
@@ -900,8 +1321,8 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                       position: 'relative',
                       top: 0,
                       right: 0,
-                      width: '100%',
-                      maxHeight: '100%',
+                      width: detailPanelCollapsed ? `${HERO_DETAIL_PANEL_COLLAPSED_WIDTH}px` : `${HERO_DETAIL_PANEL_EXPANDED_WIDTH}px`,
+                      maxHeight: detailPanelMaxHeight ? `${detailPanelMaxHeight}px` : 'calc(100vh - 7rem)',
                     }}
                   />
                 ) : null}
@@ -923,7 +1344,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                 return (
                   <React.Fragment key={`${nodeId}-${i}`}>
                     {i > 0 && <span style={{ color:'#6b7280', fontSize:'0.85rem' }}>→</span>}
-                    <NodeTypeBadge type={parseAttackPathNode(nodeId).type} />
+                    <AttackGraphAlignedTypeBadge type={parseAttackPathNode(nodeId).type} />
                     <span style={{ fontWeight: isLast ? 700 : 400 }}>{short}</span>
                     {isLast && <span></span>}
                   </React.Fragment>
