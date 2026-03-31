@@ -154,7 +154,7 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
                 )}
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
+              <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>
                 닫기
               </button>
             </div>

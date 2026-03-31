@@ -536,7 +536,7 @@ const AttackPathDetailPage: React.FC = () => {
             <div className="alert alert-danger mb-3" role="alert">
               {toErrorMessage(query.error, 'Attack path detail could not be loaded.')}
             </div>
-            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => query.refetch()}>
+            <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={() => query.refetch()}>
               Retry
             </button>
           </div>
@@ -553,7 +553,7 @@ const AttackPathDetailPage: React.FC = () => {
             <h1 className="h4 mb-2">No attack path detail found.</h1>
             <p className="text-muted mb-3">The backend returned no detail payload for this path.</p>
             {clusterId ? (
-              <Link to={`/clusters/${clusterId}/graph`} className="btn btn-outline-secondary btn-sm">
+              <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
                 Back to Attack Graph
               </Link>
             ) : null}
@@ -585,7 +585,7 @@ const AttackPathDetailPage: React.FC = () => {
           </div>
         </div>
         {clusterId ? (
-          <Link to={`/clusters/${clusterId}/graph`} className="btn btn-outline-secondary btn-sm">
+          <Link to={`/clusters/${clusterId}/graph`} className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary">
             Back to Attack Graph
           </Link>
         ) : null}

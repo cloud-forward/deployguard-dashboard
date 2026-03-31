@@ -265,7 +265,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
           {(filters.nodeTypes?.length || filters.relationTypes?.length || filters.severities?.length || filters.search?.trim()) && !collapsed ? (
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
               onClick={() => onFiltersChange({})}
               style={{
                 borderRadius: 999,
@@ -279,7 +279,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
           ) : null}
           <button
             type="button"
-            className="btn btn-sm"
+            className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
             aria-expanded={!collapsed}
             aria-label={collapsed ? 'Expand graph controls' : 'Collapse graph controls'}
             onClick={onToggleCollapsed}
@@ -354,7 +354,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
             <div className="d-flex align-items-center gap-2 flex-shrink-0">
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={onPreviousSearchResult}
                 disabled={searchNavigator.total <= 1}
                 aria-label="Previous search result"
@@ -370,7 +370,7 @@ const GraphFilters: React.FC<GraphFiltersProps> = ({
               </button>
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
                 onClick={onNextSearchResult}
                 disabled={searchNavigator.total <= 1}
                 aria-label="Next search result"

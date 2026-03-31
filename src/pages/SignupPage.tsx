@@ -131,7 +131,7 @@ const SignupPage: React.FC = () => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary w-100" disabled={isPending}>
+            <button type="submit" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100" disabled={isPending}>
               {isPending ? '가입 중…' : '회원가입'}
             </button>
           </form>

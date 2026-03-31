@@ -55,7 +55,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
         <div className="alert alert-danger mb-3">권장 사항을 불러오지 못했습니다.</div>
         <button
           type="button"
-          className="btn btn-outline-secondary btn-sm"
+          className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
           onClick={() => refetch()}
         >
           다시 시도
@@ -193,7 +193,7 @@ const ChokePointList: React.FC<Props> = ({ clusterId }) => {
               <div className="card-footer bg-transparent border-0 pt-0">
                 <Link
                   to={`/clusters/${clusterId}/recommendations/${item.recommendation_id}`}
-                  className="btn btn-outline-primary btn-sm w-100"
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100"
                 >
                   자세히 보기
                 </Link>

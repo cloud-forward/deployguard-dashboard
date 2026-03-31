@@ -7,6 +7,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { router } from './router/router'
 import './index.css'
 import 'bootstrap/dist/css/bootstrap.min.css'
+import './App.css'
 
 const queryClient = new QueryClient()
 
