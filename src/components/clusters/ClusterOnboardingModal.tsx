@@ -52,14 +52,15 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
           position: 'fixed',
           inset: 0,
           zIndex: 2100,
+          padding: '2rem 1rem',
         }}
       >
         <div
-          className="modal-dialog modal-lg modal-dialog-scrollable"
-          style={{ maxHeight: '90vh' }}
+          className="modal-dialog modal-lg"
+          style={{ maxHeight: '85vh', height: '100%', margin: '0 auto' }}
         >
-          <div className="modal-content" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
+          <div className="modal-content" style={{ maxHeight: '85vh', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ flex: '0 0 auto' }}>
               <h5 className="modal-title">클러스터가 성공적으로 등록되었습니다</h5>
               <button
                 type="button"
@@ -72,7 +73,6 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
               className="modal-body"
               style={{
                 overflowY: 'auto',
-                maxHeight: 'calc(90vh - 132px)',
                 flex: '1 1 auto',
                 minHeight: 0,
               }}
@@ -153,7 +153,7 @@ const ClusterOnboardingModal: React.FC<ClusterOnboardingModalProps> = ({
                   />
                 )}
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ flex: '0 0 auto', position: 'sticky', bottom: 0, background: 'inherit', zIndex: 1 }}>
               <button type="button" className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary" onClick={onClose}>
                 닫기
               </button>

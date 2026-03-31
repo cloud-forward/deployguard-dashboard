@@ -7,6 +7,7 @@ type HelmInstallGuideProps = {
 };
 
 const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken, apiEndpoint }) => {
+  const copyButtonStyle = { height: 36, minWidth: 64, paddingInline: 12, fontSize: 14 } as const;
   const registryAccount = '189060532132';
   const imageRepository =
     '189060532132.dkr.ecr.ap-northeast-2.amazonaws.com/deployguard-agent-scanner';
@@ -60,13 +61,14 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
           <p className="mb-2"><strong>DG_API_ENDPOINT / API_URL:</strong> <code>{apiEndpoint}</code></p>
           <p className="mb-2">
             <strong>DG_CLUSTER_ID:</strong>
-            <span className="d-flex gap-2 align-items-start mt-1">
-              <code className="bg-dark border border-secondary-subtle rounded p-1 flex-grow-1 text-break text-light">
+            <span className="d-flex gap-2 align-items-center mt-1">
+              <code className="bg-dark border border-secondary-subtle rounded px-2 py-2 flex-grow-1 text-break text-light">
                 {clusterId}
               </code>
               <button
                 type="button"
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                style={copyButtonStyle}
                 onClick={() => copyToClipboard(clusterId, setClusterIdCopied)}
               >
                 복사
@@ -75,13 +77,14 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
           </p>
           <p className="mb-0">
             <strong>DG_API_TOKEN:</strong>
-            <span className="d-flex gap-2 align-items-start mt-1">
-              <code className="bg-dark border border-secondary-subtle rounded p-1 flex-grow-1 text-break text-light">
+            <span className="d-flex gap-2 align-items-center mt-1">
+              <code className="bg-dark border border-secondary-subtle rounded px-2 py-2 flex-grow-1 text-break text-light">
                 {apiToken}
               </code>
               <button
                 type="button"
                 className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                style={copyButtonStyle}
                 onClick={() => copyToClipboard(apiToken, setTokenCopied)}
               >
                 복사
@@ -98,13 +101,14 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
       </div>
       <div className="mb-3">
         <label className="form-label fw-semibold">1. 네임스페이스 준비</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{namespaceCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(namespaceCommand, setNamespaceCopied)}
           >
             복사
@@ -114,13 +118,14 @@ const HelmInstallGuide: React.FC<HelmInstallGuideProps> = ({ clusterId, apiToken
       </div>
       <div className="mb-0">
         <label className="form-label fw-semibold">2. Helm 설치</label>
-        <div className="d-flex gap-2 align-items-start mb-1">
+        <div className="d-flex gap-2 align-items-center mb-1">
           <pre className="bg-dark border border-secondary-subtle text-light rounded p-2 text-break flex-grow-1 mb-0">
             <code>{helmCommand}</code>
           </pre>
           <button
             type="button"
             className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary"
+            style={copyButtonStyle}
             onClick={() => copyToClipboard(helmCommand, setCommandCopied)}
           >
             복사
