@@ -28,6 +28,7 @@ import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle } from '../c
 import {
   getNodeTypeMeta,
   getThreatLabel,
+  getRiskLevelRowTint,
   getRiskSortOrder,
   NodeTypeBadge,
   parseAttackPathNode,
@@ -233,6 +234,11 @@ const getSelectionModeLabel = (mode: SelectionMode) => {
   if (mode === 'path') return '경로';
   return '없음';
 };
+
+const getAttackGraphControlsAnchorX = () => Math.max(GRAPH_CONTROLS_MIN_X, GRAPH_CONTROLS_DEFAULT_POSITION.x);
+
+const getAttackGraphDetailAnchorX = (cardWidth: number, overlayWidth: number) =>
+  Math.max(DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - DETAIL_PANEL_DEFAULT_RIGHT_MARGIN);
 
 const toAttackGraphDetailMap = (node: AttackGraphNode | null): Record<string, AttackGraphDetailValue> => {
   if (!node) return {};
@@ -527,14 +533,14 @@ const AttackPathsPanel: React.FC<{
                   const hopCount = getAttackPathHopCount(item);
                   const riskScore = getAttackPathRiskScore(item);
                   const threatAccent = getThreatAccentBorder(item.target_node_id);
-                  const isHighRisk = item.risk_level?.toLowerCase() === 'high';
+                  const semanticRowTint = getRiskLevelRowTint(item.risk_level);
 
                   return (
                     <tr
                       key={item.path_id}
                       className="dg-attack-path-row"
                       style={{
-                        backgroundColor: isHighRisk ? 'rgba(239, 68, 68, 0.05)' : undefined,
+                        backgroundColor: semanticRowTint,
                         boxShadow: `inset 2px 0 0 ${threatAccent}`,
                         transition: 'background-color 160ms ease',
                       }}
@@ -610,7 +616,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     key: '',
     index: 0,
   });
-  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(true);
   const [controlsPosition, setControlsPosition] = useState(GRAPH_CONTROLS_DEFAULT_POSITION);
   const [controlsMaxHeight, setControlsMaxHeight] = useState<number>();
   const [detailPanelCollapsed, setDetailPanelCollapsed] = useState(false);
@@ -1013,18 +1019,17 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
       const overlay = graphControlsRef.current;
       const cardWidth = options?.cardWidth ?? card?.clientWidth ?? 0;
       const cardHeight = options?.cardHeight ?? card?.clientHeight ?? 0;
-      const overlayWidth = options?.overlayWidth ?? overlay?.offsetWidth ?? (controlsCollapsed ? 224 : 368);
       const overlayHeight = options?.overlayHeight ?? overlay?.offsetHeight ?? (controlsCollapsed ? 72 : 360);
 
       if (cardWidth <= 0 || cardHeight <= 0) {
         return nextPosition;
       }
 
-      const maxX = Math.max(GRAPH_CONTROLS_MIN_X, cardWidth - overlayWidth - GRAPH_CONTROLS_MIN_X);
+      const anchoredX = getAttackGraphControlsAnchorX();
       const maxY = Math.max(GRAPH_CONTROLS_MIN_Y, cardHeight - overlayHeight - GRAPH_CONTROLS_MIN_Y);
 
       return {
-        x: Math.min(Math.max(GRAPH_CONTROLS_MIN_X, nextPosition.x), maxX),
+        x: anchoredX,
         y: Math.min(Math.max(GRAPH_CONTROLS_MIN_Y, nextPosition.y), maxY),
       };
     },
@@ -1059,11 +1064,11 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
         return nextPosition;
       }
 
-      const maxX = Math.max(DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - DETAIL_PANEL_MIN_X);
+      const anchoredX = getAttackGraphDetailAnchorX(cardWidth, overlayWidth);
       const maxY = Math.max(DETAIL_PANEL_MIN_Y, cardHeight - overlayHeight - DETAIL_PANEL_MIN_Y);
 
       return {
-        x: Math.min(Math.max(DETAIL_PANEL_MIN_X, nextPosition.x), maxX),
+        x: anchoredX,
         y: Math.min(Math.max(DETAIL_PANEL_MIN_Y, nextPosition.y), maxY),
       };
     },
@@ -1150,7 +1155,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
     const overlayHeight = overlay?.offsetHeight ?? DETAIL_PANEL_EXPANDED_HEIGHT;
     const next = clampDetailPanelPosition(
       {
-        x: card.clientWidth - overlayWidth - DETAIL_PANEL_DEFAULT_RIGHT_MARGIN,
+        x: getAttackGraphDetailAnchorX(card.clientWidth, overlayWidth),
         y: DETAIL_PANEL_DEFAULT_TOP,
       },
       {

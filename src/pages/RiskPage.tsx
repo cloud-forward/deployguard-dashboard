@@ -107,24 +107,20 @@ const RiskPage: React.FC = () => {
     setSelectedScans((current) => {
       let nextState = current;
 
-      const ensureStillValid = (
+      const clearIfResolvedAsUnavailable = (
         field: keyof SelectedScans,
         scannerType: 'k8s' | 'image' | 'aws',
       ) => {
-        const selectedScanId = current[field];
+        const selectedScanId = nextState[field];
         if (!selectedScanId) {
           return;
         }
 
-        const matchingVisibleScan = scanItems.find(
+        const matchingScan = scanItems.find(
           (scan) => scan.scan_id === selectedScanId && scan.scanner_type === scannerType,
         );
 
-        if (!matchingVisibleScan) {
-          return;
-        }
-
-        if (matchingVisibleScan.status === 'completed') {
+        if (!matchingScan || matchingScan.status === 'completed') {
           return;
         }
 
@@ -134,9 +130,9 @@ const RiskPage: React.FC = () => {
         };
       };
 
-      ensureStillValid('k8s_scan_id', 'k8s');
-      ensureStillValid('image_scan_id', 'image');
-      ensureStillValid('aws_scan_id', 'aws');
+      clearIfResolvedAsUnavailable('k8s_scan_id', 'k8s');
+      clearIfResolvedAsUnavailable('image_scan_id', 'image');
+      clearIfResolvedAsUnavailable('aws_scan_id', 'aws');
 
       return nextState;
     });
@@ -190,6 +186,11 @@ const RiskPage: React.FC = () => {
   } = useExecuteAnalysisJobApiV1AnalysisJobsJobIdExecutePost();
 
   const selectedCount = Object.values(selectedScans).filter(Boolean).length;
+  const hasSelectedK8sScan = Boolean(selectedScans.k8s_scan_id);
+  const hasSelectedImageScan = Boolean(selectedScans.image_scan_id);
+  const hasSelectedAwsScan = Boolean(selectedScans.aws_scan_id);
+  const isReadyToCreateAnalysisJob =
+    hasSelectedK8sScan && hasSelectedImageScan && hasSelectedAwsScan;
 
   const preferredScannerTypes = useMemo(() => {
     if (selectedCluster?.cluster_type === 'aws') {
@@ -284,6 +285,10 @@ const RiskPage: React.FC = () => {
 
   const formatRawResult = (value: boolean) => (value ? '사용 가능' : '없음');
   const analysisPanelMinHeight = '600px';
+  const selectedK8sSummary = selectedScans.k8s_scan_id ?? '쿠버네티스 스캔을 하나 선택해주세요';
+  const selectedImageSummary = selectedScans.image_scan_id ?? '이미지 스캔을 하나 선택해주세요';
+  const selectedAwsSummary =
+    selectedScans.aws_scan_id ?? '스캔 범위에서 aws를 선택하고 스캔을 선택해주세요';
 
   const handleScanSelection = (field: keyof SelectedScans, scanId: string) => {
     setSelectedScans((current) => ({
@@ -293,10 +298,10 @@ const RiskPage: React.FC = () => {
   };
 
   const handleCreateAndExecute = () => {
-    if (selectedCount === 0) {
+    if (!isReadyToCreateAnalysisJob) {
       setFeedback({
         type: 'danger',
-        message: '분석 작업 생성 전에 완료된 스캔 결과를 하나 이상 선택하세요.',
+        message: '분석 작업 생성 전에 k8s, image, aws 스캔을 각각 하나씩 선택하세요.',
       });
       return;
     }
@@ -440,29 +445,27 @@ const RiskPage: React.FC = () => {
             </button>
           </li>
         </ul>
-        {activeTab === 'analysis' && (
-          <div className="d-flex gap-2 flex-wrap align-items-center">
-            <label htmlFor="cluster-select" className="form-label mb-0 text-nowrap small">
-              스캔 범위
-            </label>
-            <div style={{ minWidth: '220px' }}>
-              <select
-                id="cluster-select"
-                className="form-select form-select-sm"
-                value={selectedClusterId}
-                onChange={(event) => setSelectedClusterId(event.target.value)}
-                disabled={isLoadingClusters || clusters.length === 0}
-              >
-                {clusters.length === 0 && <option value="">사용 가능한 클러스터 없음</option>}
-                {clusters.map((cluster) => (
-                  <option key={cluster.id} value={cluster.id}>
-                    {cluster.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="d-flex gap-2 flex-wrap align-items-center">
+          <label htmlFor="cluster-select" className="form-label mb-0 text-nowrap small">
+            스캔 범위
+          </label>
+          <div style={{ minWidth: '220px' }}>
+            <select
+              id="cluster-select"
+              className="form-select form-select-sm"
+              value={selectedClusterId}
+              onChange={(event) => setSelectedClusterId(event.target.value)}
+              disabled={isLoadingClusters || clusters.length === 0}
+            >
+              {clusters.length === 0 && <option value="">사용 가능한 클러스터 없음</option>}
+              {clusters.map((cluster) => (
+                <option key={cluster.id} value={cluster.id}>
+                  {cluster.name}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+        </div>
       </div>
 
       {activeTab === 'analysis' && (
@@ -558,13 +561,13 @@ const RiskPage: React.FC = () => {
                   <h4 className="h6 mb-2">생성 및 실행</h4>
                   <div className="d-flex flex-column gap-2 small mb-3">
                     <div>
-                      <strong>k8s:</strong> {selectedScans.k8s_scan_id ?? '-'}
+                      <strong>k8s:</strong> {selectedK8sSummary}
                     </div>
                     <div>
-                      <strong>image:</strong> {selectedScans.image_scan_id ?? '-'}
+                      <strong>image:</strong> {selectedImageSummary}
                     </div>
                     <div>
-                      <strong>aws:</strong> {selectedScans.aws_scan_id ?? '-'}
+                      <strong>aws:</strong> {selectedAwsSummary}
                     </div>
                   </div>
                   <button
@@ -572,7 +575,10 @@ const RiskPage: React.FC = () => {
                     className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--primary w-100"
                     onClick={handleCreateAndExecute}
                     disabled={
-                      !selectedClusterId || selectedCount === 0 || isCreatingJob || isExecutingJob
+                      !selectedClusterId ||
+                      !isReadyToCreateAnalysisJob ||
+                      isCreatingJob ||
+                      isExecutingJob
                     }
                   >
                     {isCreatingJob || isExecutingJob ? '제출 중…' : '작업 생성 및 실행'}

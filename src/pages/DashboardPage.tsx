@@ -11,7 +11,6 @@ import {
   useGetAttackPathsApiV1ClustersClusterIdAttackPathsGet,
   useListClustersApiV1ClustersGet,
 } from '../api/generated/clusters/clusters';
-import { attackGraphStylesheet } from '../components/graph/attackGraph';
 import PageLoader from '../components/layout/PageLoader';
 import type {
   AttackPathDetailEnvelopeResponse,
@@ -122,16 +121,22 @@ const toCompactWidgetLabel = (value: string, maxLength = 15): string => {
   return `${normalized.slice(0, maxLength)}...`;
 };
 
-const inferNodeType = (nodeId: string) => {
+const getGraphNodeTypeFromId = (nodeId: string) => {
   const normalized = nodeId.toLowerCase();
-  if (normalized.includes('serviceaccount') || normalized.startsWith('sa-')) return 'ServiceAccount';
-  if (normalized.includes('iam')) return 'IAMRole';
-  if (normalized.includes('s3')) return 'S3Bucket';
+  if (normalized.startsWith('pod:')) return 'Pod';
+  if (normalized.startsWith('sa:')) return 'ServiceAccount';
+  if (normalized.startsWith('iam:')) return 'IAMRole';
+  if (normalized.startsWith('s3:')) return 'S3';
+  if (normalized.startsWith('rds:')) return 'RDS';
+  if (normalized.startsWith('service:')) return 'Service';
+  if (normalized.startsWith('ingress:')) return 'Ingress';
+  if (normalized.startsWith('cluster_role:')) return 'ClusterRole';
   return 'Pod';
 };
 
 const DASHBOARD_PATH_X_STEP = 150;
 const DASHBOARD_PATH_Y_PATTERN = [0, 60, -30, 55, -20];
+const DASHBOARD_PREVIEW_INITIAL_FIT_PADDING = 24;
 
 const getDashboardPathPosition = (index: number) => ({
   x: index * DASHBOARD_PATH_X_STEP,
@@ -179,7 +184,7 @@ const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): Eleme
       id: nodeId,
       label: toCompactNodeLabel(nodeId),
       fullLabel: nodeId,
-      type: inferNodeType(nodeId),
+      type: getGraphNodeTypeFromId(nodeId),
       severity: path.risk_level ?? 'unknown',
       isEntryPoint: nodeId === path.entry_node_id,
       isCrownJewel: nodeId === path.target_node_id,
@@ -211,37 +216,11 @@ const buildDashboardAttackPathElements = (path: AttackPathDetailResponse): Eleme
   return [...nodeElements, ...edgeElements];
 };
 
-const dashboardAttackPathStylesheet = [
-  ...attackGraphStylesheet,
-  {
-    selector: 'node',
-    style: {
-      width: 24,
-      height: 24,
-      'font-size': 8,
-      'text-wrap': 'wrap',
-      'text-max-width': 64,
-      'text-margin-y': 10,
-    },
-  },
-  {
-    selector: 'edge',
-    style: {
-      'font-size': 8,
-      'text-background-color': 'transparent',
-      'text-background-opacity': 0,
-      'text-background-padding': '0px',
-      'text-margin-y': -8,
-      'text-rotation': 'autorotate',
-      'control-point-step-size': 34,
-    },
-  },
-];
-
 const DashboardAttackPathSection: React.FC<{
   clusterCounts: Array<{ label: string; count: number }>;
   onClusterChange?: (clusterId: string) => void;
 }> = ({ clusterCounts, onClusterChange }) => {
+  const navigate = useNavigate();
   const [selectedClusterId, setSelectedClusterId] = useState('');
   const [selectedPathId, setSelectedPathId] = useState('');
   const clustersQuery = useListClustersApiV1ClustersGet({
@@ -353,6 +332,15 @@ const DashboardAttackPathSection: React.FC<{
     return toCompactWidgetLabel(`${length} hops · ${summary}`);
   };
 
+  const canOpenDetail = Boolean(selectedClusterId && selectedPathId);
+  const openSelectedPathDetail = () => {
+    if (!selectedClusterId || !selectedPathId) {
+      return;
+    }
+
+    navigate(`/clusters/${selectedClusterId}/attack-paths/${selectedPathId}`);
+  };
+
   return (
     <div className="card border-0 shadow-sm h-100 dg-dashboard-graph-card">
       <div className="card-body">
@@ -375,7 +363,7 @@ const DashboardAttackPathSection: React.FC<{
               <span className="small fw-semibold" style={{ color: '#22c55e' }}>Live</span>
             </div>
           </div>
-          <div className="d-flex flex-column flex-sm-row gap-2" style={{ minWidth: 280 }}>
+          <div className="d-flex flex-wrap align-items-center justify-content-end gap-2" style={{ minWidth: 280 }}>
             <div style={{ minWidth: 160 }}>
               <select
                 id="dashboard-cluster-select"
@@ -414,6 +402,14 @@ const DashboardAttackPathSection: React.FC<{
                 ))}
               </select>
             </div>
+            <button
+              type="button"
+              className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+              onClick={openSelectedPathDetail}
+              disabled={!canOpenDetail}
+            >
+              상세보기
+            </button>
           </div>
         </div>
 
@@ -442,8 +438,8 @@ const DashboardAttackPathSection: React.FC<{
                 <GraphView
                   elements={graphElements}
                   layout={attackPathLayout}
-                  stylesheet={dashboardAttackPathStylesheet}
                   viewportRefreshKey={`${selectedClusterId}:${selectedPathId}:${graphElements.length}`}
+                  initialFitPadding={DASHBOARD_PREVIEW_INITIAL_FIT_PADDING}
                   selectedPathNodeIds={[]}
                   selectedPathEdgeIds={[]}
                   selectedNodeId={null}

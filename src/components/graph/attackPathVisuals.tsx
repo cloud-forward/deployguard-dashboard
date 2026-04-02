@@ -1,4 +1,6 @@
 import React from 'react';
+import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle, getAttackGraphRiskStyle } from './attackGraph/stylesheet';
+import type { AttackGraphResourceType } from '../../types/attackGraph';
 
 export type AttackPathVisualNodeType =
   | 'pod'
@@ -35,19 +37,34 @@ type ThreatMeta = {
   badgeClassName: string;
 };
 
-const NODE_TYPE_META: Record<AttackPathVisualNodeType, NodeTypeMeta> = {
-  pod: { label: 'POD', background: '#1d4ed8', color: '#eff6ff' },
-  service: { label: 'SVC', background: '#065f46', color: '#ecfdf5' },
-  ingress: { label: 'ING', background: '#92400e', color: '#fff7ed' },
-  sa: { label: 'SA', background: '#0e7490', color: '#ecfeff' },
-  iam: { label: 'IAM', background: '#991b1b', color: '#fef2f2', glow: '0 0 24px rgba(220, 38, 38, 0.2)' },
-  s3: { label: 'S3', background: '#92400e', color: '#fff7ed', glow: '0 0 24px rgba(146, 64, 14, 0.2)' },
-  rds: { label: 'RDS', background: '#581c87', color: '#faf5ff', glow: '0 0 24px rgba(88, 28, 135, 0.2)' },
-  cluster_role: { label: 'CR', background: '#c2410c', color: '#fff7ed' },
-  role: { label: 'ROLE', background: '#ea580c', color: '#fff7ed' },
-  secret: { label: 'SECRET', background: '#be123c', color: '#fff1f2' },
-  node: { label: 'NODE', background: '#475569', color: '#f8fafc' },
-  unknown: { label: 'NODE', background: '#475569', color: '#f8fafc' },
+const ATTACK_PATH_NODE_TYPE_LABELS: Record<AttackPathVisualNodeType, string> = {
+  pod: 'POD',
+  service: 'SVC',
+  ingress: 'ING',
+  sa: 'SA',
+  iam: 'IAM',
+  s3: 'S3',
+  rds: 'RDS',
+  cluster_role: 'CR',
+  role: 'ROLE',
+  secret: 'SECRET',
+  node: 'NODE',
+  unknown: 'NODE',
+};
+
+const ATTACK_PATH_NODE_TYPE_TO_GRAPH_RESOURCE_TYPE: Record<AttackPathVisualNodeType, AttackGraphResourceType> = {
+  pod: 'Pod',
+  service: 'Service',
+  ingress: 'Ingress',
+  sa: 'ServiceAccount',
+  iam: 'IAMRole',
+  s3: 'S3',
+  rds: 'RDS',
+  cluster_role: 'ClusterRole',
+  role: 'Role',
+  secret: 'Secret',
+  node: 'Node',
+  unknown: 'Unknown',
 };
 
 const THREAT_META: Partial<Record<AttackPathVisualNodeType, ThreatMeta>> = {
@@ -60,15 +77,26 @@ const RISK_META: Record<
   AttackPathRiskLevel,
   {
     label: string;
-    background: string;
     order: number;
   }
 > = {
-  critical: { label: 'CRIT', background: '#dc2626', order: 0 },
-  high: { label: 'HIGH', background: '#ef4444', order: 1 },
-  medium: { label: 'MED', background: '#f59e0b', order: 2 },
-  low: { label: 'LOW', background: '#22c55e', order: 3 },
-  unknown: { label: '-', background: '#6b7280', order: 4 },
+  critical: { label: 'CRIT', order: 0 },
+  high: { label: 'HIGH', order: 1 },
+  medium: { label: 'MED', order: 2 },
+  low: { label: 'LOW', order: 3 },
+  unknown: { label: '-', order: 4 },
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) {
+    return hex;
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 };
 
 const normalizeNodeType = (rawType: string): AttackPathVisualNodeType => {
@@ -106,7 +134,19 @@ export const formatEdgeTypeLabel = (value?: string | null) => {
 
 export const getThreatMeta = (type: AttackPathVisualNodeType) => THREAT_META[type] ?? null;
 export const getThreatLabel = (type: AttackPathVisualNodeType) => THREAT_META[type]?.label ?? null;
-export const getNodeTypeMeta = (type: AttackPathVisualNodeType) => NODE_TYPE_META[type];
+export const toAttackGraphResourceType = (type: AttackPathVisualNodeType): AttackGraphResourceType =>
+  ATTACK_PATH_NODE_TYPE_TO_GRAPH_RESOURCE_TYPE[type];
+
+export const getNodeTypeMeta = (type: AttackPathVisualNodeType): NodeTypeMeta => {
+  const accentColor = getAttackGraphNodeTypeStyle(toAttackGraphResourceType(type)).backgroundColor;
+
+  return {
+    label: ATTACK_PATH_NODE_TYPE_LABELS[type],
+    background: accentColor,
+    color: '#eff6ff',
+    glow: `0 0 24px ${hexToRgba(accentColor, 0.2)}`,
+  };
+};
 
 export const normalizeRiskLevel = (level?: string | null): AttackPathRiskLevel => {
   const normalized = typeof level === 'string' ? level.trim().toLowerCase() : 'unknown';
@@ -117,11 +157,54 @@ export const normalizeRiskLevel = (level?: string | null): AttackPathRiskLevel =
   return 'unknown';
 };
 
-export const getRiskLevelMeta = (level?: string | null) => RISK_META[normalizeRiskLevel(level)];
+export const getRiskLevelMeta = (level?: string | null) => {
+  const normalizedLevel = normalizeRiskLevel(level);
+  const meta = RISK_META[normalizedLevel];
+  const accentColor = getAttackGraphRiskStyle(normalizedLevel).borderColor;
+
+  return {
+    ...meta,
+    accentColor,
+    background: accentColor,
+    color: '#ffffff',
+  };
+};
+
+export const getRiskLevelSurfaceStyle = (level?: string | null) => {
+  const accentColor = getRiskLevelMeta(level).accentColor;
+
+  return {
+    background: hexToRgba(accentColor, 0.16),
+    color: accentColor,
+    border: `1px solid ${hexToRgba(accentColor, 0.34)}`,
+    boxShadow: `0 0 18px ${hexToRgba(accentColor, 0.12)}`,
+  };
+};
+
+export const getRiskLevelRowTint = (level?: string | null) => {
+  const normalizedLevel = normalizeRiskLevel(level);
+  if (normalizedLevel === 'unknown') {
+    return undefined;
+  }
+
+  return hexToRgba(getRiskLevelMeta(level).accentColor, normalizedLevel === 'low' ? 0.03 : 0.05);
+};
+
+export const getRelationLabelStyle = (relation?: string | null) => {
+  const accentColor = getAttackGraphEdgeVisualStyle(relation).lineColor;
+
+  return {
+    color: accentColor,
+    background: hexToRgba(accentColor, 0.14),
+    border: `1px solid ${hexToRgba(accentColor, 0.28)}`,
+    boxShadow: `0 0 16px ${hexToRgba(accentColor, 0.1)}`,
+  };
+};
+
 export const getRiskSortOrder = (level?: string | null) => getRiskLevelMeta(level).order;
 
 export const NodeTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> = ({ type }) => {
-  const meta = NODE_TYPE_META[type];
+  const meta = getNodeTypeMeta(type);
 
   return (
     <span
@@ -167,7 +250,7 @@ export const NodeIdentity: React.FC<{
 }> = ({ value, compact = false, showThreat = false, showGlow = false, showRaw = false, threatAsBadge = false }) => {
   const parsed = parseAttackPathNode(value);
   const threatMeta = showThreat ? getThreatMeta(parsed.type) : null;
-  const meta = NODE_TYPE_META[parsed.type];
+  const meta = getNodeTypeMeta(parsed.type);
 
   return (
     <div

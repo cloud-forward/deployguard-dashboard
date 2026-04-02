@@ -1,6 +1,7 @@
 import React from 'react';
-import type { NodeData } from './mockGraphData';
-import { nodeTypeColors, nodeTypeIcons } from './mockGraphData';
+import type { NodeData, NodeType } from './mockGraphData';
+import { nodeTypeIcons } from './mockGraphData';
+import { getAttackGraphNodeTypeStyle } from './attackGraph/stylesheet';
 
 export type DetailValue =
   | string
@@ -32,6 +33,16 @@ interface NodeDetailPanelProps {
 
 const DETAIL_PANEL_WIDTH = 340;
 const DETAIL_PANEL_COLLAPSED_WIDTH = 252;
+
+const NODE_DETAIL_PANEL_TYPE_TO_GRAPH_RESOURCE_TYPE: Record<NodeType, string> = {
+  Pod: 'Pod',
+  ServiceAccount: 'ServiceAccount',
+  IAMRole: 'IAMRole',
+  S3Bucket: 'S3',
+};
+
+const getNodeDetailPanelAccentColor = (type: NodeType) =>
+  getAttackGraphNodeTypeStyle(NODE_DETAIL_PANEL_TYPE_TO_GRAPH_RESOURCE_TYPE[type]).backgroundColor;
 
 const getTextWrapStyle = (color: string): React.CSSProperties => ({
   color,
@@ -159,7 +170,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
 }) => {
   if (!node) return null;
 
-  const color = accentColor ?? nodeTypeColors[node.type];
+  const color = accentColor ?? getNodeDetailPanelAccentColor(node.type);
   const icon = iconOverride ?? nodeTypeIcons[node.type];
   const isDark = tone === 'dark';
   const cardBackground = isDark ? 'rgba(8, 15, 32, 0.76)' : '#ffffff';
