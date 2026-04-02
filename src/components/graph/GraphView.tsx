@@ -24,6 +24,8 @@ interface GraphViewProps {
   layout?: LayoutOptions;
   stylesheet?: Array<Record<string, unknown>>;
   viewportRefreshKey?: string;
+  initialFitPadding?: number;
+  minFitPadding?: number;
   onLayoutComplete?: (cy: cytoscape.Core) => void;
   focusNodeId?: string | null;
   focusRequestKey?: string | null;
@@ -160,11 +162,57 @@ const collectSelectedChain = (
   return { nodeDepths, edgeDepths };
 };
 
+const collectSelectedEdgeChain = (
+  cy: cytoscape.Core,
+  selectedEdgeId: string,
+): {
+  nodeDepths: Map<string, number>;
+  edgeDepths: Map<string, number>;
+} => {
+  const edge = cy.getElementById(selectedEdgeId);
+  if (edge.empty() || !edge.isEdge()) {
+    return {
+      nodeDepths: new Map<string, number>(),
+      edgeDepths: new Map<string, number>(),
+    };
+  }
+
+  const sourceNode = edge.source();
+  const targetNode = edge.target();
+  if (sourceNode.empty() || targetNode.empty()) {
+    return {
+      nodeDepths: new Map<string, number>(),
+      edgeDepths: new Map<string, number>(),
+    };
+  }
+
+  const sourceChain = collectSelectedChain(cy, sourceNode.id());
+  const targetChain = collectSelectedChain(cy, targetNode.id());
+  const nodeDepths = new Map<string, number>();
+  const edgeDepths = new Map<string, number>();
+
+  mergeDepth(nodeDepths, sourceChain.nodeDepths);
+  mergeDepth(nodeDepths, targetChain.nodeDepths);
+  mergeDepth(edgeDepths, sourceChain.edgeDepths);
+  mergeDepth(edgeDepths, targetChain.edgeDepths);
+
+  nodeDepths.delete(sourceNode.id());
+  nodeDepths.delete(targetNode.id());
+  edgeDepths.delete(selectedEdgeId);
+
+  return {
+    nodeDepths,
+    edgeDepths,
+  };
+};
+
 const GraphView: React.FC<GraphViewProps> = ({
   elements,
   layout = attackGraphDefaultLayout,
   stylesheet = attackGraphStylesheet,
   viewportRefreshKey,
+  initialFitPadding,
+  minFitPadding = MIN_FIT_PADDING,
   onLayoutComplete,
   focusNodeId,
   focusRequestKey,
@@ -456,9 +504,28 @@ const GraphView: React.FC<GraphViewProps> = ({
         if (selectedEdge) {
           const edge = cy.getElementById(selectedEdge);
           if (edge.nonempty()) {
+            const { nodeDepths, edgeDepths } = collectSelectedEdgeChain(cy, selectedEdge);
             cy.elements().addClass('context-dimmed');
             edge.removeClass('dimmed search-dimmed context-dimmed').addClass('selected-edge');
             edge.connectedNodes().removeClass('dimmed search-dimmed context-dimmed').addClass('selected-neighbor');
+
+            nodeDepths.forEach((depth, nodeId) => {
+              const chainNode = cy.getElementById(nodeId);
+              if (chainNode.nonempty()) {
+                chainNode
+                  .removeClass('dimmed search-dimmed context-dimmed')
+                  .addClass(`selected-chain-node ${getChainDepthClass(depth)}`);
+              }
+            });
+
+            edgeDepths.forEach((depth, edgeId) => {
+              const chainEdge = cy.getElementById(edgeId);
+              if (chainEdge.nonempty()) {
+                chainEdge
+                  .removeClass('dimmed search-dimmed context-dimmed')
+                  .addClass(`selected-chain-edge ${getChainDepthClass(depth)}`);
+              }
+            });
           }
         }
       });
@@ -652,7 +719,7 @@ const GraphView: React.FC<GraphViewProps> = ({
       layoutInstance.one('layoutstop', () => {
         isLayoutRunningRef.current = false;
         onLayoutComplete?.(cy);
-        cy.fit(undefined, Math.max(getLayoutPadding(layout), MIN_FIT_PADDING));
+        cy.fit(undefined, initialFitPadding ?? Math.max(getLayoutPadding(layout), minFitPadding));
 
         if (focusNodeId && focusRequestKey) {
           applyFocusHighlight(cy, focusNodeId, focusRequestKey);
@@ -686,7 +753,17 @@ const GraphView: React.FC<GraphViewProps> = ({
         resizeFrameRef.current = null;
       }
     };
-  }, [elements, layout, onLayoutComplete, viewportRefreshKey, focusNodeId, focusRequestKey, applyFocusHighlight]);
+  }, [
+    elements,
+    layout,
+    minFitPadding,
+    initialFitPadding,
+    onLayoutComplete,
+    viewportRefreshKey,
+    focusNodeId,
+    focusRequestKey,
+    applyFocusHighlight,
+  ]);
 
   useEffect(() => {
     const cy = cyRef.current;

@@ -9,7 +9,16 @@ import GraphView from '../components/graph/GraphView';
 import NodeDetailPanel from '../components/graph/NodeDetailPanel';
 import { attackGraphStylesheet } from '../components/graph/attackGraph';
 import { getAttackGraphEdgeVisualStyle, getAttackGraphNodeTypeStyle } from '../components/graph/attackGraph/stylesheet';
-import { ThreatTypeBadge, getThreatLabel, parseAttackPathNode, type AttackPathVisualNodeType } from '../components/graph/attackPathVisuals';
+import {
+  ThreatTypeBadge,
+  getNodeTypeMeta,
+  getRelationLabelStyle,
+  getRiskLevelSurfaceStyle,
+  getThreatLabel,
+  normalizeRiskLevel,
+  parseAttackPathNode,
+  type AttackPathVisualNodeType,
+} from '../components/graph/attackPathVisuals';
 import type {
   AttackPathDetailEnvelopeResponse,
   AttackPathDetailResponse,
@@ -46,7 +55,6 @@ interface EdgeDetailData {
 }
 
 type AttackPathPresentationMode = 'summary' | 'graph';
-type RiskTone = 'high' | 'medium' | 'low' | 'unknown';
 type HeroDetailPanelMode = 'node' | 'edge' | 'none';
 
 const EDGE_TYPE_KR: Record<string, string> = {
@@ -95,54 +103,13 @@ const toErrorMessage = (error: unknown, fallback: string) => {
 const isAttackPathDetailEnvelope = (value: unknown): value is AttackPathDetailEnvelopeResponse =>
   Boolean(value && typeof value === 'object' && 'cluster_id' in value);
 
-const getRiskTone = (riskLevel?: string | null): RiskTone => {
-  const normalized = riskLevel?.trim().toLowerCase();
-  if (normalized === 'critical' || normalized === 'high') return 'high';
-  if (normalized === 'medium') return 'medium';
-  if (normalized === 'low') return 'low';
-  return 'unknown';
-};
-
 const getRiskLabelKo = (riskLevel?: string | null) => {
-  const tone = getRiskTone(riskLevel);
-  if (tone === 'high') return '위험';
-  if (tone === 'medium') return '보통';
-  if (tone === 'low') return '낮음';
+  const normalized = normalizeRiskLevel(riskLevel);
+  if (normalized === 'critical') return '치명적';
+  if (normalized === 'high') return '위험';
+  if (normalized === 'medium') return '보통';
+  if (normalized === 'low') return '낮음';
   return '미확인';
-};
-
-const getRiskBadgeStyle = (riskLevel?: string | null) => {
-  const tone = getRiskTone(riskLevel);
-  if (tone === 'high') {
-    return {
-      background: 'rgba(239, 68, 68, 0.18)',
-      color: '#fecaca',
-      border: '1px solid rgba(248, 113, 113, 0.35)',
-      boxShadow: '0 0 18px rgba(239, 68, 68, 0.12)',
-    };
-  }
-  if (tone === 'medium') {
-    return {
-      background: 'rgba(245, 158, 11, 0.18)',
-      color: '#fde68a',
-      border: '1px solid rgba(245, 158, 11, 0.34)',
-      boxShadow: '0 0 18px rgba(245, 158, 11, 0.08)',
-    };
-  }
-  if (tone === 'low') {
-    return {
-      background: 'rgba(34, 197, 94, 0.18)',
-      color: '#bbf7d0',
-      border: '1px solid rgba(74, 222, 128, 0.28)',
-      boxShadow: '0 0 18px rgba(34, 197, 94, 0.08)',
-    };
-  }
-  return {
-    background: 'rgba(100, 116, 139, 0.16)',
-    color: '#cbd5e1',
-    border: '1px solid rgba(148, 163, 184, 0.22)',
-    boxShadow: 'none',
-  };
 };
 
 const toKoreanEdgeType = (value?: string | null) => {
@@ -196,12 +163,17 @@ const HERO_DETAIL_PANEL_EXPANDED_WIDTH = 392;
 const HERO_DETAIL_PANEL_COLLAPSED_WIDTH = 276;
 const HERO_DETAIL_PANEL_EXPANDED_HEIGHT = 420;
 const HERO_DETAIL_PANEL_COLLAPSED_HEIGHT = 78;
+const HERO_RIGHT_RAIL_GAP = 24;
 const HERO_SWAP_TRANSITION = '420ms cubic-bezier(0.22, 1, 0.36, 1)';
+const PATH_REVEAL_STEP_INTERVAL_MS = 150;
 
 const getDashboardPathPosition = (index: number) => ({
   x: index * DASHBOARD_PATH_X_STEP,
   y: DASHBOARD_PATH_Y_PATTERN[index % DASHBOARD_PATH_Y_PATTERN.length] ?? 0,
 });
+
+const getAttackPathDetailAnchorX = (cardWidth: number, overlayWidth: number) =>
+  Math.max(HERO_DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - HERO_DETAIL_PANEL_DEFAULT_RIGHT_MARGIN);
 
 const getOrderedPathSteps = (path: AttackPathDetailResponse): PathSequenceStep[] => {
   const orderedEdges = Array.isArray(path.edges)
@@ -264,6 +236,7 @@ const buildAttackPathGraphElements = (path: AttackPathDetailResponse): ElementDe
       isCrownJewel: nodeId === path.target_node_id,
       hasRuntimeEvidence: false,
       pathIndex: index,
+      pathRevealStage: index * 2,
       details: {
         node_id: nodeId,
         display_name: getNodeLastSegment(nodeId),
@@ -287,6 +260,7 @@ const buildAttackPathGraphElements = (path: AttackPathDetailResponse): ElementDe
       target: step.targetNodeId,
       relation: step.edge?.edge_type ?? 'path_step',
       label: toKoreanEdgeType(step.edge?.edge_type),
+      pathRevealStage: step.index * 2 + 1,
       reason: step.edge?.metadata && Object.keys(step.edge.metadata).length > 0 ? renderValue(step.edge.metadata) : undefined,
     },
   }));
@@ -294,7 +268,7 @@ const buildAttackPathGraphElements = (path: AttackPathDetailResponse): ElementDe
   return [...nodeElements, ...edgeElements];
 };
 
-const getAttackPathGraphStylesheet = (isGraphFrontMode: boolean) => [
+const getAttackPathGraphStylesheet = (isGraphFrontMode: boolean, pathRevealProgress: number) => [
   ...attackGraphStylesheet,
   {
     selector: 'node',
@@ -321,6 +295,31 @@ const getAttackPathGraphStylesheet = (isGraphFrontMode: boolean) => [
       'control-point-step-size': 34,
     },
   },
+  ...(isGraphFrontMode
+    ? [
+        {
+          selector: `node[pathRevealStage > ${pathRevealProgress}]`,
+          style: {
+            opacity: 0.06,
+            'text-opacity': 0,
+            'underlay-opacity': 0,
+            'shadow-opacity': 0,
+            'overlay-opacity': 0,
+          },
+        },
+        {
+          selector: `edge[pathRevealStage > ${pathRevealProgress}]`,
+          style: {
+            opacity: 0.04,
+            width: 0.9,
+            'text-opacity': 0,
+            'underlay-opacity': 0,
+            'shadow-opacity': 0,
+            'arrow-scale': 0.84,
+          },
+        },
+      ]
+    : []),
 ];
 
 const getHopAccent = (count?: number | null) => {
@@ -374,7 +373,7 @@ const DetailField: React.FC<{ label: string; value: React.ReactNode }> = ({ labe
 );
 
 const KoreanRiskBadge: React.FC<{ level?: string | null }> = ({ level }) => {
-  const style = getRiskBadgeStyle(level);
+  const style = getRiskLevelSurfaceStyle(level);
   return (
     <span
       className="d-inline-flex align-items-center justify-content-center"
@@ -394,73 +393,33 @@ const KoreanRiskBadge: React.FC<{ level?: string | null }> = ({ level }) => {
   );
 };
 
-const getAttackPathBadgeLabel = (type: AttackPathVisualNodeType) => {
-  switch (type) {
-    case 'pod':
-      return 'POD';
-    case 'service':
-      return 'SVC';
-    case 'ingress':
-      return 'ING';
-    case 'sa':
-      return 'SA';
-    case 'iam':
-      return 'IAM';
-    case 's3':
-      return 'S3';
-    case 'rds':
-      return 'RDS';
-    case 'cluster_role':
-      return 'CR';
-    case 'role':
-      return 'ROLE';
-    case 'secret':
-      return 'SECRET';
-    case 'node':
-      return 'NODE';
-    default:
-      return 'NODE';
+const getRevealAnimationStyle = (
+  active: boolean,
+  delayMs: number,
+  animationName: 'dg-attack-path-summary-enter' | 'dg-attack-path-chip-enter',
+): React.CSSProperties => {
+  if (!active) {
+    return {};
   }
-};
 
-const toAttackGraphColorType = (type: AttackPathVisualNodeType): string => {
-  switch (type) {
-    case 'pod':
-      return 'Pod';
-    case 'service':
-      return 'Service';
-    case 'ingress':
-      return 'Ingress';
-    case 'sa':
-      return 'ServiceAccount';
-    case 'iam':
-      return 'IAMRole';
-    case 's3':
-      return 'S3';
-    case 'rds':
-      return 'RDS';
-    case 'cluster_role':
-      return 'ClusterRole';
-    case 'role':
-      return 'Role';
-    case 'secret':
-      return 'Secret';
-    case 'node':
-      return 'Node';
-    default:
-      return 'Unknown';
-  }
+  return {
+    animationName,
+    animationDuration: '760ms',
+    animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    animationDelay: `${delayMs}ms`,
+    animationFillMode: 'both',
+  };
 };
 
 const AttackGraphAlignedTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> = ({ type }) => {
-  const accentColor = getAttackGraphNodeTypeStyle(toAttackGraphColorType(type)).backgroundColor;
+  const meta = getNodeTypeMeta(type);
 
   return (
     <span
       className="d-inline-flex align-items-center justify-content-center"
       style={{
-        background: accentColor,
-        color: '#eff6ff',
+        background: meta.background,
+        color: meta.color,
         fontSize: 11,
         fontWeight: 800,
         padding: '2px 7px',
@@ -468,10 +427,10 @@ const AttackGraphAlignedTypeBadge: React.FC<{ type: AttackPathVisualNodeType }> 
         letterSpacing: '0.05em',
         lineHeight: 1.2,
         minWidth: 38,
-        boxShadow: `0 0 18px ${accentColor}33`,
+        boxShadow: `0 0 18px ${meta.background}33`,
       }}
     >
-      {getAttackPathBadgeLabel(type)}
+      {meta.label}
     </span>
   );
 };
@@ -483,7 +442,7 @@ const AttackGraphAlignedNodeIdentity: React.FC<{
   showGlow?: boolean;
 }> = ({ value, compact = false, showThreat = false, showGlow = false }) => {
   const parsed = parseAttackPathNode(value);
-  const accentColor = getAttackGraphNodeTypeStyle(toAttackGraphColorType(parsed.type)).backgroundColor;
+  const meta = getNodeTypeMeta(parsed.type);
   const threatLabel = showThreat ? getThreatLabel(parsed.type) : null;
 
   return (
@@ -494,7 +453,7 @@ const AttackGraphAlignedNodeIdentity: React.FC<{
           ? {
               padding: '0.2rem 0.35rem',
               borderRadius: 12,
-              boxShadow: `0 0 24px ${accentColor}26`,
+              boxShadow: meta.glow,
             }
           : undefined
       }
@@ -547,7 +506,7 @@ const StepList: React.FC<{ path: AttackPathDetailResponse }> = ({ path }) => {
                     <AttackGraphAlignedTypeBadge type={sourceNode.type} />
                     <span className="fw-semibold text-break">{sourceNode.name}</span>
                   </div>
-                  <div className="small" style={{ color: '#fbbf24', fontWeight: 700 }}>
+                  <div className="small d-inline-flex align-items-center align-self-start" style={{ ...getRelationLabelStyle(step.edge?.edge_type), fontWeight: 700, borderRadius: 999, padding: '3px 8px', lineHeight: 1.2 }}>
                     {step.edge ? toKoreanEdgeType(step.edge.edge_type) : '연결'}
                   </div>
                   <div className="d-flex flex-wrap align-items-center gap-2" title={targetNode.raw}>
@@ -597,7 +556,14 @@ const EdgeList: React.FC<{ edges: AttackPathEdgeSequenceResponse[] }> = ({ edges
             <tr key={edge.edge_id}>
               <td>{edge.edge_index + 1}</td>
               <td className="text-break">{edge.edge_id}</td>
-              <td>{toKoreanEdgeType(edge.edge_type)}</td>
+              <td>
+                <span
+                  className="d-inline-flex align-items-center"
+                  style={{ ...getRelationLabelStyle(edge.edge_type), borderRadius: 999, padding: '3px 8px', fontWeight: 700, lineHeight: 1.2 }}
+                >
+                  {toKoreanEdgeType(edge.edge_type)}
+                </span>
+              </td>
               <td style={{ minWidth: 220 }}><AttackGraphAlignedNodeIdentity value={edge.source_node_id} compact showThreat /></td>
               <td style={{ minWidth: 220 }}><AttackGraphAlignedNodeIdentity value={edge.target_node_id} compact showThreat showGlow /></td>
             </tr>
@@ -624,6 +590,8 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
   const detailPanelDragOffsetRef = React.useRef<{ x: number; y: number } | null>(null);
   const detailPanelPositionRef = React.useRef(detailPanelPosition);
   const previousDetailPanelModeRef = React.useRef<HeroDetailPanelMode>('none');
+  const pathRevealTimeoutsRef = React.useRef<number[]>([]);
+  const [pathRevealProgress, setPathRevealProgress] = React.useState(Number.MAX_SAFE_INTEGER);
   const query = useGetAttackPathDetailApiV1ClustersClusterIdAttackPathsPathIdGet(clusterId, pathId, {
     query: {
       enabled: Boolean(clusterId && pathId),
@@ -641,7 +609,9 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
   const path = envelope?.path ?? null;
   const orderedEdges = Array.isArray(path?.edges) ? [...(path.edges ?? [])].sort((left, right) => left.edge_index - right.edge_index) : [];
   const edgeIds = Array.isArray(path?.edge_ids) ? path.edge_ids : [];
+  const orderedSteps = useMemo(() => (path ? getOrderedPathSteps(path) : []), [path]);
   const pathGraphElements = useMemo(() => (path ? buildAttackPathGraphElements(path) : []), [path]);
+  const hasPathGraph = pathGraphElements.length > 0;
 
   const selectedNodeLookup = useMemo(() => {
     const map = new Map<string, NodeData>();
@@ -696,7 +666,11 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     padding: 48,
   }), []);
   const isGraphFrontMode = presentationMode === 'graph';
-  const attackPathGraphStylesheet = useMemo(() => getAttackPathGraphStylesheet(isGraphFrontMode), [isGraphFrontMode]);
+  const pathRevealFinalProgress = Math.max(0, orderedSteps.length * 2);
+  const attackPathGraphStylesheet = useMemo(
+    () => getAttackPathGraphStylesheet(isGraphFrontMode, pathRevealProgress),
+    [isGraphFrontMode, pathRevealProgress],
+  );
   const detailPanelMode: HeroDetailPanelMode = !isGraphFrontMode
     ? 'none'
     : selectedNode
@@ -770,11 +744,11 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
         return nextPosition;
       }
 
-      const maxX = Math.max(HERO_DETAIL_PANEL_MIN_X, cardWidth - overlayWidth - HERO_DETAIL_PANEL_MIN_X);
+      const anchoredX = getAttackPathDetailAnchorX(cardWidth, overlayWidth);
       const maxY = Math.max(HERO_DETAIL_PANEL_MIN_Y, cardHeight - overlayHeight - HERO_DETAIL_PANEL_MIN_Y);
 
       return {
-        x: Math.min(Math.max(HERO_DETAIL_PANEL_MIN_X, nextPosition.x), maxX),
+        x: anchoredX,
         y: Math.min(Math.max(HERO_DETAIL_PANEL_MIN_Y, nextPosition.y), maxY),
       };
     },
@@ -841,7 +815,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     const overlayHeight = overlay?.offsetHeight ?? HERO_DETAIL_PANEL_EXPANDED_HEIGHT;
     const next = clampDetailPanelPosition(
       {
-        x: card.clientWidth - overlayWidth - HERO_DETAIL_PANEL_DEFAULT_RIGHT_MARGIN,
+        x: getAttackPathDetailAnchorX(card.clientWidth, overlayWidth),
         y: HERO_DETAIL_PANEL_DEFAULT_TOP,
       },
       {
@@ -946,6 +920,36 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     };
   }, [clampDetailPanelPosition]);
 
+  React.useEffect(() => {
+    pathRevealTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    pathRevealTimeoutsRef.current = [];
+
+    if (!hasPathGraph) {
+      setPathRevealProgress(0);
+      return;
+    }
+
+    if (!isGraphFrontMode) {
+      setPathRevealProgress(pathRevealFinalProgress);
+      return;
+    }
+
+    setPathRevealProgress(0);
+
+    for (let step = 1; step <= pathRevealFinalProgress; step += 1) {
+      const timeoutId = window.setTimeout(() => {
+        setPathRevealProgress(step);
+      }, PATH_REVEAL_STEP_INTERVAL_MS * step);
+
+      pathRevealTimeoutsRef.current.push(timeoutId);
+    }
+
+    return () => {
+      pathRevealTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      pathRevealTimeoutsRef.current = [];
+    };
+  }, [hasPathGraph, isGraphFrontMode, path?.path_id, pathRevealFinalProgress]);
+
   if (query.isLoading) {
     return <div className="container-fluid py-4"><div className="card border-0 shadow-sm"><div className="card-body py-5 text-center text-muted">공격 경로 상세 정보를 불러오는 중입니다...</div></div></div>;
   }
@@ -979,12 +983,12 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
 
   const entryNode = parseAttackPathNode(path.entry_node_id);
   const targetNode = parseAttackPathNode(path.target_node_id);
-  const orderedSteps = getOrderedPathSteps(path);
   const chainNodes: string[] = orderedSteps.length > 0
     ? [orderedSteps[0].sourceNodeId, ...orderedSteps.map((s) => s.targetNodeId)]
     : [path.entry_node_id, path.target_node_id].filter((value): value is string => Boolean(value));
-  const hasPathGraph = pathGraphElements.length > 0;
   const truncatedPathId = truncateMiddle(path.path_id, 52);
+  const summaryRevealActive = !isGraphFrontMode;
+  const fullAttackGraphHref = clusterId ? `/clusters/${clusterId}/graph?highlight=${encodeURIComponent(path.path_id)}` : '';
 
   const tid = path.target_node_id ?? '';
   const targetDangerLabel =
@@ -1007,6 +1011,11 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     t === 'restrict_iam_policy' ? 'IAM 정책 제한' :
     t;
   const shouldShowHeroDetailPanel = detailPanelMode !== 'none';
+  const heroReservedRightWidth = isGraphFrontMode
+    ? HERO_DETAIL_PANEL_EXPANDED_WIDTH + HERO_DETAIL_PANEL_DEFAULT_RIGHT_MARGIN + HERO_RIGHT_RAIL_GAP
+    : 220;
+  const heroLeftContentMaxWidth = `min(52rem, calc(100% - ${heroReservedRightWidth}px))`;
+  const heroLeftTitleMaxWidth = `min(44rem, calc(100% - ${heroReservedRightWidth}px))`;
   const heroGraphLayerStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -1059,14 +1068,14 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
-    maxWidth: isGraphFrontMode ? 'min(22rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    maxWidth: heroLeftContentMaxWidth,
     transition: `max-width ${HERO_SWAP_TRANSITION}`,
   };
   const heroTitleShellStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.5rem',
-    maxWidth: isGraphFrontMode ? 'min(20rem, 100%)' : 'min(44rem, 100%)',
+    maxWidth: heroLeftTitleMaxWidth,
     transition: `max-width ${HERO_SWAP_TRANSITION}`,
   };
   const heroPathChipStyle: React.CSSProperties = {
@@ -1081,7 +1090,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
     transition: `background ${HERO_SWAP_TRANSITION}, border-color ${HERO_SWAP_TRANSITION}, backdrop-filter ${HERO_SWAP_TRANSITION}, box-shadow ${HERO_SWAP_TRANSITION}`,
   };
   const heroStartTargetStyle: React.CSSProperties = {
-    maxWidth: isGraphFrontMode ? 'min(20rem, calc(100% - 1rem))' : 'min(52rem, 100%)',
+    maxWidth: heroLeftContentMaxWidth,
     background: isGraphFrontMode ? 'rgba(8, 15, 32, 0.12)' : 'rgba(8, 15, 32, 0.76)',
     border: isGraphFrontMode ? '1px solid rgba(248, 113, 113, 0.06)' : '1px solid rgba(248, 113, 113, 0.24)',
     boxShadow: isGraphFrontMode ? 'none' : '0 22px 38px rgba(2, 6, 23, 0.26)',
@@ -1142,6 +1151,49 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
 
   return (
     <div className="container-fluid py-4">
+      <style>{`
+        @keyframes dg-attack-path-summary-enter {
+          0% {
+            opacity: 0;
+            transform: translate3d(-30px, 0, 0) scale(0.96);
+            filter: blur(12px);
+            box-shadow: 0 0 0 rgba(96, 165, 250, 0);
+          }
+          38% {
+            opacity: 1;
+            transform: translate3d(-10px, 0, 0) scale(1.015);
+            filter: blur(0px);
+            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2), 0 0 28px rgba(96, 165, 250, 0.18);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: blur(0px);
+            box-shadow: 0 0 0 rgba(96, 165, 250, 0);
+          }
+        }
+
+        @keyframes dg-attack-path-chip-enter {
+          0% {
+            opacity: 0;
+            transform: translate3d(-24px, 0, 0) scale(0.95);
+            filter: blur(10px);
+            box-shadow: 0 0 0 0 rgba(248, 113, 113, 0);
+          }
+          34% {
+            opacity: 1;
+            transform: translate3d(-8px, 0, 0) scale(1.02);
+            filter: blur(0px);
+            box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.28), 0 0 26px rgba(248, 113, 113, 0.2);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: blur(0px);
+            box-shadow: 0 0 0 0 rgba(248, 113, 113, 0);
+          }
+        }
+      `}</style>
       <div className="dg-page-shell">
         <div className="dg-page-header">
           <div className="dg-page-heading">
@@ -1203,11 +1255,11 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
             ) : null}
             <div style={heroSummaryLayerStyle}>
               <div style={heroSummaryShellStyle}>
-                <div style={heroTitleShellStyle}>
+                <div style={{ ...heroTitleShellStyle, ...getRevealAnimationStyle(summaryRevealActive, 70, 'dg-attack-path-summary-enter') }}>
                   <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>공격 경로 상세</div>
                   <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3">
                     <h2 className="h3 mb-0 text-white">공격 경로 상세</h2>
-                    <code className="small text-break" style={heroPathChipStyle}>
+                    <code className="small text-break" style={{ ...heroPathChipStyle, ...getRevealAnimationStyle(summaryRevealActive, 170, 'dg-attack-path-chip-enter') }}>
                       {truncatedPathId}
                     </code>
                   </div>
@@ -1216,22 +1268,28 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                 </div>
 
                 <div className="d-flex flex-wrap align-items-start gap-3">
-                  <KoreanRiskBadge level={path.risk_level} />
-                  <DangerMetric
+                  <div style={getRevealAnimationStyle(summaryRevealActive, 250, 'dg-attack-path-summary-enter')}>
+                    <KoreanRiskBadge level={path.risk_level} />
+                  </div>
+                  <div style={getRevealAnimationStyle(summaryRevealActive, 360, 'dg-attack-path-summary-enter')}>
+                    <DangerMetric
                     label="위험도 점수"
                     surfaceStyle={heroMetricSurfaceStyle}
                     value={<span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: '#ffffff' }}>{formatRiskPercent(path.risk_score)}</span>}
-                  />
-                  <DangerMetric
+                    />
+                  </div>
+                  <div style={getRevealAnimationStyle(summaryRevealActive, 470, 'dg-attack-path-summary-enter')}>
+                    <DangerMetric
                     label="경유 단계"
                     accent={getHopAccent(path.hop_count)}
                     surfaceStyle={heroMetricSurfaceStyle}
                     value={<span style={{ fontSize: '1.7rem', fontWeight: 800, lineHeight: 1 }}>{`${path.hop_count ?? '-'} 단계`}</span>}
-                  />
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-4 p-4" style={heroStartTargetStyle}>
+              <div className="rounded-4 p-4" style={{ ...heroStartTargetStyle, ...getRevealAnimationStyle(summaryRevealActive, 590, 'dg-attack-path-summary-enter') }}>
                 <div className="d-flex flex-column gap-2">
                   <div className="small text-uppercase" style={{ color: '#fca5a5', letterSpacing: '0.08em' }}>시작 노드 및 목표 자산</div>
                   <div className="d-flex flex-wrap align-items-center gap-2 gap-lg-3 text-break">
@@ -1270,6 +1328,20 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                   경로 보기
                 </button>
               </div>
+              {isGraphFrontMode && clusterId ? (
+                <Link
+                  to={fullAttackGraphHref}
+                  className="btn btn-sm dg-dashboard-action-btn dg-dashboard-action-btn--secondary"
+                  style={{
+                    borderRadius: 999,
+                    border: '1px solid rgba(148, 163, 184, 0.22)',
+                    background: 'rgba(8, 15, 32, 0.74)',
+                    boxShadow: '0 16px 32px rgba(2, 6, 23, 0.24)',
+                  }}
+                >
+                  전체 공격경로 보기
+                </Link>
+              ) : null}
             </div>
             {shouldShowHeroDetailPanel ? (
               <div ref={detailPanelRef} style={heroDetailOverlayStyle}>
