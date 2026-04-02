@@ -54,6 +54,8 @@ const EMPTY_ATTACK_GRAPH: AttackGraphApiResponse = {
   edges: [],
   paths: [],
 };
+const ALLOWED_ATTACK_GRAPH_CLUSTER_LABELS = ['dg-eks-demo', 'k8s+image scanner'] as const;
+const ALLOWED_ATTACK_GRAPH_CLUSTER_SET = new Set<string>(ALLOWED_ATTACK_GRAPH_CLUSTER_LABELS);
 
 type SelectionMode = 'none' | 'path' | 'node' | 'edge';
 type AttackGraphInnerTab = 'graph' | 'attack-paths';
@@ -147,6 +149,11 @@ const toSearchTokens = (value?: string) =>
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean);
+
+const normalizeSearchParam = (value?: string | null) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
 
 const toSearchableString = (...values: Array<string | number | null | undefined>) =>
   values
@@ -273,6 +280,7 @@ interface AttackGraphContentProps {
   payload: AttackGraphApiResponse;
   filters: AttackGraphFilters;
   onFiltersChange: React.Dispatch<React.SetStateAction<AttackGraphFilters>>;
+  selectedPathIdFromUrl?: string | null;
   highlightName?: string | null;
   onClearHighlight?: () => void;
   emptyStateTitle?: string;
@@ -602,6 +610,7 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   payload,
   filters,
   onFiltersChange,
+  selectedPathIdFromUrl,
   highlightName,
   onClearHighlight,
   emptyStateTitle = '공격 그래프 데이터가 없습니다.',
@@ -800,12 +809,36 @@ const AttackGraphContent: React.FC<AttackGraphContentProps> = ({
   const filteredElements = useMemo(() => toAttackGraphElements(renderedGraph), [renderedGraph]);
   const hasRenderableGraph = renderedGraph.nodes.length > 0 || renderedGraph.edges.length > 0;
   const hasAttackPaths = attackPaths.length > 0;
+  const requestedSelectedPathId = normalizeSearchParam(selectedPathIdFromUrl);
   const visibleNodeIds = useMemo(() => new Set(renderedGraph.nodes.map((node) => node.id)), [renderedGraph.nodes]);
   const visibleEdgeIds = useMemo(() => new Set(renderedGraph.edges.map((edge) => edge.id)), [renderedGraph.edges]);
-  const validPathIds = useMemo(() => new Set(attackPaths.map((path) => path.id)), [attackPaths]);
-  const resolvedSelectedPathId = hasAttackPaths && selectedPathId && validPathIds.has(selectedPathId) ? selectedPathId : null;
-  const resolvedSelectedNodeId = selectedNodeId && visibleNodeIds.has(selectedNodeId) ? selectedNodeId : null;
-  const resolvedSelectedEdgeId = selectedEdgeId && visibleEdgeIds.has(selectedEdgeId) ? selectedEdgeId : null;
+  const resolvedAttackPathIds = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const path of attackPaths) {
+      map.set(path.id, path.id);
+
+      const rawPathId =
+        typeof path.raw.path_id === 'string' && path.raw.path_id.trim() ? path.raw.path_id.trim() : null;
+
+      if (rawPathId) {
+        map.set(rawPathId, path.id);
+      }
+    }
+
+    return map;
+  }, [attackPaths]);
+  const resolvedUrlSelectedPathId =
+    hasAttackPaths && requestedSelectedPathId
+      ? resolvedAttackPathIds.get(requestedSelectedPathId) ?? null
+      : null;
+  const resolvedLocalSelectedPathId =
+    hasAttackPaths && selectedPathId ? resolvedAttackPathIds.get(selectedPathId) ?? null : null;
+  const resolvedSelectedPathId = resolvedUrlSelectedPathId ?? resolvedLocalSelectedPathId;
+  const resolvedSelectedNodeId =
+    resolvedUrlSelectedPathId || !selectedNodeId || !visibleNodeIds.has(selectedNodeId) ? null : selectedNodeId;
+  const resolvedSelectedEdgeId =
+    resolvedUrlSelectedPathId || !selectedEdgeId || !visibleEdgeIds.has(selectedEdgeId) ? null : selectedEdgeId;
   const selectedMode: SelectionMode = resolvedSelectedNodeId
     ? 'node'
     : resolvedSelectedEdgeId
@@ -1492,6 +1525,7 @@ const AttackGraphPage: React.FC = () => {
   const [liveFilters, setLiveFilters] = useState<AttackGraphFilters>({});
   const [selectedClusterId, setSelectedClusterId] = useState(routeClusterId);
   const activeTab = resolveAttackGraphInnerTab(searchParams.get('tab'));
+  const selectedPathIdFromUrl = searchParams.get('selectedPathId');
   const highlightName = searchParams.get('highlight');
   const handleTabChange = useCallback((nextTab: AttackGraphInnerTab) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -1519,10 +1553,31 @@ const AttackGraphPage: React.FC = () => {
   } = useListClustersApiV1ClustersGet();
   const clusters = useMemo(
     () =>
-      (Array.isArray(clustersResponse) ? clustersResponse : []).map((cluster) => ({
-        id: cluster.id,
-        name: cluster.name,
-      })),
+      (Array.isArray(clustersResponse) ? clustersResponse : [])
+        .filter((cluster) => {
+          const clusterId = typeof cluster.id === 'string' ? cluster.id.trim() : '';
+          const clusterName = typeof cluster.name === 'string' ? cluster.name.trim() : '';
+
+          return (
+            ALLOWED_ATTACK_GRAPH_CLUSTER_SET.has(clusterId) ||
+            ALLOWED_ATTACK_GRAPH_CLUSTER_SET.has(clusterName)
+          );
+        })
+        .map((cluster) => {
+          const clusterId = cluster.id.trim();
+          const clusterName = cluster.name.trim();
+          const displayName =
+            ALLOWED_ATTACK_GRAPH_CLUSTER_SET.has(clusterName)
+              ? clusterName
+              : ALLOWED_ATTACK_GRAPH_CLUSTER_SET.has(clusterId)
+              ? clusterId
+              : cluster.name;
+
+          return {
+            id: clusterId,
+            name: displayName,
+          };
+        }),
     [clustersResponse],
   );
 
@@ -1654,6 +1709,7 @@ const AttackGraphPage: React.FC = () => {
           payload={livePayload}
           filters={liveFilters}
           onFiltersChange={setLiveFilters}
+          selectedPathIdFromUrl={selectedPathIdFromUrl}
           highlightName={highlightName}
           onClearHighlight={clearHighlight}
           liveSummary={livePayload.summary ?? null}
