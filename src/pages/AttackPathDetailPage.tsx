@@ -986,9 +986,20 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
   const chainNodes: string[] = orderedSteps.length > 0
     ? [orderedSteps[0].sourceNodeId, ...orderedSteps.map((s) => s.targetNodeId)]
     : [path.entry_node_id, path.target_node_id].filter((value): value is string => Boolean(value));
+  const attackPathStartNodeId =
+    orderedSteps.find((step) => step.sourceNodeId?.trim())?.sourceNodeId?.trim() ??
+    path.node_ids?.find((nodeId) => typeof nodeId === 'string' && nodeId.trim())?.trim() ??
+    path.entry_node_id?.trim() ??
+    '';
   const truncatedPathId = truncateMiddle(path.path_id, 52);
   const summaryRevealActive = !isGraphFrontMode;
-  const fullAttackGraphHref = clusterId ? `/clusters/${clusterId}/graph?highlight=${encodeURIComponent(path.path_id)}` : '';
+  const fullAttackGraphHref = clusterId
+    ? attackPathStartNodeId
+      ? `/clusters/${clusterId}/graph?${new URLSearchParams({
+          highlight: attackPathStartNodeId,
+        }).toString()}`
+      : `/clusters/${clusterId}/graph`
+    : '';
 
   const tid = path.target_node_id ?? '';
   const targetDangerLabel =
@@ -1339,7 +1350,7 @@ const AttackPathDetailPage: React.FC<{ matchedRemediation?: MatchedRemediationIt
                     boxShadow: '0 16px 32px rgba(2, 6, 23, 0.24)',
                   }}
                 >
-                  전체 공격경로 보기
+                  시작지점 보기
                 </Link>
               ) : null}
             </div>
